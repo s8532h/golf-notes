@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f4f3ed"><title>Golf Notes｜メモ一覧</title>
+<style>
+:root{--bg:#f3f4ee;--paper:#fffefa;--ink:#26342c;--muted:#748078;--green:#3f6b52;--line:#e4e7de;--soft:#edf3ec;--shadow:0 5px 18px #2034260a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;line-height:1.6;font-size:15px}
+header{padding:24px 16px 19px;background:linear-gradient(145deg,#e5eee4,#f3f4ee);border-bottom:1px solid var(--line)}
+.wrap{width:min(100% - 24px,820px);margin:0 auto}
+.kicker{font-size:10px;letter-spacing:.17em;color:var(--green);font-weight:800}
+h1{font-size:25px;line-height:1.2;margin:6px 0 5px;letter-spacing:.01em}
+.sub{font-size:12px;color:#68756c;margin:0}
+main{padding:13px 0 36px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:17px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+h2{font-size:16px;margin:0 0 11px}
+.small{font-size:11px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.stat{background:#f4f6ef;border-radius:12px;padding:10px 5px;text-align:center;min-width:0}
+.stat b{display:block;color:var(--green);font-size:19px;line-height:1.25;white-space:nowrap}
+.stat span{display:block;font-size:10px;color:var(--muted);margin-top:4px}
+input{display:block;width:100%;min-width:0;border:1px solid #d9dfd5;border-radius:12px;padding:13px 13px;background:#fff;color:var(--ink);font:inherit;font-size:16px;margin:8px 0 11px;outline:none}
+input:focus{border-color:var(--green);box-shadow:0 0 0 3px #3f6b5218}
+.filters{display:flex;gap:7px;flex-wrap:nowrap;overflow-x:auto;padding:2px 1px 9px;margin:4px -2px 8px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:#fffefa;border-radius:22px;padding:9px 13px;min-height:38px;font-size:12px;color:var(--ink);white-space:nowrap}
+.chip.active{background:var(--green);color:white;border-color:var(--green)}
+.group-title{font-size:13px;font-weight:800;margin:16px 0 7px;color:var(--green);display:flex;align-items:center;gap:7px}
+.group-title:after{content:"";height:1px;background:var(--line);flex:1}
+.item{background:#fff;border:1px solid var(--line);border-radius:13px;margin:7px 0;overflow:hidden}
+.item-head{display:flex;align-items:center;gap:10px;padding:12px 11px;width:100%;min-height:60px;border:0;background:transparent;text-align:left;color:inherit}
+.num{width:29px;height:29px;display:grid;place-items:center;border-radius:10px;background:var(--soft);color:var(--green);font-size:10px;font-weight:800;flex:0 0 29px}
+.item-main{min-width:0;flex:1}
+.item-title{display:block;font-size:13px;line-height:1.45;font-weight:750;overflow-wrap:anywhere}
+.item-meta{display:block;font-size:10px;color:var(--muted);margin-top:4px}
+.chev{color:#718174;font-size:19px;line-height:1;padding:0 3px}
+.detail{display:none;border-top:1px solid var(--line);padding:12px 13px 14px;font-size:13px}
+.item.open .detail{display:block}
+.detail p{margin:5px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.next{background:#f1f5ef;padding:10px 11px;border-radius:10px;color:#506a57;font-size:12px;margin-top:10px}
+.tag{display:inline-block;font-size:10px;padding:4px 9px;border-radius:20px;background:var(--soft);color:var(--green);margin-bottom:6px}
+.empty{padding:18px 3px;color:var(--muted);font-size:13px} button{font-family:inherit;cursor:pointer} label{display:block}
+.foot{font-size:10px;color:#858e87;text-align:center;padding:12px 4px 22px}
+@media(min-width:650px){
+ body{font-size:15px}
+ header{padding:32px 18px 25px}
+ .wrap{width:min(100% - 36px,820px)}
+ main{padding-top:18px}
+ .panel{padding:18px}
+ .stats{max-width:520px}
+ .item-head{padding:13px 14px}
+ .item-title{font-size:14px}
+}
+@media(prefers-reduced-motion:no-preference){.item .detail{animation:reveal .16s ease-out}@keyframes reveal{from{opacity:.4;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}}
+</style></head><body>
+<header><div class="wrap"><div class="kicker">MY GOLF JOURNAL</div><h1>Golf Notes</h1><p class="sub">過去の気づきを、いつでも見返せるメモ一覧。</p></div></header>
+<main class="wrap">
+<section class="panel"><h2>これまでのゴルフ記録</h2><div class="stats"><div class="stat"><b id="total">—</b><span>メモ件数</span></div><div class="stat"><b>ラウンド</b><span>記録・分析</span></div><div class="stat"><b>同期</b><span>端末間共有</span></div></div><p class="small">スマホで見やすいカード形式。タイトルをタップすると、当時の相談内容と次に試すことが開きます。</p></section>
+<section class="panel"><h2>メモ一覧</h2><input id="search" placeholder="タイトル・内容を検索（例：右ミス、5U、パター）"><div class="filters" id="filters"></div><div id="listing"></div></section>
+
+
+
+<section class="panel" id="add-panel">
+  <h2>新しいメモを追加</h2>
+  <p class="small">追加したメモはこの端末に保存されます。クラウド同期を設定するとMac・iPhone間で共有できます。</p>
+  <form id="memoForm">
+    <label class="small" for="memoTitle">タイトル</label>
+    <input id="memoTitle" required maxlength="80" placeholder="例：7番アイアンの右ミス改善">
+    <label class="small" for="memoCategory">カテゴリー</label>
+    <select id="memoCategory" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;background:#fff;color:var(--ink);font:inherit;font-size:16px;margin:8px 0 11px">
+      <option>スイング・球筋</option><option>スコア・成長記録</option><option>クラブセッティング</option><option>飛距離・計測</option><option>計測・練習環境</option><option>パター・ショートゲーム</option><option>練習メニュー</option><option>ラウンド・コース</option><option>会員権・ゴルフ場</option><option>ボール・用品</option><option>その他</option>
+    </select>
+    <label class="small" for="memoDate">日付</label>
+    <input id="memoDate" type="date">
+    <label class="small" for="memoBody">内容</label>
+    <textarea id="memoBody" required rows="4" placeholder="相談内容・気づき・ラウンド結果など" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;background:#fff;color:var(--ink);font:inherit;font-size:16px;margin:8px 0 11px;resize:vertical"></textarea>
+    <label class="small" for="memoNext">次に試すこと（任意）</label>
+    <textarea id="memoNext" rows="3" placeholder="次回の練習で意識すること" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;background:#fff;color:var(--ink);font:inherit;font-size:16px;margin:8px 0 11px;resize:vertical"></textarea>
+    <button class="chip active" type="submit" style="width:100%;min-height:46px;font-size:14px">メモを保存する</button>
+  </form>
+</section>
+
+<section class="panel" id="round-panel">
+  <h2>ラウンド記録</h2>
+  <p class="small">スコア・パット・OBなどを記録して、プレーの傾向を確認できます。</p>
+  <form id="roundForm">
+    <label class="small" for="roundDate">プレー日</label><input id="roundDate" type="date" required>
+    <label class="small" for="courseName">ゴルフ場</label><input id="courseName" maxlength="80" placeholder="例：東千葉カントリークラブ" required>
+    <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><label class="small" for="roundScore">スコア</label><input id="roundScore" type="number" min="50" max="180" required placeholder="96"></div>
+      <div><label class="small" for="roundPutts">パット数</label><input id="roundPutts" type="number" min="0" max="80" placeholder="36"></div>
+      <div><label class="small" for="roundOb">OB・ペナルティ</label><input id="roundOb" type="number" min="0" max="30" placeholder="2"></div>
+      <div><label class="small" for="roundFairway">FWキープ数</label><input id="roundFairway" type="number" min="0" max="14" placeholder="6"></div>
+    </div>
+    <label class="small" for="roundGIR">パーオン数（GIR）</label><input id="roundGIR" type="number" min="0" max="18" placeholder="5">
+    <label class="small" for="roundMemo">振り返り</label><textarea id="roundMemo" rows="3" placeholder="良かった点・課題・次回意識すること" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;font:inherit;margin:8px 0 11px"></textarea>
+    <button class="chip active" type="submit" style="width:100%;min-height:46px">ラウンドを保存</button>
+  </form>
+</section>
+<section class="panel" id="analysis-panel">
+  <h2>スコア分析</h2>
+  <div class="stats">
+    <div class="stat"><b id="roundCount">0</b><span>ラウンド数</span></div>
+    <div class="stat"><b id="avgScore">—</b><span>平均スコア</span></div>
+    <div class="stat"><b id="bestScore">—</b><span>ベスト</span></div>
+  </div>
+  <div id="scoreChart" style="margin-top:14px"></div>
+  <div id="roundList" style="margin-top:12px"></div>
+  <p class="small">スコア記録は日付順に表示。平均・ベストは記録済みラウンドから計算します。</p>
+</section>
+<div class="panel" id="edit-panel" hidden>
+  <h2>メモを編集</h2>
+  <input id="editTitle" maxlength="80" placeholder="タイトル">
+  <select id="editCategory" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;font:inherit;margin:8px 0 11px"></select>
+  <input id="editDate" type="date">
+  <textarea id="editBody" rows="5" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;font:inherit;margin:8px 0 11px"></textarea>
+  <textarea id="editNext" rows="3" placeholder="次に試すこと" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;font:inherit;margin:8px 0 11px"></textarea>
+  <button class="chip active" id="saveEdit" type="button">変更を保存</button>
+  <button class="chip" id="cancelEdit" type="button">キャンセル</button>
+</div>
+
+<section class="panel">
+  <h2>バックアップ・復元</h2>
+  <p class="small">追加したメモをJSONファイルに書き出せます。クラウド同期を使わない場合は、機種変更前にバックアップしてください。</p>
+  <button class="chip" id="exportBtn" type="button">メモをバックアップ</button>
+  <label class="chip" for="importFile" style="display:inline-flex;align-items:center;min-height:38px;margin-left:5px">バックアップを読み込む</label>
+  <input id="importFile" type="file" accept="application/json,.json" style="display:none">
+  <p class="small" id="backupStatus" aria-live="polite"></p>
+</section>
+
+
+<section class="panel" id="sync-panel">
+  <h2>Mac・iPhone間のクラウド同期</h2>
+  <p class="small">Supabaseの無料枠を使った同期機能です。初回だけ接続設定が必要です。同期を設定するまでは、今まで通りこの端末内だけに保存されます。</p>
+  <details style="margin:10px 0">
+    <summary style="font-weight:700;cursor:pointer;padding:8px 0">同期の接続設定</summary>
+    <label class="small" for="supabaseUrl">Supabase Project URL</label>
+    <input id="supabaseUrl" type="url" placeholder="https://xxxx.supabase.co" autocomplete="url">
+    <label class="small" for="supabaseKey">Supabase anon / publishable key</label>
+    <input id="supabaseKey" type="password" placeholder="公開用キー（service_roleキーは絶対に入力しない）" autocomplete="off">
+    <button class="chip" id="saveSyncConfig" type="button">接続設定を保存</button>
+    <p class="small">接続設定はこのブラウザに保存されます。MacとiPhoneの両方で一度ずつ入力してください。</p>
+  </details>
+  <label class="small" for="syncEmail">同期用メールアドレス</label>
+  <input id="syncEmail" type="email" placeholder="メールアドレス" autocomplete="username">
+  <label class="small" for="syncPassword">パスワード</label>
+  <input id="syncPassword" type="password" placeholder="Supabaseアカウント用パスワード" autocomplete="current-password">
+  <div style="display:flex;gap:7px;flex-wrap:wrap;margin:8px 0">
+    <button class="chip active" id="signUpBtn" type="button">アカウント作成</button>
+    <button class="chip" id="signInBtn" type="button">ログイン</button>
+    <button class="chip" id="syncNowBtn" type="button">今すぐ同期</button>
+    <button class="chip" id="signOutBtn" type="button">ログアウト</button>
+  </div>
+  <p class="small" id="syncStatus" aria-live="polite">同期は未設定です。</p>
+</section>
+
+<div class="foot">過去の会話から整理した記録です。時期が不明なものは「時期未登録」としています。</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const key="golfNotes_archive_v2";
+function makeId(){return (crypto&&crypto.randomUUID)?crypto.randomUUID():"gn-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,10)}
+let saved=[];try{saved=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(saved))saved=[]}catch(e){}
+saved=saved.map(n=>({...n,id:n.id||makeId()}));
+try{localStorage.setItem(key,JSON.stringify(saved));}catch(e){}
+function buildAll(){
+ return saved.filter(n=>n.type!=="round"&&n.type!=="deleted");
+}
+let all=buildAll();
+const cats=["すべて",...new Set(all.map(n=>n.category))];let current="すべて";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+document.getElementById("total").textContent=all.length;
+function drawFilters(){document.getElementById("filters").innerHTML=cats.map(c=>`<button class="chip ${c===current?"active":""}" data-c="${esc(c)}">${esc(c)}</button>`).join("");document.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{current=b.dataset.c;drawFilters();draw()})}
+function draw(){let q=document.getElementById("search").value.toLowerCase();let filtered=all.filter(n=>(current==="すべて"||n.category===current)&&[n.title,n.body,n.next,n.category,n.date,n.tag].join(" ").toLowerCase().includes(q));let groups={};filtered.forEach(n=>(groups[n.category]??=[]).push(n));let html="";let i=0;Object.entries(groups).forEach(([cat,items])=>{html+=`<div class="group-title">${esc(cat)} <span class="small">(${items.length})</span></div>`;items.forEach(n=>{i++;html+=`<article class="item"><button class="item-head" aria-expanded="false"><span class="num">${String(i).padStart(2,"0")}</span><span class="item-main"><span class="item-title">${esc(n.title)}</span><span class="item-meta">${esc(n.date||"時期未登録")}　・　${esc(n.tag||"メモ")}</span></span><span class="chev">＋</span></button><div class="detail"><span class="tag">${esc(n.tag||"記録")}</span><p>${esc(n.body)}</p>${n.next?`<div class="next">次に試すこと：${esc(n.next)}</div>`:""}<button class="chip edit-memo" data-edit="${esc(n.id)}" type="button" style="margin-top:10px">このメモを編集</button> <button class="chip delete-memo" data-delete="${esc(n.id)}" type="button" style="margin-top:10px;color:#a33;border-color:#e7caca">このメモを削除</button></div></article>`})});document.getElementById("listing").innerHTML=html||'<div class="empty">該当するメモがありません。別のキーワードを試してみてね。</div>';document.querySelectorAll(".item-head").forEach(b=>b.onclick=()=>{let item=b.closest(".item");item.classList.toggle("open");b.setAttribute("aria-expanded",item.classList.contains("open"));b.querySelector(".chev").textContent=item.classList.contains("open")?"−":"＋"});
+document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEditor(b.dataset.edit));
+document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>deleteRecord(b.dataset.delete))
+}
+
+document.getElementById("search").addEventListener("input",draw);drawFilters();draw();
+const categories=[...new Set(all.map(n=>n.category).filter(Boolean))];
+let editingId=null;
+function deleteRecord(id){
+ const target=all.find(n=>n.id===id)||saved.find(n=>n.id===id);
+ if(!target)return;
+ if(!confirm(`「${target.title||target.course||"この記録"}」を削除しますか？\n同期後はMac・iPhoneの両方から削除されます。`))return;
+ saved=saved.filter(n=>n.id!==id);
+ saved.push({id,type:"deleted",deletedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+ persistSaved();
+ document.getElementById("backupStatus").textContent="削除を保存しました。ほかの端末にも反映するには「今すぐ同期」を押してください。";
+}
+function persistSaved(){localStorage.setItem(key,JSON.stringify(saved));all=buildAll();document.getElementById("total").textContent=all.length;drawFilters();draw();renderRounds();}
+function openEditor(id){
+ const n=all.find(x=>x.id===id);if(!n)return;
+ editingId=id;
+ document.getElementById("editTitle").value=n.title||"";
+ document.getElementById("editCategory").innerHTML=[...new Set([...categories,n.category])].map(c=>`<option ${c===n.category?"selected":""}>${esc(c)}</option>`).join("");
+ document.getElementById("editDate").value=/^\d{4}-\d{2}-\d{2}$/.test(n.date||"")?n.date:"";
+ document.getElementById("editBody").value=n.body||"";
+ document.getElementById("editNext").value=n.next||"";
+ const p=document.getElementById("edit-panel");p.hidden=false;p.scrollIntoView({behavior:"smooth",block:"start"});
+}
+document.getElementById("cancelEdit").onclick=()=>{document.getElementById("edit-panel").hidden=true;editingId=null;};
+document.getElementById("saveEdit").onclick=()=>{
+ if(!editingId)return;
+ const original=all.find(n=>n.id===editingId);if(!original)return;
+ const updated={...original,title:document.getElementById("editTitle").value.trim(),category:document.getElementById("editCategory").value,date:document.getElementById("editDate").value||original.date,body:document.getElementById("editBody").value.trim(),next:document.getElementById("editNext").value.trim(),updatedAt:new Date().toISOString()};
+ if(!updated.title||!updated.body){alert("タイトルと内容を入力してください。");return;}
+ const idx=saved.findIndex(n=>n.id===editingId);
+ if(idx>=0)saved[idx]=updated;else saved.unshift(updated);
+ persistSaved();document.getElementById("edit-panel").hidden=true;editingId=null;
+ document.getElementById("backupStatus").textContent="変更をこの端末に保存しました。同期するには「今すぐ同期」を押してください。";
+};
+const roundForm=document.getElementById("roundForm");
+roundForm.addEventListener("submit",e=>{
+ e.preventDefault();
+ const round={id:makeId(),type:"round",category:"ラウンド記録",tag:"ラウンド",date:document.getElementById("roundDate").value,course:document.getElementById("courseName").value.trim(),score:+document.getElementById("roundScore").value,putts:+document.getElementById("roundPutts").value||null,ob:+document.getElementById("roundOb").value||0,fairway:+document.getElementById("roundFairway").value||null,gir:+document.getElementById("roundGIR").value||null,body:document.getElementById("roundMemo").value.trim(),next:""};
+ saved.unshift(round);persistSaved();roundForm.reset();
+ document.getElementById("backupStatus").textContent="ラウンド記録を保存しました。同期するには「今すぐ同期」を押してください。";
+});
+function renderRounds(){
+ const rounds=saved.filter(n=>n.type==="round").sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+ const scores=rounds.map(r=>r.score).filter(Number.isFinite);
+ document.getElementById("roundCount").textContent=rounds.length;
+ document.getElementById("avgScore").textContent=scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1):"—";
+ document.getElementById("bestScore").textContent=scores.length?Math.min(...scores):"—";
+ const chart=document.getElementById("scoreChart");
+ if(rounds.length){
+   const recent=rounds.slice(0,10).reverse();const min=Math.min(90,...recent.map(r=>r.score));const max=Math.max(100,...recent.map(r=>r.score));const span=Math.max(1,max-min);
+   chart.innerHTML='<div class="small" style="margin-bottom:6px">直近10ラウンド（棒が短いほど好スコア）</div>'+recent.map(r=>`<div style="display:grid;grid-template-columns:88px 1fr 34px;gap:7px;align-items:center;margin:7px 0"><span class="small">${esc((r.date||"").slice(5))}</span><div style="height:10px;background:#edf3ec;border-radius:8px;overflow:hidden"><div style="height:100%;width:${Math.max(4,(r.score-min+1)/span*100)}%;background:#3f6b52;border-radius:8px"></div></div><b style="font-size:12px">${r.score}</b></div>`).join("");
+ }else chart.innerHTML='<div class="empty">ラウンドを登録すると、スコア推移がここに表示されます。</div>';
+ document.getElementById("roundList").innerHTML=rounds.map(r=>`<div class="item" style="padding:10px 12px"><b>${esc(r.course)}</b><div class="item-meta">${esc(r.date)} ・ ${r.score}打${r.putts!=null?" ・ "+r.putts+"パット":""}${r.ob!=null?" ・ OB等 "+r.ob:""}</div>${r.body?`<p class="small">${esc(r.body)}</p>`:""}<button class="chip" data-delete-round="${esc(r.id)}" type="button" style="margin-top:8px;color:#a33;border-color:#e7caca">このラウンドを削除</button></div>`).join("");
+ document.querySelectorAll("[data-delete-round]").forEach(b=>b.onclick=()=>deleteRecord(b.dataset.deleteRound));
+}
+renderRounds();
+
+
+const memoForm=document.getElementById("memoForm");
+memoForm.addEventListener("submit",e=>{
+  e.preventDefault();
+  const title=document.getElementById("memoTitle").value.trim();
+  const body=document.getElementById("memoBody").value.trim();
+  if(!title||!body)return;
+  const entry={
+    id:makeId(),
+    date:document.getElementById("memoDate").value||new Date().toISOString().slice(0,10),
+    category:document.getElementById("memoCategory").value,
+    title,tag:"追加メモ",body,
+    next:document.getElementById("memoNext").value.trim()
+  };
+  saved.unshift(entry);
+  try{localStorage.setItem(key,JSON.stringify(saved));}
+  catch(err){saved.shift();alert("保存できませんでした。ブラウザの空き容量やプライベートブラウズ設定を確認してください。");return;}
+  all.unshift(entry);
+  document.getElementById("total").textContent=all.length;
+  if(!cats.includes(entry.category))cats.push(entry.category);
+  current="すべて";drawFilters();draw();memoForm.reset();
+  document.getElementById("backupStatus").textContent="メモをこの端末に保存しました。同期設定済みなら「今すぐ同期」を押してください。";
+  document.getElementById("search").value="";
+});
+document.getElementById("exportBtn").addEventListener("click",()=>{
+  const payload={app:"Golf Notes",version:2,exportedAt:new Date().toISOString(),notes:saved};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");
+  a.href=url;a.download="golf_notes_backup.json";a.click();URL.revokeObjectURL(url);
+  document.getElementById("backupStatus").textContent="追加メモのバックアップを書き出しました。";
+});
+document.getElementById("importFile").addEventListener("change",async e=>{
+  const file=e.target.files&&e.target.files[0];if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());
+    const incoming=Array.isArray(data)?data:data.notes;
+    if(!Array.isArray(incoming))throw new Error("invalid");
+    const merged=[...saved];
+    for(const n of incoming){
+      if(n&&n.title&&n.body&&!merged.some(x=>x.title===n.title&&x.body===n.body))merged.push(n);
+    }
+    localStorage.setItem(key,JSON.stringify(merged));
+    saved=merged;
+    location.reload();
+  }catch(err){document.getElementById("backupStatus").textContent="読み込めませんでした。Golf NotesのJSONバックアップを選んでください。";}
+  e.target.value="";
+});
+
+
+// ---- Optional cross-device sync (Supabase; user-owned free project) ----
+const syncConfigKey="golfNotes_supabase_config_v1";
+let supabaseClient=null;
+function syncMsg(msg){const el=document.getElementById("syncStatus");if(el)el.textContent=msg;}
+function readSyncConfig(){try{return JSON.parse(localStorage.getItem(syncConfigKey)||"{}")}catch(e){return {}}}
+function initSyncConfig(){
+  const c=readSyncConfig();
+  document.getElementById("supabaseUrl").value=c.url||"";
+  document.getElementById("supabaseKey").value=c.key||"";
+  if(c.url&&c.key&&window.supabase?.createClient){
+    supabaseClient=window.supabase.createClient(c.url,c.key);
+    supabaseClient.auth.getSession().then(({data})=>{
+      syncMsg(data.session?"同期アカウントにログイン中です。「今すぐ同期」で同期できます。":"接続設定済みです。メールアドレスとパスワードでログインしてください。");
+    });
+  } else {
+    syncMsg("同期は未設定です。下の「同期の接続設定」から設定できます。");
+  }
+}
+document.getElementById("saveSyncConfig").addEventListener("click",()=>{
+  const url=document.getElementById("supabaseUrl").value.trim().replace(/\/$/,"");
+  const keyValue=document.getElementById("supabaseKey").value.trim();
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!keyValue){
+    syncMsg("Project URLとanon / publishable keyを正しく入力してください。service_roleキーは使用禁止です。");return;
+  }
+  localStorage.setItem(syncConfigKey,JSON.stringify({url,key:keyValue}));
+  initSyncConfig();
+  syncMsg("接続設定を保存しました。アカウント作成またはログインしてください。");
+});
+function getClient(){
+  if(!supabaseClient)throw new Error("先にSupabaseの接続設定を保存してください。");
+  return supabaseClient;
+}
+async function getUser(){
+  const {data,error}=await getClient().auth.getUser();
+  if(error)throw error;
+  if(!data.user)throw new Error("ログインしてください。");
+  return data.user;
+}
+async function mergeAndSync(){
+  const user=await getUser();
+  // Fetch this user's private row. RLS restricts access to the authenticated owner.
+  const {data,error}=await getClient().from("golf_notes").select("notes").eq("user_id",user.id).maybeSingle();
+  if(error)throw error;
+  const cloud=Array.isArray(data?.notes)?data.notes:[];
+  // Load only this user's local notes; the private cloud row is protected by RLS.
+  const local=JSON.parse(localStorage.getItem(key)||"[]");
+  const byId=new Map();
+  [...cloud,...local].forEach(n=>{
+    const id=n.id||makeId();const prev=byId.get(id);
+    if(!prev || (n.updatedAt||"") >= (prev.updatedAt||""))byId.set(id,{...n,id});
+  });
+  const merged=[...byId.values()];
+  const {error:upsertError}=await getClient().from("golf_notes").upsert(
+    {user_id:user.id,notes:merged,updated_at:new Date().toISOString()},
+    {onConflict:"user_id"}
+  );
+  if(upsertError)throw upsertError;
+  localStorage.setItem(key,JSON.stringify(merged));
+  saved=merged;
+  location.reload();
+}
+document.getElementById("signUpBtn").addEventListener("click",async()=>{
+  try{
+    const email=document.getElementById("syncEmail").value.trim();
+    const password=document.getElementById("syncPassword").value;
+    if(!email||password.length<8)throw new Error("メールアドレスと8文字以上のパスワードを入力してください。");
+    const {data,error}=await getClient().auth.signUp({email,password});
+    if(error)throw error;
+    syncMsg(data.session?"アカウントを作成しました。続けて「今すぐ同期」を押してください。":"確認メールを送信しました。メール内のリンクで認証してからログインしてください。");
+  }catch(e){syncMsg("アカウント作成エラー："+e.message);}
+});
+document.getElementById("signInBtn").addEventListener("click",async()=>{
+  try{
+    const email=document.getElementById("syncEmail").value.trim();
+    const password=document.getElementById("syncPassword").value;
+    const {error}=await getClient().auth.signInWithPassword({email,password});
+    if(error)throw error;
+    syncMsg("ログインしました。「今すぐ同期」を押してください。");
+  }catch(e){syncMsg("ログインエラー："+e.message);}
+});
+document.getElementById("syncNowBtn").addEventListener("click",async()=>{
+  try{syncMsg("同期中…");await mergeAndSync();}
+  catch(e){syncMsg("同期できませんでした："+e.message);}
+});
+document.getElementById("signOutBtn").addEventListener("click",async()=>{
+  try{const {error}=await getClient().auth.signOut();if(error)throw error;syncMsg("ログアウトしました。");}
+  catch(e){syncMsg("ログアウトエラー："+e.message);}
+});
+initSyncConfig();
+
+</script></body></html>
