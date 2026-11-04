@@ -371,4 +371,57 @@ document.getElementById("signOutBtn").addEventListener("click",async()=>{
 });
 initSyncConfig();
 
+
+/* ---- Three-page navigation ---- */
+const mainEl=document.querySelector("main");
+const existingPanels=[...mainEl.children];
+const homePage=document.createElement("section");homePage.id="page-home";homePage.className="page";
+const memoPage=document.createElement("section");memoPage.id="page-memos";memoPage.className="page";memoPage.hidden=true;
+const shelfPage=document.createElement("section");shelfPage.id="page-shelf";shelfPage.className="page";shelfPage.hidden=true;
+const homeIntro=document.createElement("section");homeIntro.className="panel";
+homeIntro.innerHTML='<div class="kicker">MY GOLF JOURNAL</div><h2 style="font-size:22px;margin:5px 0">ゴルフの気づきを、ここに。</h2><p class="small">練習・ラウンド・読書で得た学びを整理して、次の一打につなげよう。</p><div class="stats"><div class="stat"><b id="homeMemoCount">0</b><span>メモ</span></div><div class="stat"><b id="homeRoundCount">0</b><span>ラウンド</span></div><div class="stat"><b id="homeShelfCount">0</b><span>本棚</span></div></div>';
+const settingsTitle=document.createElement("div");settingsTitle.className="panel";settingsTitle.innerHTML="<h2>設定・データ管理</h2><p class='small'>クラウド同期、バックアップ、復元はこちらから。</p>";
+homePage.append(homeIntro,settingsTitle);
+const byId=id=>document.getElementById(id);
+const backup=byId("sync-panel").previousElementSibling;
+const sync=byId("sync-panel");
+const foot=mainEl.querySelector(".foot");
+homePage.append(backup,sync);
+const memoIds=["add-panel","round-panel","analysis-panel","edit-panel"];
+memoIds.forEach(id=>{const el=byId(id);if(el)memoPage.append(el)});
+const listingPanel=[...mainEl.querySelectorAll(".panel")].find(p=>p.querySelector("#listing"));
+if(listingPanel)memoPage.prepend(listingPanel);
+const shelfPanel=document.createElement("section");shelfPanel.className="panel";
+shelfPanel.innerHTML='<h2>本棚</h2><p class="small">ゴルフの本・YouTube動画・レッスン資料をまとめて保存できます。</p><form id="shelfForm"><label class="small" for="shelfTitle">タイトル</label><input id="shelfTitle" required maxlength="120" placeholder="例：ゴルフスイングの基本"><label class="small" for="shelfType">種類</label><select id="shelfType" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;background:#fff;color:var(--ink);font:inherit;font-size:16px;margin:8px 0 11px"><option>書籍</option><option>YouTube動画</option><option>レッスン・教材</option><option>記事・Webサイト</option><option>その他</option></select><label class="small" for="shelfUrl">URL（任意）</label><input id="shelfUrl" type="url" placeholder="https://..."><label class="small" for="shelfMemo">メモ（任意）</label><textarea id="shelfMemo" rows="3" placeholder="学びたいこと・重要なポイント" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;font:inherit;margin:8px 0 11px"></textarea><button class="chip active" type="submit" style="width:100%;min-height:46px">本棚に追加</button></form><div class="group-title">保存したコンテンツ</div><div id="shelfList"></div>';
+shelfPage.append(shelfPanel);
+const nav=document.createElement("nav");nav.className="page-nav";nav.innerHTML='<button class="nav-btn active" data-page="home"><span>⌂</span>ホーム</button><button class="nav-btn" data-page="memos"><span>✎</span>メモ</button><button class="nav-btn" data-page="shelf"><span>▤</span>本棚</button>';
+mainEl.prepend(nav);
+mainEl.append(homePage,memoPage,shelfPage);
+if(foot)mainEl.append(foot);
+function showPage(name){
+  [["home",homePage],["memos",memoPage],["shelf",shelfPage]].forEach(([n,el])=>el.hidden=n!==name);
+  nav.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.page===name));
+  window.scrollTo({top:0,behavior:"smooth"});
+  if(name==="home")refreshHome();
+}
+nav.querySelectorAll(".nav-btn").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
+const shelfKey="golfNotes_bookshelf_v1";
+let shelfItems=[];try{shelfItems=JSON.parse(localStorage.getItem(shelfKey)||"[]");if(!Array.isArray(shelfItems))shelfItems=[]}catch(e){}
+function drawShelf(){
+  byId("homeShelfCount").textContent=shelfItems.length;
+  byId("shelfList").innerHTML=shelfItems.length?shelfItems.slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).map(item=>'<article class="item"><div class="item-head"><span class="num">▤</span><span class="item-main"><span class="item-title">'+esc(item.title)+'</span><span class="item-meta">'+esc(item.type)+'</span></span></div><div class="detail" style="display:block">'+(item.url?'<p><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">リンクを開く ↗</a></p>':"")+(item.memo?'<p>'+esc(item.memo)+'</p>':"")+'<button class="chip" data-shelf-delete="'+esc(item.id)+'" type="button" style="margin-top:8px;color:#a33;border-color:#e7caca">削除</button></div></article>').join(""):'<div class="empty">まだ何も登録されていません。気になる本や動画を追加してみよう。</div>';
+  document.querySelectorAll("[data-shelf-delete]").forEach(b=>b.onclick=()=>{if(!confirm("この項目を本棚から削除しますか？"))return;shelfItems=shelfItems.filter(x=>x.id!==b.dataset.shelfDelete);localStorage.setItem(shelfKey,JSON.stringify(shelfItems));drawShelf();});
+}
+byId("shelfForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const title=byId("shelfTitle").value.trim();if(!title)return;
+  const url=byId("shelfUrl").value.trim();
+  if(url&&!/^https?:\/\//i.test(url)){alert("URLは http:// または https:// から入力してください。");return;}
+  shelfItems.unshift({id:makeId(),title,type:byId("shelfType").value,url,memo:byId("shelfMemo").value.trim(),createdAt:new Date().toISOString()});
+  localStorage.setItem(shelfKey,JSON.stringify(shelfItems));byId("shelfForm").reset();drawShelf();
+});
+function refreshHome(){byId("homeMemoCount").textContent=buildAll().filter(n=>n.type!=="round").length;byId("homeRoundCount").textContent=saved.filter(n=>n.type==="round").length;byId("homeShelfCount").textContent=shelfItems.length;}
+const pageStyle=document.createElement("style");pageStyle.textContent='.page[hidden]{display:none!important}.page-nav{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:0 0 12px;padding:6px;background:#e8ece4;border-radius:15px;position:sticky;top:6px;z-index:5}.nav-btn{border:0;border-radius:11px;background:transparent;color:#526258;padding:9px 5px;font-size:12px;font-weight:750;min-height:48px}.nav-btn span{display:block;font-size:18px;line-height:1.2}.nav-btn.active{background:#fffefa;color:#315d43;box-shadow:0 2px 8px #20342612}';document.head.append(pageStyle);
+drawShelf();refreshHome();showPage("home");
+
 </script></body></html>
