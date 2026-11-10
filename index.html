@@ -1001,9 +1001,9 @@ function phase5RoundLoop(){
  const metrics=[];
  if(latest){
   if(latest.ob!=null||latest.penalties!=null)metrics.push({label:'OB・ペナルティ',value:Number(latest.ob||0)+Number(latest.penalties||0),unit:'回',target:'前回より減らす'});
-  if(latest.threePutts!=null)metrics.push({label:'3パット',value:Number(latest.threePutts),unit:'回',target:'前回より減らす'});
-  if(latest.putts!=null)metrics.push({label:'総パット',value:Number(latest.putts),unit:'回',target:'36回以内を目安'});
-  if(latest.gir!=null)metrics.push({label:'パーオン',value:Number(latest.gir),unit:'回',target:'前回より増やす'});
+  if(latest.threePutts!=null&&latest.threePutts!==''&&Number.isFinite(Number(latest.threePutts)))metrics.push({label:'3パット',value:Number(latest.threePutts),unit:'回',target:'前回より減らす'});
+  if(latest.putts!=null&&latest.putts!==''&&Number.isFinite(Number(latest.putts)))metrics.push({label:'総パット',value:Number(latest.putts),unit:'回',target:'36回以内を目安'});
+  if(latest.gir!=null&&latest.gir!==''&&Number.isFinite(Number(latest.gir)))metrics.push({label:'パーオン',value:Number(latest.gir),unit:'回',target:'前回より増やす'});
  }
  return {latest,previous,suggestion,metrics,practices};
 }
