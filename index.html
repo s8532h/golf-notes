@@ -954,10 +954,10 @@ function buildCoachPrompt(){
  const base=document.getElementById("coachPromptText").textContent;
  if(!document.getElementById("includeCoachContext")?.checked){document.getElementById("coachContextStatus").textContent="個人データは含めず、依頼文だけをコピーします。";return base;}
  const rounds=typed("round").slice(0,5).map(r=>({date:r.date||null,course:r.course||null,score:r.score??null,putts:r.putts??null,ob:r.ob??null,penalties:r.penalties??null,gir:r.gir??null,threePutts:r.threePutts??null,miss:r.miss||null}));
- const practices=typed("practice_session").slice(0,8).map(r=>({date:r.date||null,focus:r.focus||null,minutes:r.minutes??null,balls:r.balls??null,drills:r.drills||null,feel:r.feel||null}));
+ const practices=typed("practice_session").slice(0,12).map(r=>({date:r.date||null,focus:r.focus||null,minutes:r.minutes??null,balls:r.balls??null,drills:r.drills||null,feel:r.feel||null,completed:r.completed===true,beforeRate:r.beforeRate??null,afterRate:r.afterRate??null}));
  const clubs=typed("club_distance").map(r=>({club:r.club,carry:r.carry,total:r.total??null,date:r.date||null}));
  const shots=typed("shot_data").slice(0,100).map(r=>({date:r.date||null,club:r.club,carry:r.carry,total:r.total??null,direction:r.direction||null,side:r.side||null}));
- const context={rounds,practiceSessions:practices,clubDistances:clubs,shotMeasurements:shots};
+ const courseNotes=typed("course_note").map(r=>({course:r.course,hole:r.hole,strategy:r.strategy||null,next:r.next||null}));\n const holes=typed("round").slice(0,10).map(r=>({date:r.date,course:r.course,holes:(r.holes||[]).map(h=>({number:h.number,par:h.par??null,score:h.score??null,putts:h.putts??null}))}));\n const analyses=typed("ai_analysis").slice(0,8).map(r=>({date:r.date,title:r.title,practice:r.practice||[],practiceDone:r.practiceDone||[]}));\n const context={rounds,practiceSessions:practices,clubDistances:clubs,shotMeasurements:shots,courseNotes,holeHistory:holes,previousCoachAnalyses:analyses};
  document.getElementById("coachContextStatus").textContent=`ラウンド${rounds.length}件・練習${practices.length}件・クラブ${clubs.length}件・計測${shots.length}件の要約を依頼文に含めます。メモ本文は含みません。`;
  const bookText=document.getElementById("includeBookContext")?.checked?phase4BookText():"";
  document.getElementById("coachContextStatus").textContent+=bookText?`・本棚教材${bookText.length}文字を含みます。`:"";
