@@ -804,16 +804,14 @@ function normalizedMemoCategory(category){
 function isMemoRecord(n){return n && !["round","deleted","ai_analysis","practice_session","club_distance","course_note","golf_goal","shot_data"].includes(n.type);}
 function validDateOnly(value){return /^\d{4}-\d{2}-\d{2}$/.test(String(value||""))?value:null;}
 function mergeRecordsById(...groups){
-  // Merge only identical stable IDs. Same-content memos with different IDs are distinct records.
   const byId=new Map();
-  groups.flat().forEach(n=>{
-    if(!n||typeof n!=="object")return;
-    const id=n.id||n.source_id;if(!id)return;
-    const item={...n,id:String(id)};const prev=byId.get(item.id);
-    const stamp=x=>x.updatedAt||x.updated_at||x.deletedAt||x.createdAt||x.created_at||"";
-    if(!prev||stamp(item)>=stamp(prev))byId.set(item.id,item);
-  });
-  return [...byId.values()];
+  groups.flat().forEach(n=>{if(!n||typeof n!=="object")return;const id=n.id||n.source_id;if(!id)return;const item={...n,id:String(id)},prev=byId.get(item.id);const stamp=x=>x.updatedAt||x.updated_at||x.deletedAt||x.createdAt||x.created_at||"";if(!prev||stamp(item)>=stamp(prev))byId.set(item.id,item);});
+  return dedupePracticeSessions([...byId.values()]);
+}
+function dedupePracticeSessions(records){
+  const seen=new Set(),out=[];
+  for(const n of records){if(n?.type!=="practice_session"){out.push(n);continue;}const sig=JSON.stringify(["date","place","focus","minutes","balls","drills","feel","beforeRate","afterRate"].map(k=>n[k]??null));if(seen.has(sig))continue;seen.add(sig);out.push(n);}
+  return out;
 }
 
 async function mergeAndSync(){
@@ -974,7 +972,15 @@ const todayISO=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezone
 const optionalNumber=id=>{const v=document.getElementById(id).value.trim();return v===""?null:Number(v);};
 for(const id of ["roundDate","practiceDate","clubDate","courseNoteDate"]) {const el=document.getElementById(id);if(el)el.value=todayISO();}
 function typed(t){return saved.filter(x=>x.type===t&&!saved.some(d=>d.type==="deleted"&&d.id===x.id)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));}
-function addTyped(record){saved.unshift({id:makeId(),updatedAt:new Date().toISOString(),...record});persistSaved();renderExtra();if(typeof renderPhase3==="function")renderPhase3();document.getElementById("backupStatus").textContent="記録を保存しました。この端末内に保存されています。ほかの端末にも反映するには「今すぐ同期」を押してください。";}
+function addTyped(record){
+ const item={id:makeId(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),...record};
+ if(item.type==="practice_session"){
+  const fields=["date","place","focus","minutes","balls","drills","feel"],sig=JSON.stringify(fields.map(k=>item[k]??null));
+  const dup=typed("practice_session").find(x=>JSON.stringify(fields.map(k=>x[k]??null))===sig&&Date.now()-new Date(x.createdAt||x.updatedAt||0).getTime()<10000);
+  if(dup){document.getElementById("backupStatus").textContent="同じ練習記録が直前に登録されているため、重複登録を防止しました。";return dup;}
+ }
+ saved.unshift(item);persistSaved();renderExtra();if(typeof renderPhase3==="function")renderPhase3();document.getElementById("backupStatus").textContent="記録を保存しました。この端末内に保存されています。ほかの端末にも反映するには「今すぐ同期」を押してください。";return item;
+}
 function removeTyped(id){const n=saved.find(x=>x.id===id);if(!n||!confirm("この記録を削除しますか？同期後はほかの端末にも反映されます。"))return;saved=saved.filter(x=>x.id!==id);saved.push({id,type:"deleted",deletedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});persistSaved();renderExtra();}
 function renderExtra(){
  const prs=typed("practice_session"), rounds=typed("round");
