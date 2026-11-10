@@ -349,6 +349,25 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <div id="csvMapping" hidden style="margin-top:10px"></div>
   <div id="csvPreview" style="margin-top:10px"></div><div id="shotDataList" style="margin-top:10px"></div><div id="shotMetricList" style="margin-top:10px"></div>
 </section>
+<section class="panel" id="swing-video-panel">
+  <h2>スイング動画レビュー</h2>
+  <p class="small">動画はこの端末内で再生・確認します。サーバーにはアップロードしません。AIによる自動骨格推定ではなく、コマ送り・キーフレーム保存によるセルフチェック機能です。</p>
+  <label class="small" for="swingVideoFile">スイング動画を選択</label>
+  <input id="swingVideoFile" type="file" accept="video/*">
+  <video id="swingVideoPlayer" controls playsinline style="display:none;width:100%;max-height:420px;border-radius:14px;background:#111;margin-top:10px"></video>
+  <div id="swingVideoControls" hidden style="margin-top:10px">
+    <label class="small" for="swingFrameSeek">動画位置</label>
+    <input id="swingFrameSeek" type="range" min="0" max="1000" value="0" style="width:100%">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="chip" id="swingStepBack" type="button">−1秒</button>
+      <button class="chip" id="swingStepForward" type="button">＋1秒</button>
+      <button class="chip active" id="swingCaptureFrame" type="button">このコマを保存</button>
+    </div>
+    <p class="small" id="swingVideoStatus" aria-live="polite">動画を読み込んでください。</p>
+    <div id="swingFrameGallery" class="phase-grid"></div>
+    <canvas id="swingFrameCanvas" hidden></canvas>
+  </div>
+</section>
 <div class="panel" id="edit-panel" hidden>
   <h2>メモを編集</h2>
   <input id="editTitle" maxlength="80" placeholder="タイトル">
@@ -566,6 +585,34 @@ document.getElementById("runSimulator").addEventListener("click",runSimulator);r
 let csvRows=[];
 function parseCSV(text){const rows=[];let row=[],cell="",quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(cell);cell="";}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell="";}else cell+=c;}row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows;}
 document.getElementById("shotCsv").addEventListener("change",async e=>{const f=e.target.files?.[0];if(!f)return;try{const rows=parseCSV(await f.text());if(rows.length<2)throw Error("データ行がありません");const headers=rows[0].map((x,i)=>x.trim()||`列${i+1}`);csvRows=rows.slice(1).filter(r=>r.some(x=>x.trim()));const opts='<option value="">未対応</option>'+headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join("");const fields=[['date','日付'],['club','クラブ'],['carry','キャリー（yd）'],['total','トータル（yd）'],['headSpeed','ヘッドスピード'],['ballSpeed','ボールスピード'],['smashFactor','スマッシュファクター'],['faceAngle','フェース角'],['clubPath','クラブパス角'],['faceToPath','フェーストゥパス'],['attackAngle','アタックアングル'],['launchVertical','打ち出し角（上下）'],['launchHorizontal','打ち出し角（左右）'],['backspin','バックスピン'],['sideSpin','サイドスピン'],['apex','最高到達点'],['side','左右ブレ'],['note','メモ']];document.getElementById("csvMapping").hidden=false;document.getElementById("csvMapping").innerHTML=fields.map(([id,label])=>`<label class="small" for="map_${id}">${label}</label><select id="map_${id}" style="margin:4px 0 8px">${opts}</select>`).join("")+`<button class="chip active" id="importCsvBtn" type="button" style="width:100%">対応付けたデータを取り込む</button>`;document.getElementById("csvStatus").textContent=`${csvRows.length}行を読み込みました。列を対応付けてください。`;document.getElementById("csvPreview").textContent='先頭データ：'+csvRows[0].slice(0,6).join(' / ');document.getElementById("importCsvBtn").onclick=()=>{const idx=id=>document.getElementById('map_'+id).value;const get=(r,id)=>idx(id)===""?"":(r[Number(idx(id))]||"").trim();let added=0;csvRows.forEach(r=>{const club=get(r,'club'),carry=parseFloat(get(r,'carry'));if(!club||!Number.isFinite(carry))return;const date=get(r,'date');const num=id=>{const v=get(r,id).replace(/,/g,'');return v===''?null:(Number.isFinite(Number(v))?Number(v):null);};saved.unshift({id:makeId(),type:'shot_data',date:/^\d{4}-\d{1,2}-\d{2}$/.test(date)?date:todayISO(),club,carry,total:num('total'),headSpeed:num('headSpeed'),ballSpeed:num('ballSpeed'),smashFactor:num('smashFactor'),faceAngle:num('faceAngle'),clubPath:num('clubPath'),faceToPath:num('faceToPath'),attackAngle:num('attackAngle'),launchVertical:num('launchVertical'),launchHorizontal:num('launchHorizontal'),backspin:num('backspin'),sideSpin:num('sideSpin'),apex:num('apex'),side:get(r,'side'),note:get(r,'note'),source:f.name,updatedAt:new Date().toISOString()});added++;});persistSaved();document.getElementById("csvStatus").textContent=`${added}件をショットデータとして保存しました。同期するには「今すぐ同期」を押してください。`;document.getElementById("csvMapping").hidden=true;document.getElementById("csvPreview").textContent='';};}catch(err){document.getElementById("csvStatus").textContent='CSVを読み込めませんでした：'+err.message;}e.target.value="";});
+// Local swing video review: never uploads the source video.
+let swingVideoUrl=null;
+const swingVideo=document.getElementById("swingVideoPlayer");
+document.getElementById("swingVideoFile")?.addEventListener("change",e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ if(swingVideoUrl)URL.revokeObjectURL(swingVideoUrl);
+ swingVideoUrl=URL.createObjectURL(file);swingVideo.src=swingVideoUrl;swingVideo.style.display="block";
+ document.getElementById("swingVideoControls").hidden=false;
+ document.getElementById("swingVideoStatus").textContent="動画を端末内で読み込みました。再生位置を選び、キーフレームを保存できます。";
+ document.getElementById("swingFrameGallery").innerHTML="";
+});
+const swingSeek=document.getElementById("swingFrameSeek");
+swingVideo?.addEventListener("loadedmetadata",()=>{swingSeek.max=1000;swingSeek.value=0;});
+swingVideo?.addEventListener("timeupdate",()=>{if(Number.isFinite(swingVideo.duration)&&swingVideo.duration>0)swingSeek.value=Math.round(swingVideo.currentTime/swingVideo.duration*1000);});
+swingSeek?.addEventListener("input",()=>{if(Number.isFinite(swingVideo.duration))swingVideo.currentTime=swingVideo.duration*Number(swingSeek.value)/1000;});
+document.getElementById("swingStepBack")?.addEventListener("click",()=>{if(swingVideo) swingVideo.currentTime=Math.max(0,swingVideo.currentTime-1);});
+document.getElementById("swingStepForward")?.addEventListener("click",()=>{if(swingVideo) swingVideo.currentTime=Math.min(swingVideo.duration||0,swingVideo.currentTime+1);});
+document.getElementById("swingCaptureFrame")?.addEventListener("click",()=>{
+ if(!swingVideo||!swingVideo.videoWidth){document.getElementById("swingVideoStatus").textContent="先に動画を読み込んでください。";return;}
+ const canvas=document.getElementById("swingFrameCanvas"),ctx=canvas.getContext("2d");
+ const scale=Math.min(1,1280/swingVideo.videoWidth);canvas.width=Math.round(swingVideo.videoWidth*scale);canvas.height=Math.round(swingVideo.videoHeight*scale);
+ ctx.drawImage(swingVideo,0,0,canvas.width,canvas.height);
+ const url=canvas.toDataURL("image/jpeg",0.88),time=swingVideo.currentTime.toFixed(2);
+ const a=document.createElement("a");a.href=url;a.download="golf-swing-frame-"+time.replace(".","_")+"s.jpg";a.click();
+ const img=document.createElement("img");img.src=url;img.alt="Swing frame at "+time+" seconds";img.style.cssText="width:100%;border-radius:10px";
+ const card=document.createElement("div");card.className="phase-note";card.innerHTML="<b>"+time+"秒</b>";card.appendChild(img);document.getElementById("swingFrameGallery").prepend(card);
+ document.getElementById("swingVideoStatus").textContent="キーフレームを画像として保存しました。動画自体は端末外へ送信していません。";
+});
 // Scorecard image OCR. Tesseract.js runs locally in the browser; the image is not uploaded to a server.
 let roundOcrWorkerPromise=null;
 async function getRoundOcrWorker(){
@@ -1250,7 +1297,7 @@ function renderExternalCourseResults(items,cacheLabel,queryAlias=""){
  root.querySelectorAll("[data-course-slug]").forEach(btn=>btn.onclick=()=>loadExternalCourse(btn.dataset.courseSlug,btn.dataset.courseName,false,btn.dataset.courseQuery,btn.dataset.courseAppUrl));
  const status=document.getElementById("externalCourseStatus");if(status)status.textContent=items.length+"件の候補を表示中。"+cacheLabel;
 }
-async function searchExternalCourses(forceRefresh=false){
+async async function searchExternalCourses(forceRefresh=false){
  const q=document.getElementById("externalCourseQuery").value.trim(),status=document.getElementById("externalCourseStatus"),root=document.getElementById("externalCourseResults");
  if(!q){status.textContent="ゴルフ場名を入力してください。";return;}
  root.innerHTML="";
