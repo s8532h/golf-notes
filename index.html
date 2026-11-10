@@ -1194,7 +1194,8 @@ function saveCourseCache(record){
 function renderExternalCourseDetail(course){
  const root=document.getElementById("externalCourseDetail");if(!root)return;
  const layouts=Array.isArray(course.layouts)?course.layouts:[];
- const savedRounds=typed("round").filter(r=>courseText(r.course).toLowerCase()===courseText(course.name).toLowerCase()||courseText(r.course).toLowerCase().includes(courseText(course.name).toLowerCase())||courseText(course.name).toLowerCase().includes(courseText(r.course).toLowerCase())).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+ const aliases=[course.name,...(course.aliases||[])].map(x=>courseText(x).toLowerCase()).filter(Boolean);
+ const savedRounds=typed("round").filter(r=>{const n=courseText(r.course).toLowerCase();return aliases.some(a=>n===a||n.includes(a)||a.includes(n));}).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
  const layoutOptions=layouts.map((l,i)=>'<option value="'+i+'">'+esc(l.name||("コース "+(i+1)))+'</option>').join("");
  const roundOptions=savedRounds.map((r,i)=>'<option value="'+i+'">'+esc(r.date||"日付未登録")+' ・ '+esc(r.score??"—")+'打</option>').join("");
  root.innerHTML='<h4>'+esc(course.name||"コースデータ")+'</h4><p class="small">'+esc(course.address||"所在地未登録")+' ・ '+esc(course.phone||"")+'</p>'+
@@ -1234,10 +1235,10 @@ function renderExternalCourseDetail(course){
  fillTees();
 }
 
-function renderExternalCourseResults(items,cacheLabel){
+function renderExternalCourseResults(items,cacheLabel,queryAlias=""){
  const root=document.getElementById("externalCourseResults");if(!root)return;
- root.innerHTML=items.slice(0,10).map(x=>"<div class='item' style='padding:10px;margin:8px 0'><b>"+esc(x.name||x.course_name||"名称未登録")+"</b><div class='item-meta'>"+esc(x.city||x.region||x.address||"所在地情報なし")+" ・ Coverage: "+esc(x.coverage||"未確認")+"</div><button class='chip' type='button' data-course-slug='"+esc(x.slug||x.id||"")+"' data-course-name='"+esc(x.name||x.course_name||"")+"' style='margin-top:7px'>詳細・ホールデータを表示</button></div>").join("");
- root.querySelectorAll("[data-course-slug]").forEach(btn=>btn.onclick=()=>loadExternalCourse(btn.dataset.courseSlug,btn.dataset.courseName));
+ root.innerHTML=items.slice(0,10).map(x=>"<div class='item' style='padding:10px;margin:8px 0'><b>"+esc(x.name||x.course_name||"名称未登録")+"</b><div class='item-meta'>"+esc(x.city||x.region||x.address||"所在地情報なし")+" ・ Coverage: "+esc(x.coverage||"未確認")+"</div><button class='chip' type='button' data-course-slug='"+esc(x.slug||x.id||"")+"' data-course-name='"+esc(x.name||x.course_name||"")+"' data-course-query='"+esc(queryAlias)+"' style='margin-top:7px'>詳細・ホールデータを表示</button></div>").join("");
+ root.querySelectorAll("[data-course-slug]").forEach(btn=>btn.onclick=()=>loadExternalCourse(btn.dataset.courseSlug,btn.dataset.courseName,false,btn.dataset.courseQuery));
  const status=document.getElementById("externalCourseStatus");if(status)status.textContent=items.length+"件の候補を表示中。"+cacheLabel;
 }
 async function searchExternalCourses(forceRefresh=false){
@@ -1245,7 +1246,7 @@ async function searchExternalCourses(forceRefresh=false){
  if(!q){status.textContent="ゴルフ場名を入力してください。";return;}
  root.innerHTML="";
  const cached=cachedCourseSearch(q);
- if(cached&&!forceRefresh){renderExternalCourseResults(cached.items,"保存済みデータを使用（API通信なし）。");return;}
+ if(cached&&!forceRefresh){renderExternalCourseResults(cached.items,"保存済みデータを使用（API通信なし）。",q);return;}
  status.textContent="外部データを検索しています…";
  try{
   const url=COURSE_API_BASE+"/courses?q="+encodeURIComponent(q)+"&country=jp&limit=10";
@@ -1254,10 +1255,10 @@ async function searchExternalCourses(forceRefresh=false){
   const data=await res.json(),items=Array.isArray(data)?data:(data.courses||data.results||data.data||[]);
   if(!Array.isArray(items)||!items.length){status.textContent="該当するコースデータが見つかりませんでした。";return;}
   saveCourseCache({type:"course_search_cache",date:todayISO(),query:q,queryKey:q.toLocaleLowerCase("ja"),items:items.slice(0,10),source:"GolfCore",url:"https://www.golfcore.org/developers/docs/",fetchedAt:new Date().toISOString()});
-  renderExternalCourseResults(items,"新しく取得して端末に保存しました。");
+  renderExternalCourseResults(items,"新しく取得して端末に保存しました。",q);
  }catch(err){status.textContent="検索に失敗しました："+err.message+"。APIの利用条件・通信環境を確認してください。";}
 }
-async function loadExternalCourse(slug,name,forceRefresh=false){
+async function loadExternalCourse(slug,name,forceRefresh=false,queryAlias=""){
  const status=document.getElementById("externalCourseStatus");if(!slug){status.textContent="コースIDが取得できませんでした。";return;}
  const cached=cachedCourse(slug);
  if(cached&&!forceRefresh){renderExternalCourseDetail(cached.payload);status.textContent=name+"：保存済みデータを表示中（API通信なし）。";return;}
@@ -1266,7 +1267,7 @@ async function loadExternalCourse(slug,name,forceRefresh=false){
   const res=await fetch(COURSE_API_BASE+"/courses/"+encodeURIComponent(slug),{headers:{"Accept":"application/json"}});
   if(!res.ok)throw new Error("APIエラー "+res.status);
   const course=await res.json();course.name=course.name||name;course.slug=slug;course.url=course.url||"https://www.golfcore.org/";
-  saveCourseCache({type:"course_external",date:todayISO(),course:course.name,slug,source:"GolfCore",url:course.url,fetchedAt:new Date().toISOString(),payload:course});
+  saveCourseCache({type:"course_external",date:todayISO(),course:course.name,slug,aliases:[...new Set([queryAlias,name,course.name].filter(Boolean))],source:"GolfCore",url:course.url,fetchedAt:new Date().toISOString(),payload:{...course,aliases:[...new Set([queryAlias,name,course.name].filter(Boolean))]}});
   renderExternalCourseDetail(course);status.textContent="コースデータを取得し、この端末に保存しました。次回30日間はAPI通信なしで表示します。";
  }catch(err){status.textContent="詳細取得に失敗しました："+err.message;}
 }
