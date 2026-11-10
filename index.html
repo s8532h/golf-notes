@@ -297,13 +297,11 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <div class="phase-note" id="externalCoursePanel" style="margin-top:14px">
     <h3>外部コースデータ分析</h3>
     <p class="small">GolfCoreのコースデータから所在地・ホール別パー・ヤーデージ・ティー情報を取得し、登録済みラウンドと比較します。データ提供元とリンクを表示します。</p>
-    <label class="small" for="courseApiKey">GolfCore APIキー（任意・Freeプラン可）</label>
-    <input id="courseApiKey" type="password" autocomplete="off" placeholder="gc_live_…（設定した場合はこの端末に保存）">
-    <div class="phase-actions"><button class="chip" id="saveCourseApiKey" type="button">APIキーを保存</button></div>
+    <p class="small">取得した検索結果・コース詳細はこの端末に30日間キャッシュされ、再表示時はAPI通信を行いません。必要なときだけ再検索してください。</p>
     <label class="small" for="externalCourseQuery">ゴルフ場名</label>
     <input id="externalCourseQuery" placeholder="例：東千葉カントリークラブ">
-    <div class="phase-actions"><button class="chip active" id="searchExternalCourse" type="button">外部コースデータを検索</button></div>
-    <p class="small" id="externalCourseStatus" aria-live="polite">検索はユーザーが操作したときだけ実行します。APIキーはGitHubやSupabaseには保存しません。</p>
+    <div class="phase-actions"><button class="chip active" id="searchExternalCourse" type="button">外部コースデータを検索</button><button class="chip" id="refreshExternalCourse" type="button">最新データに更新</button></div>
+    <p class="small" id="externalCourseStatus" aria-live="polite">検索はユーザーが操作したときだけ実行します。検索・詳細は保存済みキャッシュを優先します。</p>
     <div id="externalCourseResults"></div>
     <div id="externalCourseDetail"></div>
     <p class="small">データ：<a href="https://www.golfcore.org/developers/" target="_blank" rel="noopener">GolfCore Course Data API</a>。出典リンクを保持し、外部データの正確性・掲載範囲は提供元に依存します。</p>
@@ -626,7 +624,7 @@ function dedupeMemoRecords(records){
 
 function buildAll(){
  const deletedIds=new Set(saved.filter(n=>n.type==="deleted").map(n=>n.id));
- const memoSaved=dedupeMemoRecords(saved.filter(n=>!["round","deleted","ai_analysis","practice_session","club_distance","course_note","golf_goal","shot_data","course_external","ai_learning_feedback"].includes(n.type)));
+ const memoSaved=dedupeMemoRecords(saved.filter(n=>!["round","deleted","ai_analysis","practice_session","club_distance","course_note","golf_goal","shot_data","course_external","course_search_cache","ai_learning_feedback"].includes(n.type)));
  const overrides=new Map(memoSaved.filter(n=>n.id).map(n=>[n.id,n]));
  const replaced=initial.filter(n=>!deletedIds.has(n.id)).map(n=>overrides.get(n.id)||n);
  const extra=memoSaved.filter(s=>!initial.some(n=>n.id===s.id));
@@ -1174,9 +1172,16 @@ function renderPhase4(){
 
 // ---- External course data (GolfCore) ----
 const COURSE_API_BASE="https://api.golfcore.org/v1";
-function courseApiKey(){return localStorage.getItem("golfNotes_courseApiKey")||"";}
-const courseApiHeaders=()=>{const k=courseApiKey();return k?{Authorization:"Bearer "+k}:{};};
+const COURSE_CACHE_DAYS=30;
 function courseText(v){return String(v??"").trim();}
+function courseCacheFresh(record){const t=Date.parse(record?.fetchedAt||record?.updatedAt||"");return Number.isFinite(t)&&(Date.now()-t)<COURSE_CACHE_DAYS*86400000;}
+function cachedCourse(slug){return typed("course_external").find(x=>x.slug===slug&&x.payload&&courseCacheFresh(x));}
+function cachedCourseSearch(query){const q=courseText(query).toLocaleLowerCase("ja");return typed("course_search_cache").find(x=>x.queryKey===q&&Array.isArray(x.items)&&courseCacheFresh(x));}
+function saveCourseCache(record){
+ const old=typed(record.type).find(x=>record.type==="course_external"?x.slug===record.slug:x.queryKey===record.queryKey);
+ if(old){const idx=saved.findIndex(x=>x.id===old.id);if(idx>=0)saved[idx]={...old,...record,id:old.id,updatedAt:new Date().toISOString()};persistSaved();}
+ else addTyped(record);
+}
 function renderExternalCourseDetail(course){
  const root=document.getElementById("externalCourseDetail");if(!root)return;
  const layouts=Array.isArray(course.layouts)?course.layouts:[];
@@ -1194,50 +1199,48 @@ function renderExternalCourseDetail(course){
   const parMap={};layouts.forEach(l=>(l.tees||[]).forEach(t=>(t.holes||[]).forEach(h=>{if(h.position!=null&&h.par!=null)parMap[Number(h.position)]=Number(h.par);})));
   const rows=recent.holes.map(h=>{const p=h.par??parMap[Number(h.number)];return p==null||h.score==null?null:{hole:h.number,par:Number(p),score:Number(h.score),diff:Number(h.score)-Number(p)};}).filter(Boolean);
   const delta=rows.reduce((s,x)=>s+x.diff,0);
-  compare="<div class='phase-note'><b>あなたのラウンドとの比較</b><p>"+esc(recent.date||"")+" ・ "+esc(recent.score??"—")+"打</p><p>ホール別パーと照合できた "+rows.length+"ホール / "+(rows.length?((delta>0?"+":"")+delta+" オーバー"): "比較データなし")+"</p>"+rows.map(x=>"<div class='item-meta'>"+x.hole+"H："+x.score+"打 / Par "+x.par+" ("+(x.diff>0?"+":"")+x.diff+")</div>").join("")+"</div>";
+  compare="<div class='phase-note'><b>あなたのラウンドとの比較</b><p>"+esc(recent.date||"")+" ・ "+esc(recent.score??"—")+"打</p><p>ホール別パーと照合できた "+rows.length+"ホール / "+(rows.length?((delta>0?"+":"")+delta+" オーバー"):"比較データなし")+"</p>"+rows.map(x=>"<div class='item-meta'>"+x.hole+"H："+x.score+"打 / Par "+x.par+" ("+(x.diff>0?"+":"")+x.diff+")</div>").join("")+"</div>";
  }
  root.innerHTML="<h4>"+esc(course.name||"コースデータ")+"</h4><p class='small'>"+esc(course.address||"所在地未登録")+" ・ "+esc(course.phone||"")+"</p>"+compare+layoutHtml+"<p class='small'>出典：<a href='"+esc(course.url||"https://www.golfcore.org/developers/")+"' target='_blank' rel='noopener'>GolfCore コース情報</a></p>";
 }
-async function searchExternalCourses(){
+function renderExternalCourseResults(items,cacheLabel){
+ const root=document.getElementById("externalCourseResults");if(!root)return;
+ root.innerHTML=items.slice(0,10).map(x=>"<div class='item' style='padding:10px;margin:8px 0'><b>"+esc(x.name||x.course_name||"名称未登録")+"</b><div class='item-meta'>"+esc(x.city||x.region||x.address||"所在地情報なし")+" ・ Coverage: "+esc(x.coverage||"未確認")+"</div><button class='chip' type='button' data-course-slug='"+esc(x.slug||x.id||"")+"' data-course-name='"+esc(x.name||x.course_name||"")+"' style='margin-top:7px'>詳細・ホールデータを表示</button></div>").join("");
+ root.querySelectorAll("[data-course-slug]").forEach(btn=>btn.onclick=()=>loadExternalCourse(btn.dataset.courseSlug,btn.dataset.courseName));
+ const status=document.getElementById("externalCourseStatus");if(status)status.textContent=items.length+"件の候補を表示中。"+cacheLabel;
+}
+async function searchExternalCourses(forceRefresh=false){
  const q=document.getElementById("externalCourseQuery").value.trim(),status=document.getElementById("externalCourseStatus"),root=document.getElementById("externalCourseResults");
  if(!q){status.textContent="ゴルフ場名を入力してください。";return;}
- status.textContent="外部データを検索しています…";root.innerHTML="";
+ root.innerHTML="";
+ const cached=cachedCourseSearch(q);
+ if(cached&&!forceRefresh){renderExternalCourseResults(cached.items,"保存済みデータを使用（API通信なし）。");return;}
+ status.textContent="外部データを検索しています…";
  try{
   const url=COURSE_API_BASE+"/courses?q="+encodeURIComponent(q)+"&country=jp&limit=10";
-  const res=await fetch(url,{headers:courseApiHeaders()});
+  const res=await fetch(url,{headers:{"Accept":"application/json"}});
   if(!res.ok)throw new Error("APIエラー "+res.status);
   const data=await res.json(),items=Array.isArray(data)?data:(data.courses||data.results||data.data||[]);
-  if(!Array.isArray(items)||!items.length){status.textContent="該当するコースデータが見つかりませんでした。名称を変えて再検索してください。";return;}
-  root.innerHTML=items.slice(0,10).map((x,i)=>"<div class='item' style='padding:10px;margin:8px 0'><b>"+esc(x.name||x.course_name||"名称未登録")+"</b><div class='item-meta'>"+esc(x.city||x.region||x.address||"所在地情報なし")+" ・ Coverage: "+esc(x.coverage||"未確認")+"</div><button class='chip' type='button' data-course-slug='"+esc(x.slug||x.id||"")+"' data-course-name='"+esc(x.name||x.course_name||"")+"' style='margin-top:7px'>詳細・ホールデータを取得</button></div>").join("");
-  root.querySelectorAll("[data-course-slug]").forEach(b=>b.onclick=()=>loadExternalCourse(b.dataset.courseSlug,b.dataset.courseName));
-  status.textContent=items.length+"件の候補を取得しました。正しいゴルフ場を選んでください。";
- }catch(err){status.textContent="検索に失敗しました："+err.message+"。APIの利用条件・キー・通信環境を確認してください。";}
+  if(!Array.isArray(items)||!items.length){status.textContent="該当するコースデータが見つかりませんでした。";return;}
+  saveCourseCache({type:"course_search_cache",date:todayISO(),query:q,queryKey:q.toLocaleLowerCase("ja"),items:items.slice(0,10),source:"GolfCore",url:"https://www.golfcore.org/developers/docs/",fetchedAt:new Date().toISOString()});
+  renderExternalCourseResults(items,"新しく取得して端末に保存しました。");
+ }catch(err){status.textContent="検索に失敗しました："+err.message+"。APIの利用条件・通信環境を確認してください。";}
 }
-async function loadExternalCourse(slug,name){
+async function loadExternalCourse(slug,name,forceRefresh=false){
  const status=document.getElementById("externalCourseStatus");if(!slug){status.textContent="コースIDが取得できませんでした。";return;}
+ const cached=cachedCourse(slug);
+ if(cached&&!forceRefresh){renderExternalCourseDetail(cached.payload);status.textContent=name+"：保存済みデータを表示中（API通信なし）。";return;}
  status.textContent=name+" の詳細を取得しています…";
  try{
-  const res=await fetch(COURSE_API_BASE+"/courses/"+encodeURIComponent(slug),{headers:courseApiHeaders()});
+  const res=await fetch(COURSE_API_BASE+"/courses/"+encodeURIComponent(slug),{headers:{"Accept":"application/json"}});
   if(!res.ok)throw new Error("APIエラー "+res.status);
-  const course=await res.json();
-  course.name=course.name||name;course.slug=slug;
-  course.url=course.url||"https://www.golfcore.org/";
-  const old=typed("course_external").find(x=>x.slug===slug);
-  const record={type:"course_external",date:todayISO(),course:course.name,slug,source:"GolfCore",url:course.url,fetchedAt:new Date().toISOString(),payload:course};
-  if(old){const idx=saved.findIndex(x=>x.id===old.id);if(idx>=0)saved[idx]={...old,...record,updatedAt:new Date().toISOString()};persistSaved();}
-  else addTyped(record);
-  renderExternalCourseDetail(course);
-  status.textContent="コースデータを取得・保存しました。";
+  const course=await res.json();course.name=course.name||name;course.slug=slug;course.url=course.url||"https://www.golfcore.org/";
+  saveCourseCache({type:"course_external",date:todayISO(),course:course.name,slug,source:"GolfCore",url:course.url,fetchedAt:new Date().toISOString(),payload:course});
+  renderExternalCourseDetail(course);status.textContent="コースデータを取得し、この端末に保存しました。次回30日間はAPI通信なしで表示します。";
  }catch(err){status.textContent="詳細取得に失敗しました："+err.message;}
 }
-document.getElementById("courseApiKey")?.setAttribute("value",courseApiKey());
-document.getElementById("saveCourseApiKey")?.addEventListener("click",()=>{
- const value=document.getElementById("courseApiKey").value.trim();
- if(value)localStorage.setItem("golfNotes_courseApiKey",value);else localStorage.removeItem("golfNotes_courseApiKey");
- document.getElementById("externalCourseStatus").textContent=value?"APIキーをこの端末に保存しました。":"APIキーを削除しました。";
-});
-document.getElementById("searchExternalCourse")?.addEventListener("click",searchExternalCourses);
-
+document.getElementById("searchExternalCourse")?.addEventListener("click",()=>searchExternalCourses(false));
+document.getElementById("refreshExternalCourse")?.addEventListener("click",()=>searchExternalCourses(true));
 // ---- Record-based adaptive player profile ----
 function learningProfile(){
  const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score)));
