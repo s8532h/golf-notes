@@ -1283,7 +1283,7 @@ function showPage(which){
  const label=document.getElementById("currentPageLabel");if(label)label.textContent=names[which]||"ホーム";
  document.querySelectorAll("#pageMenu [data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===which));
  const menu=document.getElementById("pageMenu"),toggle=document.getElementById("menuToggle");if(menu)menu.hidden=true;if(toggle)toggle.setAttribute("aria-expanded","false");
- if(which==="coach"){renderCoach();ensurePhasePanels();renderPhase4();renderLearningProfile();}if(which==="ninety")renderAdvanced();if(which==="course"){const keyEl=document.getElementById("courseApiKey");if(keyEl)keyEl.value=courseApiKey();}if(which==="growth"){renderExtra();ensurePhasePanels();renderPhase3();renderPhase5();}if(which==="score"){ensurePhasePanels();renderPhase2();}
+ if(which==="coach"){renderCoach();ensurePhasePanels();renderPhase4();renderLearningProfile();}if(which==="ninety")renderAdvanced();if(which==="growth"){renderExtra();ensurePhasePanels();renderPhase3();renderPhase5();}if(which==="score"){ensurePhasePanels();renderPhase2();}
  window.scrollTo({top:0,behavior:"smooth"});
 }
 memoTab.addEventListener("click",()=>showPage("memo"));libraryTab.addEventListener("click",()=>showPage("books"));coachTab.addEventListener("click",()=>showPage("coach"));
