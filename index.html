@@ -356,6 +356,12 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <h2>バックアップ・復元</h2>
   <p class="small">追加したメモをJSONファイルに書き出せます。クラウド同期を使わない場合は、機種変更前にバックアップしてください。</p>
   <button class="chip" id="exportBtn" type="button">メモをバックアップ</button>
+  <label class="small" for="importMode" style="display:block;margin-top:12px">読み込み方法</label>
+  <select id="importMode" style="max-width:260px">
+    <option value="merge" selected>既存データに追加・統合（安全）</option>
+    <option value="replace">現在の端末データを置き換える</option>
+  </select>
+  <p class="small">「置き換える」は、この端末のGolf Notesデータをバックアップ内の記録で全面的に置き換えます。実行前に現在のデータをバックアップしてください。Supabase上のデータは変更しません。</p>
   <label class="chip" for="importFile" style="display:inline-flex;align-items:center;min-height:38px;margin-left:5px">バックアップを読み込む</label>
   <input id="importFile" type="file" accept="application/json,.json" style="display:none">
   <p class="small" id="backupStatus" aria-live="polite"></p>
@@ -726,23 +732,39 @@ document.getElementById("exportBtn").addEventListener("click",()=>{
 });
 document.getElementById("importFile").addEventListener("change",async e=>{
   const file=e.target.files&&e.target.files[0];if(!file)return;
+  const status=document.getElementById("backupStatus");
   try{
     const data=JSON.parse(await file.text());
     const incoming=Array.isArray(data)?data:data.notes;
     if(!Array.isArray(incoming))throw new Error("invalid");
+    if(incoming.some(n=>!n||typeof n!=="object"||Array.isArray(n)))throw new Error("invalid");
+    const normalized=incoming.map(raw=>({...raw,id:raw.id||makeId()}));
+    const mode=document.getElementById("importMode")?.value||"merge";
+    let result;
+    if(mode==="replace"){
+      const activeCount=normalized.filter(n=>n.type!=="deleted").length;
+      if(!confirm("現在の端末に保存されているGolf Notesデータを、選択したバックアップの内容で置き換えます。\n\nバックアップ内の有効な記録："+activeCount+"件\n\nこの操作は元に戻せません。事前に現在のデータをバックアップしましたか？"))return;
+      localStorage.setItem(key,JSON.stringify(normalized));
+      saved=normalized;
+      status.textContent="バックアップから"+activeCount+"件を復元しました。この端末のデータを置き換えました。Supabase上のデータは変更していません。";
+      location.reload();
+      return;
+    }
     const byId=new Map(saved.map(n=>[n.id||makeId(),n]));
-    for(const raw of incoming){
-      if(!raw||typeof raw!=="object")continue;
-      const n={...raw,id:raw.id||makeId()};
+    for(const n of normalized){
       const prev=byId.get(n.id);
       if(!prev||(n.updatedAt||n.deletedAt||"")>=(prev.updatedAt||prev.deletedAt||""))byId.set(n.id,n);
     }
-    const merged=[...byId.values()];
-    localStorage.setItem(key,JSON.stringify(merged));
-    saved=merged;
+    result=[...byId.values()];
+    localStorage.setItem(key,JSON.stringify(result));
+    saved=result;
+    status.textContent="バックアップを既存データに統合しました。ほかの端末へ反映するには「今すぐ同期」を押してください。";
     location.reload();
-  }catch(err){document.getElementById("backupStatus").textContent="読み込めませんでした。Golf NotesのJSONバックアップを選んでください。";}
-  e.target.value="";
+  }catch(err){
+    status.textContent="読み込めませんでした。Golf NotesのJSONバックアップを選んでください。";
+  }finally{
+    e.target.value="";
+  }
 });
 
 
