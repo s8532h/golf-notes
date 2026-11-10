@@ -994,11 +994,37 @@ renderExtra();
 const memoTab=document.getElementById("memoTab"), libraryTab=document.getElementById("libraryTab"), coachTab=document.getElementById("coachTab");
 const memoPage=document.getElementById("memoPage"), libraryPage=document.getElementById("libraryPage"), coachPage=document.getElementById("coachPage");
 // ---- Phase 2: performance analysis ----
+function phase5RoundLoop(){
+ const rounds=typed('round').filter(r=>r.score!==null&&r.score!==undefined&&r.score!==''&&Number.isFinite(Number(r.score)));
+ const practices=typed('practice_session');
+ const latest=rounds[0]||null, previous=rounds[1]||null, suggestion=phase3Recommendation()[0]||null;
+ const metrics=[];
+ if(latest){
+  if(latest.ob!=null||latest.penalties!=null)metrics.push({label:'OB・ペナルティ',value:Number(latest.ob||0)+Number(latest.penalties||0),unit:'回',target:'前回より減らす'});
+  if(latest.threePutts!=null)metrics.push({label:'3パット',value:Number(latest.threePutts),unit:'回',target:'前回より減らす'});
+  if(latest.putts!=null)metrics.push({label:'総パット',value:Number(latest.putts),unit:'回',target:'36回以内を目安'});
+  if(latest.gir!=null)metrics.push({label:'パーオン',value:Number(latest.gir),unit:'回',target:'前回より増やす'});
+ }
+ return {latest,previous,suggestion,metrics,practices};
+}
+function renderPhase5(){
+ const root=document.getElementById('phase5-content');if(!root)return;
+ const p=phase5RoundLoop(),s=p.suggestion;
+ const roundLabel=p.latest?esc(p.latest.date||'日付未登録')+' ・ '+esc(p.latest.course||'コース未登録')+' ・ '+esc(p.latest.score)+'打':'ラウンド記録なし';
+ const metricHtml=p.metrics.length?p.metrics.map(m=>'<div class="item-meta">'+esc(m.label)+'：<b>'+esc(m.value)+esc(m.unit)+'</b>　目安：'+esc(m.target)+'</div>').join(''):'<p class="small">OB・3パット・パット数・GIRをラウンド記録に入力すると、次回の確認指標が表示されます。</p>';
+ root.innerHTML='<div class="phase-stat"><strong>次回ラウンドの改善サイクル</strong><span>直近ラウンドの課題を練習し、次のラウンドで再確認</span></div>'+
+ '<p><b>基準にするラウンド：</b>'+roundLabel+'</p>'+metricHtml+
+ (s?'<div class="phase-note"><span class="phase-tag">次の重点テーマ</span><h4>'+esc(s.title)+'</h4><p>'+esc(s.why)+'</p><p><b>練習：</b>'+esc(s.drill)+'</p><p class="small"><b>次回の確認：</b>同じ指標をラウンド記録に入力し、前回値と比較してください。</p><button class="chip active" type="button" id="phase5-add-practice">この重点テーマを練習記録に追加</button></div>':'<p class="empty">練習提案を作成できる記録がまだありません。</p>')+
+ '<p class="small">練習記録 '+p.practices.length+'件。記録が増えるほど、課題と練習テーマのつながりを振り返れます。数値が未入力の項目は評価しません。</p>';
+ const b=root.querySelector('#phase5-add-practice');
+ if(b&&s)b.onclick=()=>{addTyped({type:'practice_session',date:todayISO(),place:'',focus:s.title,minutes:null,balls:null,drills:s.drill,feel:'Phase 5：次回ラウンドに向けた重点練習'});renderPhase5();};
+}
 function ensurePhasePanels(){
  const analysis=document.getElementById('analysis-panel');
  if(analysis&&!document.getElementById('phase2-analysis')){const el=document.createElement('section');el.id='phase2-analysis';el.className='phase-note';el.innerHTML='<h3>パフォーマンス分析</h3><p>直近5ラウンドと、その前の5ラウンドを比較します。記録済みデータだけを集計します。</p><div id="phase2-content"></div>';analysis.appendChild(el);}
  const progress=document.getElementById('progress-panel');
  if(progress&&!document.getElementById('phase3-training')){const el=document.createElement('section');el.id='phase3-training';el.className='phase-note';el.innerHTML='<h3>今日の練習提案</h3><p>ラウンド・練習履歴から、次に取り組むテーマを提案します。</p><div id="phase3-content"></div>';progress.appendChild(el);}
+ if(progress&&!document.getElementById('phase5-loop')){const el=document.createElement('section');el.id='phase5-loop';el.className='phase-note';el.innerHTML='<h3>次回ラウンド改善サイクル</h3><p>直近ラウンドの課題を練習につなげ、次のラウンドで同じ指標を確認します。</p><div id="phase5-content"></div>';progress.appendChild(el);}
  const coach=document.getElementById('coachPage');
  if(coach&&!document.getElementById('phase4-knowledge')){const el=document.createElement('section');el.id='phase4-knowledge';el.className='phase-note';el.innerHTML='<h3>ナレッジ連携</h3><p>本棚に登録した教材の内容を、AIコーチへの依頼文に含められます。</p><div id="phase4-content"></div>';coach.appendChild(el);}
 }
@@ -1050,7 +1076,7 @@ function showPage(which){
  const label=document.getElementById("currentPageLabel");if(label)label.textContent=names[which]||"ホーム";
  document.querySelectorAll("#pageMenu [data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===which));
  const menu=document.getElementById("pageMenu"),toggle=document.getElementById("menuToggle");if(menu)menu.hidden=true;if(toggle)toggle.setAttribute("aria-expanded","false");
- if(which==="coach"){renderCoach();ensurePhasePanels();renderPhase4();}if(which==="ninety")renderAdvanced();if(which==="growth"){renderExtra();ensurePhasePanels();renderPhase3();}if(which==="score"){ensurePhasePanels();renderPhase2();}
+ if(which==="coach"){renderCoach();ensurePhasePanels();renderPhase4();}if(which==="ninety")renderAdvanced();if(which==="growth"){renderExtra();ensurePhasePanels();renderPhase3();renderPhase5();}if(which==="score"){ensurePhasePanels();renderPhase2();}
  window.scrollTo({top:0,behavior:"smooth"});
 }
 memoTab.addEventListener("click",()=>showPage("memo"));libraryTab.addEventListener("click",()=>showPage("books"));coachTab.addEventListener("click",()=>showPage("coach"));
