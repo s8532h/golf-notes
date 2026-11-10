@@ -997,21 +997,40 @@ function renderExtra(){
  document.querySelectorAll("[data-extra-delete]").forEach(b=>b.onclick=()=>removeTyped(b.dataset.extraDelete));
  document.querySelectorAll("[data-goal-done]").forEach(b=>b.onchange=()=>{const n=saved.find(x=>x.id===b.dataset.goalDone);if(n){n.done=b.checked;n.updatedAt=new Date().toISOString();localStorage.setItem(key,JSON.stringify(saved));}});
 }
+let practiceSaveInFlight=false;
+let lastPracticeSaveSignature="";
+let lastPracticeSaveAt=0;
 document.getElementById("practiceForm").addEventListener("submit",e=>{
  e.preventDefault();
  const form=e.currentTarget;
  const get=id=>document.getElementById(id);
+ const status=get("practiceSaveStatus");
+ const submitButton=form.querySelector('button[type="submit"]');
+ if(practiceSaveInFlight)return;
  const date=get("practiceDate").value;
  const focus=get("practiceFocus").value.trim();
- const status=get("practiceSaveStatus");
  if(!date||!focus){status.textContent="練習日と今日のテーマを入力してください。";form.reportValidity();return;}
+ const record={type:"practice_session",date,place:get("practicePlace").value.trim(),focus,minutes:Number(get("practiceMinutes").value)||null,balls:Number(get("practiceBalls").value)||null,drills:get("practiceDrills").value.trim(),feel:get("practiceFeel").value.trim(),beforeRate:get("practiceBeforeRate").value===""?null:Number(get("practiceBeforeRate").value),afterRate:get("practiceAfterRate").value===""?null:Number(get("practiceAfterRate").value)};
+ const signature=JSON.stringify(record);
+ const now=Date.now();
+ if(signature===lastPracticeSaveSignature&&now-lastPracticeSaveAt<10000){
+  status.textContent="同じ内容を直前に保存しています。重複登録を防ぐため、今回は保存しませんでした。";
+  return;
+ }
+ practiceSaveInFlight=true;
+ if(submitButton){submitButton.disabled=true;submitButton.textContent="保存中…";}
  try{
-  addTyped({type:"practice_session",date,place:get("practicePlace").value.trim(),focus,minutes:Number(get("practiceMinutes").value)||null,balls:Number(get("practiceBalls").value)||null,drills:get("practiceDrills").value.trim(),feel:get("practiceFeel").value.trim(),beforeRate:get("practiceBeforeRate").value===""?null:Number(get("practiceBeforeRate").value),afterRate:get("practiceAfterRate").value===""?null:Number(get("practiceAfterRate").value)});
+  addTyped(record);
+  lastPracticeSaveSignature=signature;
+  lastPracticeSaveAt=Date.now();
   form.reset();get("practiceDate").value=todayISO();
   status.textContent="練習記録を保存しました。この端末に保存されています。別端末に反映するには設定ページで同期してください。";
  }catch(err){
   console.error("Practice save failed",err);
   status.textContent="保存できませんでした："+(err?.message||String(err));
+ }finally{
+  practiceSaveInFlight=false;
+  if(submitButton){submitButton.disabled=false;submitButton.textContent="練習を保存";}
  }
 });
 document.getElementById("clubForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"club_distance",date:clubDate.value,club:clubName.value.trim(),carry:Number(clubCarry.value),total:Number(clubTotal.value)||null,conditions:clubConditions.value.trim()});e.target.reset();clubDate.value=todayISO();});
