@@ -853,9 +853,12 @@ async function mergeAndSync(){
   syncMsg("新テーブルへメモ・ラウンドを保存しています…");
   if(memos.length){const {error}=await client.from("golf_memos").upsert(memos,{onConflict:"user_id,source_id"});if(error)throw new Error("メモの保存に失敗："+error.message);}
   if(rounds.length){const {error}=await client.from("golf_rounds").upsert(rounds,{onConflict:"user_id,source_id"});if(error)throw new Error("ラウンドの保存に失敗："+error.message);}
-  const otherRecords=active.filter(n=>!isMemoRecord(n)&&n.type!=="round");
-  const {error:otherWriteError}=await client.from("golf_user_data").upsert({user_id:user.id,records:otherRecords,updated_at:new Date().toISOString()},{onConflict:"user_id"});
-  if(otherWriteError)throw new Error("その他データの保存に失敗："+otherWriteError.message);
+  // Atomic server-side merge (requires golf_notes_merge_user_data SQL function).
+  // Send tombstones too, so deletions are propagated without replacing the whole JSON array.
+  const otherRecords=merged.filter(n=>!isMemoRecord(n)&&n.type!=="round");
+  const {data:otherSaved,error:otherWriteError}=await client.rpc("golf_notes_merge_user_data",{p_records:otherRecords});
+  if(otherWriteError)throw new Error("その他データの安全な同期に失敗："+otherWriteError.message+"。設定SQLの golf_notes_merge_user_data 関数を先に作成してください。");
+  const finalOther=Array.isArray(otherSaved)?otherSaved:otherRecords;
   // No automatic deletion by title/body: same-content memos with different IDs may be intentional.
 
   const deleted=merged.filter(n=>n.type==="deleted").map(n=>String(n.id));
@@ -875,7 +878,7 @@ async function mergeAndSync(){
   if(legacyWriteError)throw new Error("旧テーブルへの互換保存に失敗："+legacyWriteError.message);
   localStorage.setItem(key,JSON.stringify(merged));
   saved=merged;
-  syncMsg(`同期完了：メモ${memos.length}件・ラウンド${rounds.length}件・その他${otherRecords.length}件。旧テーブルも互換用に保持しました。`);
+  syncMsg(`同期完了：メモ${memos.length}件・ラウンド${rounds.length}件・その他${finalOther.filter(n=>n.type!=="deleted").length}件。重複排除と削除反映を行いました。`);
   location.reload();
 }
 document.getElementById("signUpBtn").addEventListener("click",async()=>{
