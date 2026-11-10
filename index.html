@@ -1003,7 +1003,7 @@ function buildCoachPrompt(){
  const courseNotes=typed("course_note").map(r=>({course:r.course,hole:r.hole,strategy:r.strategy||null,next:r.next||null}));
  const holes=typed("round").slice(0,10).map(r=>({date:r.date,course:r.course,holes:(r.holes||[]).map(h=>({number:h.number,par:h.par??null,score:h.score??null,putts:h.putts??null}))}));
  const analyses=typed("ai_analysis").slice(0,8).map(r=>({date:r.date,title:r.title,practice:r.practice||[],practiceDone:r.practiceDone||[]}));
- const context={rounds,practiceSessions:practices,clubDistances:clubs,shotMeasurements:shots,courseNotes,holeHistory:holes,previousCoachAnalyses:analyses};
+ const context={rounds,practiceSessions:practices,clubDistances:clubs,shotMeasurements:shots,courseNotes,holeHistory:holes,previousCoachAnalyses:analyses,adaptivePlayerProfile:learningProfile()};
  document.getElementById("coachContextStatus").textContent=`ラウンド${rounds.length}件・練習${practices.length}件・クラブ${clubs.length}件・計測${shots.length}件の要約を依頼文に含めます。メモ本文は含みません。`;
  const bookText=document.getElementById("includeBookContext")?.checked?phase4BookText():"";
  document.getElementById("coachContextStatus").textContent+=bookText?`・本棚教材${bookText.length}文字を含みます。`:"";
