@@ -94,8 +94,74 @@ input:focus{border-color:var(--green);box-shadow:0 0 0 3px #3f6b5218}
 #memoPage{display:block!important}
 
 .privacy-note{font-size:11px;color:var(--muted);background:#f4f6ef;border-radius:10px;padding:10px 12px;margin-top:10px}
+
+
+/* Premium editorial refresh — forest / ivory / brass */
+:root{
+ --bg:#f1f0e9;--paper:#fffefa;--ink:#202c26;--muted:#788078;
+ --green:#244b3a;--line:#e2e2d7;--soft:#eaf0e9;
+ --shadow:0 10px 30px rgba(26,45,34,.075);
+ --accent:#b9975b;--accent-soft:#f4eedf;
+}
+body{background:radial-gradient(ellipse at 92% 0%,#e2e9df 0,transparent 34%),var(--bg);color:var(--ink);letter-spacing:.012em}
+header{position:relative;isolation:isolate;overflow:hidden;padding:34px 16px 30px;background:linear-gradient(120deg,#183a2d 0%,#28523f 58%,#45664e 100%);border:0;color:#fff}
+.hero-art{position:absolute;z-index:0;right:0;bottom:-2px;width:clamp(142px,31vw,250px);height:auto;opacity:.96;pointer-events:none}
+.hero-art .hill{fill:#91aa83;opacity:.38}.hero-art .hill2{fill:#b7c7a3;opacity:.35}.hero-art .flagpole{stroke:#f5f1df;stroke-width:2.2;stroke-linecap:round}.hero-art .flag{fill:#d8bd7b}.hero-art .ball{fill:#fffefa;stroke:#dce5d8;stroke-width:1.2}
+.hero-art .dimple{fill:#d9dfd7}
+header:after{content:"";position:absolute;z-index:-1;width:270px;height:270px;border:1px solid #ffffff24;border-radius:50%;right:-76px;top:-155px;box-shadow:0 0 0 28px #ffffff08,0 0 0 58px #ffffff06}
+header .wrap{position:relative;z-index:1}
+header .kicker{color:#d9c28e;font-size:10px;letter-spacing:.24em}
+header h1{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;font-weight:750;font-size:clamp(29px,5.8vw,39px);letter-spacing:.005em;margin:9px 0 7px}
+header .sub{color:#d8e2d9;font-size:12px;letter-spacing:.04em}
+main{padding-top:20px;padding-bottom:56px}
+.top-actions{margin-top:14px;margin-bottom:4px}
+.current-page-label{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
+.hamburger{border:1px solid #d8ded4;background:#fffefa;border-radius:14px;box-shadow:0 5px 16px #20342610;transition:.2s}
+.hamburger:hover{transform:translateY(-1px);border-color:var(--accent)}
+.panel{position:relative;background:rgba(255,254,250,.96);border:1px solid #e5e4da;border-radius:19px;padding:17px;margin-bottom:15px;box-shadow:var(--shadow)}
+.panel h2{font-size:16px;font-weight:800;letter-spacing:.025em;margin:0 0 13px;display:flex;align-items:center;gap:9px}
+.panel h2:before{content:"";display:inline-block;width:4px;height:17px;border-radius:4px;background:linear-gradient(180deg,var(--accent),#d5c18e)}
+.ball-mark{width:27px;height:27px;display:inline-grid;place-items:center;border-radius:50%;background:#edf2e9;border:1px solid #dce5d8;flex:0 0 27px}
+.ball-mark svg{width:19px;height:19px;fill:#fff;stroke:#8da18b;stroke-width:1.1}
+.ball-mark svg circle:not(:first-child){fill:#c4d0bf;stroke:none}
+h3,h4{letter-spacing:.015em}
+.stat{background:linear-gradient(145deg,#f5f5ee,#edf2eb);border:1px solid #e7e9df;border-radius:14px;padding:13px 6px}
+.stat b{color:var(--green);font-family:inherit;font-size:23px;font-weight:750}
+.stat span{letter-spacing:.06em}
+input,select,textarea{border:1px solid #dfe2d8!important;border-radius:12px!important;background:#fff!important;transition:border-color .18s,box-shadow .18s}
+input:focus,select:focus,textarea:focus{border-color:#9aab98!important;box-shadow:0 0 0 4px #244b3a12!important}
+button{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease}
+button:active{transform:translateY(1px)}
+button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-radius:11px}
+.chip{border-radius:30px;background:#fff;border-color:#e1e3d9;padding:9px 15px;font-weight:650}
+.chip.active,.page-tab.active{background:linear-gradient(135deg,#244b3a,#38634b);border-color:#244b3a;box-shadow:0 4px 12px #244b3a25}
+.page-nav{gap:9px}
+.page-tab{border-radius:13px;background:#fffefa;border-color:#e1e3d9;padding:12px 8px;box-shadow:0 3px 10px #20342608}
+.item{border-radius:14px;border-color:#e6e6dc;box-shadow:0 3px 10px #20342606}
+.item-head{padding:13px 12px}
+.num{background:var(--accent-soft);color:#8b6b36;border-radius:10px}
+.item.open{border-color:#c7d4c7;box-shadow:0 7px 18px #2034260c}
+.item.open .item-head{background:#f8faf6}
+.tag{background:var(--accent-soft);color:#806334;font-weight:750;letter-spacing:.04em}
+.next,.privacy-note{background:#edf2eb;border:1px solid #e0e8de;color:#47624e;border-radius:12px}
+.book-card{border-radius:15px;background:linear-gradient(145deg,#1e4635,#52745b);box-shadow:inset 7px 0 0 #183a2d,0 9px 20px #20342620}
+.book-card.add-book{background:linear-gradient(145deg,#f4f0e5,#fffefa);color:var(--green)}
+.menu-pop{border-radius:16px;border-color:#e2e3d9;box-shadow:0 18px 45px #17271d30;backdrop-filter:blur(12px)}
+.menu-pop button{border-radius:10px;padding:12px}
+.menu-pop button.active,.menu-pop button:hover{background:#edf2eb;color:var(--green)}
+.foot{letter-spacing:.08em}
+@media(max-width:420px){header .wrap{padding-right:76px}.hero-art{width:148px;right:-22px;opacity:.78}}
+@media(min-width:650px){header{padding:42px 20px 35px}.panel{padding:21px;margin-bottom:17px}.wrap{width:min(100% - 40px,860px)}}
+@media(prefers-reduced-motion:no-preference){.panel{animation:panel-in .35s ease both}@keyframes panel-in{from{opacity:.75;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}}
+
 </style></head><body>
-<header><div class="wrap"><div class="kicker">MY GOLF JOURNAL</div><h1>Golf Notes</h1><p class="sub">ゴルフの気づき・ラウンド・AI分析をまとめて管理。</p></div></header>
+<header><div class="wrap"><div class="kicker">MY GOLF JOURNAL</div><h1>Golf Notes</h1><p class="sub">ゴルフの気づき・ラウンド・AI分析をまとめて管理。</p></div>
+<svg class="hero-art" viewBox="0 0 260 150" role="img" aria-label="ゴルフグリーンと旗、ゴルフボールのイラスト">
+ <path class="hill" d="M0 119 Q62 82 126 111 T260 94 V150 H0Z"/><path class="hill2" d="M0 137 Q74 104 145 126 T260 112 V150 H0Z"/>
+ <path class="flagpole" d="M174 24 V112"/><path class="flag" d="M175 25 L215 35 L175 47Z"/>
+ <ellipse cx="177" cy="113" rx="20" ry="4" fill="#132f24" opacity=".22"/>
+ <circle class="ball" cx="118" cy="119" r="12"/><circle class="dimple" cx="114" cy="115" r="1.1"/><circle class="dimple" cx="122" cy="117" r="1.1"/><circle class="dimple" cx="117" cy="123" r="1.1"/>
+</svg></header>
 <div class="top-actions wrap">
   <div class="current-page-label" id="currentPageLabel">ホーム</div>
   <div class="menu-wrap">
@@ -113,7 +179,7 @@ input:focus{border-color:var(--green);box-shadow:0 0 0 3px #3f6b5218}
 </nav>
 <main class="wrap">
 <div id="memoPage">
-<section class="panel" id="home-overview"><h2>Golf Notes</h2><p class="small">記録と上達状況を、必要なページからシンプルに管理。</p><div class="stats"><div class="stat"><b id="total">—</b><span>メモ</span></div><div class="stat"><b>90切り</b><span>次の目標</span></div><div class="stat"><b>100切り</b><span>達成済み</span></div></div><p class="small">右上のメニューから使いたいページを選択してください。</p></section>
+<section class="panel home-overview" id="home-overview"><h2><span class="ball-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="8" r="1"/><circle cx="14" cy="9" r="1"/><circle cx="10" cy="13" r="1"/><circle cx="15" cy="15" r="1"/></svg></span>Golf Notes</h2><p class="small">記録と上達状況を、必要なページからシンプルに管理。</p><div class="stats"><div class="stat"><b id="total">—</b><span>メモ</span></div><div class="stat"><b>90切り</b><span>次の目標</span></div><div class="stat"><b>100切り</b><span>達成済み</span></div></div><p class="small">右上のメニューから使いたいページを選択してください。</p></section>
 <section class="panel" id="memo-list-panel"><h2>メモ一覧</h2><input id="search" placeholder="タイトル・内容を検索（例：右ミス、5U、パター）"><div class="filters" id="filters"></div><div id="listing"></div></section>
 
 <section class="panel" id="add-panel">
@@ -139,6 +205,16 @@ input:focus{border-color:var(--green);box-shadow:0 0 0 3px #3f6b5218}
 <section class="panel" id="round-panel">
   <h2>ラウンド記録</h2>
   <p class="small">スコア・パット・OBなどを記録して、90切りに向けた傾向を確認できます。</p>
+  <div class="item" style="margin:10px 0;padding:12px;border:1px solid var(--line)">
+    <b>スコアカード画像から取り込む</b>
+    <p class="small">スコアカード画像を選択するとOCRで文字を読み取ります。読み取り結果を確認し、必要な箇所を修正してからラウンド記録へ反映してください。</p>
+    <input id="roundCardImage" type="file" accept="image/*" capture="environment">
+    <div id="roundOcrStatus" class="small" aria-live="polite" style="margin-top:8px">画像未選択</div>
+    <img id="roundCardPreview" alt="スコアカード画像プレビュー" hidden style="max-width:100%;max-height:260px;object-fit:contain;margin-top:8px;border-radius:10px">
+    <textarea id="roundOcrText" rows="5" placeholder="OCR読み取り結果がここに表示されます。必要に応じて編集できます。" style="width:100%;margin-top:8px" hidden></textarea>
+    <button class="chip" id="roundOcrApply" type="button" hidden>OCR結果からホール別スコアを候補入力</button>
+    <p class="small">※OCRは数字や列位置を誤認識することがあります。反映後、ホール別スコア・パット数・合計を必ず確認してください。</p>
+  </div>
   <form id="roundForm">
     <label class="small" for="roundDate">プレー日</label><input id="roundDate" type="date" required>
     <label class="small" for="courseName">ゴルフ場</label><input id="courseName" maxlength="80" placeholder="例：東千葉カントリークラブ" required>
@@ -248,9 +324,9 @@ input:focus{border-color:var(--green);box-shadow:0 0 0 3px #3f6b5218}
   <h2>計測データ・CSV取り込み</h2>
   <p class="small">CSVのショット記録をGolf Notesに取り込みます。計測器ごとにCSV列名が異なるため、まずは列名を選んで対応付けます。元データは変更しません。</p>
   <input id="shotCsv" type="file" accept=".csv,text/csv">
-  <div id="csvStatus" class="small" style="margin-top:8px">対応項目：日付・クラブ・キャリー・トータル・打ち出し方向・左右ブレ・メモ</div>
+  <div id="csvStatus" class="small" style="margin-top:8px">対応項目：日付・クラブ・キャリー・トータル・ヘッドスピード・ボールスピードなどの弾道計測項目・左右ブレ・メモ</div>
   <div id="csvMapping" hidden style="margin-top:10px"></div>
-  <div id="csvPreview" style="margin-top:10px"></div><div id="shotDataList" style="margin-top:10px"></div>
+  <div id="csvPreview" style="margin-top:10px"></div><div id="shotDataList" style="margin-top:10px"></div><div id="shotMetricList" style="margin-top:10px"></div>
 </section>
 <div class="panel" id="edit-panel" hidden>
   <h2>メモを編集</h2>
@@ -425,6 +501,8 @@ function renderAdvanced(){
  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
  set("under90Rate",valid.length?Math.round(valid.filter(x=>Number(x.score)<90).length/valid.length*100)+"%":"—");set("avgThreePutts",threes===null?"—":threes.toFixed(1)+"回");set("avgPenalty",penalties===null?"—":penalties.toFixed(1)+"打");set("avgGIR",gir===null?"—":gir.toFixed(1)+"回");
  const shots=saved.filter(x=>x.type==="shot_data");const shotBox=document.getElementById("shotDataList");if(shotBox){const byClub={};shots.forEach(x=>{(byClub[x.club]??=[]).push(Number(x.carry));});shotBox.innerHTML=shots.length?'<h3>取り込み済みショットデータ</h3>'+Object.entries(byClub).map(([club,vals])=>{const m=safeMean(vals);return `<div class="item-meta">${esc(club)}：${m===null?"—":m.toFixed(1)+" yd 平均キャリー"}（${vals.length}件）</div>`;}).join(""):'<p class="empty">CSVを取り込むと、クラブ別のショットデータがここに表示されます。</p>';}
+ const metricDefs=[['headSpeed','ヘッドスピード','mph'],['ballSpeed','ボールスピード','mph'],['smashFactor','スマッシュファクター',''],['faceAngle','フェース角','°'],['clubPath','クラブパス角','°'],['faceToPath','フェーストゥパス','°'],['attackAngle','アタックアングル','°'],['launchVertical','打ち出し角（上下）','°'],['launchHorizontal','打ち出し角（左右）','°'],['backspin','バックスピン','rpm'],['sideSpin','サイドスピン','rpm'],['apex','最高到達点','ft']];
+ const metricEl=document.getElementById('shotMetricList');if(metricEl){const rows=shots.filter(x=>metricDefs.some(([k])=>x[k]!=null&&x[k]!==''));metricEl.innerHTML=rows.length?'<h3>ショット計測値（直近30件）</h3>'+rows.slice(0,30).map(x=>'<div class="item" style="padding:9px 11px;margin:6px 0"><b>'+esc(x.date||'日付未登録')+' ・ '+esc(x.club||'クラブ未登録')+'</b><div class="item-meta">'+metricDefs.filter(([k])=>x[k]!=null&&x[k]!=='').map(([k,label,unit])=>esc(label)+'：'+esc(x[k])+unit).join(' ／ ')+'</div></div>').join(''):'<p class="small">計測値を含むCSVを取り込むと、ここに表示されます。</p>';}
  const missCounts={};rs.forEach(x=>{if(x.miss)missCounts[x.miss]=(missCounts[x.miss]||0)+1;});const missEl=document.getElementById("missAnalysis");if(missEl){const sorted=Object.entries(missCounts).sort((a,b)=>b[1]-a[1]);missEl.innerHTML='<h3>ミス傾向</h3>'+(sorted.length?sorted.map(([k,v])=>`<div class="item-meta">${esc(k)}：${v}ラウンド</div>`).join(""):'<p class="empty">ラウンド記録の「主なミス傾向」を入力すると、ここに集計されます。</p>');}
  const plan=[];if(penalties!==null&&penalties>1)plan.push(`ペナルティ平均${penalties.toFixed(1)}打：ティーショットの安全な狙い所を決め、OB・池を避けるマネジメントを優先。`);if(threes!==null&&threes>1)plan.push(`3パット以上が平均${threes.toFixed(1)}回：ファーストパットの距離感練習を優先。`);if(gir!==null&&gir<6)plan.push(`パーオン平均${gir.toFixed(1)}回：無理にグリーンを狙わず、得意距離に刻む選択も検討。`);if(putts!==null&&putts>36)plan.push(`平均${putts.toFixed(1)}パット：1〜2mの方向性とロングパットの距離感を分けて練習。`);if(!plan.length)plan.push("記録が増えると、改善優先順位をより具体的に出せます。空欄の項目は次回から分かる範囲で入力しましょう。");const p=document.getElementById("improvementPlan");if(p)p.innerHTML='<h3>改善優先順位のヒント</h3><ul>'+plan.map(x=>`<li>${esc(x)}</li>`).join("")+'</ul>';
 }
@@ -433,7 +511,32 @@ document.getElementById("runSimulator").addEventListener("click",runSimulator);r
 // Generic CSV importer: user maps source columns; no assumptions about vendor-specific formats.
 let csvRows=[];
 function parseCSV(text){const rows=[];let row=[],cell="",quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(cell);cell="";}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell="";}else cell+=c;}row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows;}
-document.getElementById("shotCsv").addEventListener("change",async e=>{const f=e.target.files?.[0];if(!f)return;try{const rows=parseCSV(await f.text());if(rows.length<2)throw Error("データ行がありません");const headers=rows[0].map((x,i)=>x.trim()||`列${i+1}`);csvRows=rows.slice(1).filter(r=>r.some(x=>x.trim()));const opts='<option value="">未対応</option>'+headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join("");const fields=[['date','日付'],['club','クラブ'],['carry','キャリー（yd）'],['total','トータル（yd）'],['direction','打ち出し方向'],['side','左右ブレ'],['note','メモ']];document.getElementById("csvMapping").hidden=false;document.getElementById("csvMapping").innerHTML=fields.map(([id,label])=>`<label class="small" for="map_${id}">${label}</label><select id="map_${id}" style="margin:4px 0 8px">${opts}</select>`).join("")+`<button class="chip active" id="importCsvBtn" type="button" style="width:100%">対応付けたデータを取り込む</button>`;document.getElementById("csvStatus").textContent=`${csvRows.length}行を読み込みました。列を対応付けてください。`;document.getElementById("csvPreview").textContent='先頭データ：'+csvRows[0].slice(0,6).join(' / ');document.getElementById("importCsvBtn").onclick=()=>{const idx=id=>document.getElementById('map_'+id).value;const get=(r,id)=>idx(id)===""?"":(r[Number(idx(id))]||"").trim();let added=0;csvRows.forEach(r=>{const club=get(r,'club'),carry=parseFloat(get(r,'carry'));if(!club||!Number.isFinite(carry))return;const date=get(r,'date');saved.unshift({id:makeId(),type:'shot_data',date:/^\d{4}-\d{1,2}-\d{1,2}$/.test(date)?date:todayISO(),club,carry,total:parseFloat(get(r,'total'))||null,direction:get(r,'direction'),side:get(r,'side'),note:get(r,'note'),source:f.name,updatedAt:new Date().toISOString()});added++;});persistSaved();document.getElementById("csvStatus").textContent=`${added}件をショットデータとして保存しました。同期するには「今すぐ同期」を押してください。`;document.getElementById("csvMapping").hidden=true;document.getElementById("csvPreview").textContent='';};}catch(err){document.getElementById("csvStatus").textContent='CSVを読み込めませんでした：'+err.message;}e.target.value="";});
+document.getElementById("shotCsv").addEventListener("change",async e=>{const f=e.target.files?.[0];if(!f)return;try{const rows=parseCSV(await f.text());if(rows.length<2)throw Error("データ行がありません");const headers=rows[0].map((x,i)=>x.trim()||`列${i+1}`);csvRows=rows.slice(1).filter(r=>r.some(x=>x.trim()));const opts='<option value="">未対応</option>'+headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join("");const fields=[['date','日付'],['club','クラブ'],['carry','キャリー（yd）'],['total','トータル（yd）'],['headSpeed','ヘッドスピード'],['ballSpeed','ボールスピード'],['smashFactor','スマッシュファクター'],['faceAngle','フェース角'],['clubPath','クラブパス角'],['faceToPath','フェーストゥパス'],['attackAngle','アタックアングル'],['launchVertical','打ち出し角（上下）'],['launchHorizontal','打ち出し角（左右）'],['backspin','バックスピン'],['sideSpin','サイドスピン'],['apex','最高到達点'],['side','左右ブレ'],['note','メモ']];document.getElementById("csvMapping").hidden=false;document.getElementById("csvMapping").innerHTML=fields.map(([id,label])=>`<label class="small" for="map_${id}">${label}</label><select id="map_${id}" style="margin:4px 0 8px">${opts}</select>`).join("")+`<button class="chip active" id="importCsvBtn" type="button" style="width:100%">対応付けたデータを取り込む</button>`;document.getElementById("csvStatus").textContent=`${csvRows.length}行を読み込みました。列を対応付けてください。`;document.getElementById("csvPreview").textContent='先頭データ：'+csvRows[0].slice(0,6).join(' / ');document.getElementById("importCsvBtn").onclick=()=>{const idx=id=>document.getElementById('map_'+id).value;const get=(r,id)=>idx(id)===""?"":(r[Number(idx(id))]||"").trim();let added=0;csvRows.forEach(r=>{const club=get(r,'club'),carry=parseFloat(get(r,'carry'));if(!club||!Number.isFinite(carry))return;const date=get(r,'date');const num=id=>{const v=get(r,id).replace(/,/g,'');return v===''?null:(Number.isFinite(Number(v))?Number(v):null);};saved.unshift({id:makeId(),type:'shot_data',date:/^\d{4}-\d{1,2}-\d{2}$/.test(date)?date:todayISO(),club,carry,total:num('total'),headSpeed:num('headSpeed'),ballSpeed:num('ballSpeed'),smashFactor:num('smashFactor'),faceAngle:num('faceAngle'),clubPath:num('clubPath'),faceToPath:num('faceToPath'),attackAngle:num('attackAngle'),launchVertical:num('launchVertical'),launchHorizontal:num('launchHorizontal'),backspin:num('backspin'),sideSpin:num('sideSpin'),apex:num('apex'),side:get(r,'side'),note:get(r,'note'),source:f.name,updatedAt:new Date().toISOString()});added++;});persistSaved();document.getElementById("csvStatus").textContent=`${added}件をショットデータとして保存しました。同期するには「今すぐ同期」を押してください。`;document.getElementById("csvMapping").hidden=true;document.getElementById("csvPreview").textContent='';};}catch(err){document.getElementById("csvStatus").textContent='CSVを読み込めませんでした：'+err.message;}e.target.value="";});
+// Scorecard image OCR. Tesseract.js runs locally in the browser; the image is not uploaded to a server.
+let roundOcrWorkerPromise=null;
+async function getRoundOcrWorker(){
+ if(!window.Tesseract) await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';sc.onload=resolve;sc.onerror=()=>reject(new Error('OCRライブラリを読み込めませんでした。ネット接続を確認してください。'));document.head.appendChild(sc);});
+ if(!roundOcrWorkerPromise) roundOcrWorkerPromise=window.Tesseract.createWorker('jpn+eng');
+ return roundOcrWorkerPromise;
+}
+document.getElementById('roundCardImage')?.addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ const status=document.getElementById('roundOcrStatus'),preview=document.getElementById('roundCardPreview'),out=document.getElementById('roundOcrText'),apply=document.getElementById('roundOcrApply');
+ preview.src=URL.createObjectURL(file);preview.hidden=false;out.hidden=false;apply.hidden=true;status.textContent='OCRエンジンを準備しています…';
+ try{const worker=await getRoundOcrWorker();status.textContent='画像を読み取っています…';const result=await worker.recognize(file);out.value=result.data.text||'';status.textContent='読み取り完了。文字起こしを確認・編集してから候補入力してください。';apply.hidden=false;}
+ catch(err){status.textContent='読み取りに失敗しました：'+err.message;}
+});
+document.getElementById('roundOcrApply')?.addEventListener('click',()=>{
+ const raw=document.getElementById('roundOcrText').value;
+ // Extract numeric runs from OCR output. Only propose a sequence when exactly 9 or 18 plausible hole scores are found.
+ const nums=(raw.match(/\b(?:[3-9]|1[0-2])\b/g)||[]).map(Number);
+ const candidates=[];for(const n of [18,9]){for(let i=0;i+n<=nums.length;i++){const a=nums.slice(i,i+n);if(a.every(v=>v>=3&&v<=12))candidates.push(a);}}
+ if(!candidates.length){alert('ホール別スコア候補を特定できませんでした。OCR結果を確認し、ホール別スコア欄へ手入力してください。');return;}
+ const chosen=candidates.sort((a,b)=>b.length-a.length)[0];document.getElementById('roundHoleScores').value=chosen.join(',');
+ const sum=chosen.reduce((a,b)=>a+b,0);document.getElementById('roundScore').value=sum;
+ document.getElementById('holeEntryStatus').textContent=`OCR候補を${chosen.length}ホール分入力しました（合計${sum}）。誤認識があり得るため、画像と照合してください。`;
+ document.getElementById('roundHoleScores').scrollIntoView({behavior:'smooth',block:'center'});
+});
 // Keep all new analytics in step with round and practice updates.
 const _persistSaved=persistSaved;persistSaved=function(){_persistSaved();renderAdvanced();};
 renderAdvanced();
@@ -884,70 +987,13 @@ renderExtra();
 // ---- Guide-book bookshelf ----
 const memoTab=document.getElementById("memoTab"), libraryTab=document.getElementById("libraryTab"), coachTab=document.getElementById("coachTab");
 const memoPage=document.getElementById("memoPage"), libraryPage=document.getElementById("libraryPage"), coachPage=document.getElementById("coachPage");
-
-/* Phase 2-4 extensions: analytical scoring, closed-loop practice, knowledge integration. */
-function ensurePhasePanels(){
- const score=document.getElementById("analysis-panel");
- if(score&&!document.getElementById("phase2-analysis")) score.insertAdjacentHTML("beforeend",'<section class="item" id="phase2-analysis" style="margin-top:14px"><h3 style="font-size:14px;margin:0 0 8px">スコア詳細分析</h3><div id="phase2-score-detail" class="small">記録を分析しています…</div><div id="phase2-miss-detail" style="margin-top:10px"></div><div id="phase2-club-detail" style="margin-top:10px"></div></section>');
- const growth=document.getElementById("progress-panel");
- if(growth&&!document.getElementById("phase3-training")) growth.insertAdjacentHTML("beforeend",'<section class="item" id="phase3-training" style="margin-top:14px"><h3 style="font-size:14px;margin:0 0 8px">次回のおすすめ練習</h3><p class="small">ラウンド記録・練習履歴から、優先課題をルールベースで抽出します。データ不足時は推測しません。</p><div id="phase3-recommendation"></div><button class="chip active" id="phase3-save" type="button" style="width:100%;margin-top:8px">おすすめ練習を記録に追加</button><p id="phase3-status" class="small" aria-live="polite"></p></section>');
- const coach=document.getElementById("coachPage");
- if(coach&&!document.getElementById("phase4-knowledge")) coach.insertAdjacentHTML("beforeend",'<section class="panel" id="phase4-knowledge"><h2>知識・データ統合</h2><p class="small">本棚の教材要点、ラウンド、練習、飛距離・計測データをまとめてAIへの依頼文に含められます。外部送信はせず、コピー操作のみ行います。</p><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><b id="phase4-books">0</b><span>教材ソース</span></div><div class="stat"><b id="phase4-data">0</b><span>個人データ件数</span></div></div><button class="chip active" id="phase4-copy" type="button" style="width:100%;margin-top:10px">教材＋個人データを含むAI依頼文をコピー</button><p id="phase4-status" class="small" aria-live="polite"></p></section>');
-}
-function renderPhase2(){
- const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score)));
- const recent=rounds.slice(0,5),prior=rounds.slice(5,10);
- const mean=a=>a.length?a.reduce((v,r)=>v+Number(r.score),0)/a.length:null;
- const m1=mean(recent),m0=mean(prior);
- const scored=rounds.length;
- const detail=document.getElementById("phase2-score-detail");
- if(detail) detail.innerHTML=scored?'<div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><b>'+(m1===null?"—":m1.toFixed(1))+'</b><span>直近5回平均</span></div><div class="stat"><b>'+(m0===null?"—":m0.toFixed(1))+'</b><span>その前の最大5回平均</span></div><div class="stat"><b>'+(m1!==null&&m0!==null?((m1-m0)>0?"+":"")+(m1-m0).toFixed(1):"—")+'</b><span>平均スコア差（小さいほど改善）</span></div><div class="stat"><b>'+rounds.length+'</b><span>分析対象ラウンド</span></div></div><p class="small">比較は記録された順の直近5回と、その前の最大5回。ラウンド数が少ない場合は比較を表示しません。</p>':'<p class="empty">スコア付きラウンドを登録すると分析します。</p>';
- const miss={};rounds.forEach(r=>{if(r.miss)miss[r.miss]=(miss[r.miss]||0)+1;});
- const missEl=document.getElementById("phase2-miss-detail");
- if(missEl) missEl.innerHTML='<b class="small">主なミス傾向</b>'+(Object.keys(miss).length?Object.entries(miss).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="item-meta">'+esc(k)+'：'+v+'件</div>').join(""):'<p class="small">ラウンド記録にミス傾向が入力されていません。</p>');
- const shot=typed("shot_data"),groups={};shot.forEach(x=>{if(x.club&&Number.isFinite(Number(x.carry)))(groups[x.club]??=[]).push(Number(x.carry));});
- const clubEl=document.getElementById("phase2-club-detail");
- if(clubEl)clubEl.innerHTML='<b class="small">クラブ別実測キャリー（CSV）</b>'+(Object.keys(groups).length?Object.entries(groups).map(([k,v])=>'<div class="item-meta">'+esc(k)+'：'+safeMean(v).toFixed(1)+' yd / '+v.length+'件</div>').join(""):'<p class="small">計測CSVを取り込むと、クラブごとの平均キャリーを比較できます。</p>');
-}
-function phase3Recommendation(){
- const rounds=typed("round"),prs=typed("practice_session"),suggestions=[];
- const recent=rounds.slice(0,5);
- const avg=key=>{const a=recent.map(r=>Number(r[key])).filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;};
- const putts=avg("putts"),pen=avg("penalties")??avg("ob"),gir=avg("gir"),three=avg("threePutts");
- if(pen!==null&&pen>=2)suggestions.push({title:"ペナルティを減らすティーショット練習",why:"直近ラウンドの平均ペナルティが"+pen.toFixed(1)+"打。方向性と安全な狙い所を優先。",menu:"7割スイングで左右の散らばりを確認 → 狙い所を決めて10球×2セット"});
- if(three!==null&&three>=2)suggestions.push({title:"ファーストパットの距離感",why:"3パット以上が平均"+three.toFixed(1)+"回。",menu:"距離を変えてロングパットを各5球。カップから1m以内に止める意識"});
- if(putts!==null&&putts>36)suggestions.push({title:"1〜2mのショートパット",why:"平均パット数が"+putts.toFixed(1)+"。",menu:"1m・1.5m・2mを各5球。方向と打ち出しを記録"});
- if(gir!==null&&gir<6)suggestions.push({title:"アイアンの方向性・番手選択",why:"平均パーオン数が"+gir.toFixed(1)+"。",menu:"得意なミドルアイアンで目標幅を設定し、左右のミスを記録"});
- const missCounts={};recent.forEach(r=>{if(r.miss)missCounts[r.miss]=(missCounts[r.miss]||0)+1;});
- const topMiss=Object.entries(missCounts).sort((a,b)=>b[1]-a[1])[0];
- if(topMiss)suggestions.push({title:topMiss[0]+"の再現性チェック",why:"直近ラウンドで最も多く記録されたミス。",menu:"小さい振り幅で10球、通常スイングで10球。打点と出球を比較"});
- if(!suggestions.length)suggestions.push({title:"基礎データを増やす",why:"優先課題を判断するためのラウンド指標が不足しています。",menu:"次回はパット数・ペナルティ・パーオン数・主なミスを記録"});
- return suggestions.slice(0,2);
-}
-function renderPhase3(){
- const el=document.getElementById("phase3-recommendation");if(!el)return;
- const recs=phase3Recommendation();window.__golfPhase3=recs;
- el.innerHTML=recs.map((r,i)=>'<div class="item" style="padding:10px;margin:8px 0"><b>'+(i+1)+'. '+esc(r.title)+'</b><p class="small">'+esc(r.why)+'</p><div>'+esc(r.menu)+'</div></div>').join("");
- const btn=document.getElementById("phase3-save");
- if(btn)btn.onclick=()=>{const r=(window.__golfPhase3||[])[0];if(!r)return;addTyped({type:"practice_session",date:todayISO(),focus:r.title,place:"",minutes:null,balls:null,drills:r.menu,feel:"Golf Notesの分析提案から追加"});const status=document.getElementById("phase3-status");if(status)status.textContent="おすすめ練習を練習記録に追加しました。";};
-}
-function renderPhase4(){
- const books=document.getElementById("phase4-books"),data=document.getElementById("phase4-data");
- const bookText=(document.getElementById("bookDetail")?.textContent||"").trim();
- if(books)books.textContent=bookText?1:0;
- if(data)data.textContent=["round","practice_session","club_distance","shot_data","course_note","golf_goal"].reduce((n,t)=>n+typed(t).length,0);
- const btn=document.getElementById("phase4-copy");
- if(btn)btn.onclick=()=>{const cb=document.getElementById("includeCoachContext");if(cb)cb.checked=true;const prompt=buildCoachPrompt();const knowledge=bookText?"\n\n【本棚の教材要点】\n"+bookText.slice(0,5000):"\n\n【本棚】教材要点は未登録です。";const full=prompt+knowledge;const status=document.getElementById("phase4-status");if(navigator.clipboard?.writeText)navigator.clipboard.writeText(full).then(()=>{if(status)status.textContent="教材要点と個人データを含む依頼文をコピーしました。";}).catch(()=>{if(status)status.textContent="コピーできませんでした。通常のAI依頼文コピーを利用してください。";});else if(status)status.textContent="この環境では自動コピーできません。";};
-}
-
 function showPage(which){
- ensurePhasePanels();
  const names={home:"ホーム",memo:"メモ",books:"本棚",coach:"AI分析カルテ",settings:"設定",round:"ラウンド記録",growth:"成長ダッシュボード・課題目標管理",ninety:"90切り分析・スコアシミュレーター",score:"スコア分析",practice:"練習記録・計測データ取り込み",distance:"飛距離データベース",course:"攻略ノート"};
  document.querySelectorAll(".app-page").forEach(p=>p.hidden=p.dataset.page!==which);
  const label=document.getElementById("currentPageLabel");if(label)label.textContent=names[which]||"ホーム";
  document.querySelectorAll("#pageMenu [data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===which));
  const menu=document.getElementById("pageMenu"),toggle=document.getElementById("menuToggle");if(menu)menu.hidden=true;if(toggle)toggle.setAttribute("aria-expanded","false");
- if(which==="coach"){renderCoach();renderPhase4();}if(which==="ninety")renderAdvanced();if(which==="growth"){renderExtra();renderPhase3();}if(which==="score"){renderPhase2();}
+ if(which==="coach")renderCoach();if(which==="ninety")renderAdvanced();if(which==="growth")renderExtra();
  window.scrollTo({top:0,behavior:"smooth"});
 }
 memoTab.addEventListener("click",()=>showPage("memo"));libraryTab.addEventListener("click",()=>showPage("books"));coachTab.addEventListener("click",()=>showPage("coach"));
