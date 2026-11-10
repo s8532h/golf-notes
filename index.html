@@ -1171,7 +1171,7 @@ function renderPhase4(){
 
 
 // ---- External course data (GolfCore) ----
-const COURSE_API_BASE="https://api.golfcore.org/v1";
+const COURSE_API_BASE="/.netlify/functions/golfcore";
 const COURSE_CACHE_DAYS=30;
 function courseText(v){return String(v??"").trim();}
 function courseCacheFresh(record){const t=Date.parse(record?.fetchedAt||record?.updatedAt||"");return Number.isFinite(t)&&(Date.now()-t)<COURSE_CACHE_DAYS*86400000;}
