@@ -1191,7 +1191,9 @@ function renderPhase7(){
  if(scoreRoot){
   const defs=[["score","スコア","打"],["putts","総パット","回"],["gir","パーオン","回"],["threePutts","3パット","回"],["penalties","ペナルティ","回"]];
   const rows=defs.map(([k,label,unit])=>{const recent=rounds.slice(0,5).map(r=>k==="penalties"?(r.ob==null&&r.penalties==null?null:Number(r.ob||0)+Number(r.penalties||0)):r[k]);const older=rounds.slice(5,10).map(r=>k==="penalties"?(r.ob==null&&r.penalties==null?null:Number(r.ob||0)+Number(r.penalties||0)):r[k]);const a=phase7Mean(recent),b=phase7Mean(older);return "<div class='item-meta'><b>"+label+"</b>　直近："+(a===null?"—":a.toFixed(1)+unit)+"　前5件："+(b===null?"—":b.toFixed(1)+unit)+(a!==null&&b!==null?"　差："+(a-b>0?"+":"")+(a-b).toFixed(1)+unit:"")+"</div>";}).join("");
-  scoreRoot.innerHTML="<div class='phase-stat'><strong>"+rounds.length+"件</strong><span>分析対象ラウンド</span></div>"+rows+"<p class='small'>直近5件とその前5件の比較です。スコア・パット数などは入力された値だけで計算します。</p>";
+  const scores=rounds.map(r=>Number(r.score)).filter(Number.isFinite),scoreMean=phase7Mean(scores),scoreSd=scoreMean===null?null:Math.sqrt(scores.reduce((s,v)=>s+(v-scoreMean)**2,0)/scores.length),best=scores.length?Math.min(...scores):null;
+  const rolling=rounds.slice(0,12).reverse().map((r,i,a)=>{const w=a.slice(Math.max(0,i-2),i+1).map(x=>Number(x.score)).filter(Number.isFinite);return w.length===3?"<span class='phase-tag'>"+esc(r.date||"")+" 3R平均 "+phase7Mean(w).toFixed(1)+"打</span>":"";}).filter(Boolean).join(" ");
+  scoreRoot.innerHTML="<div class='phase-stat'><strong>"+rounds.length+"件</strong><span>分析対象ラウンド</span></div>"+rows+"<div class='item-meta'>全期間平均："+(scoreMean===null?"—":scoreMean.toFixed(1)+"打")+" ・ ベスト："+(best===null?"—":best+"打")+" ・ 標準偏差："+(scoreSd===null?"—":scoreSd.toFixed(1)+"打")+"</div><h4>3ラウンド移動平均</h4>"+(rolling||"<p class='small'>3件以上のスコアがあると表示します。</p>")+"<p class='small'>記録済みデータだけを使用します。</p>";
  }
  const shotRoot=phase7Panel("advanced-panel","phase7-shot-detail","ショット詳細分析","CSVの計測データから番手別の飛距離と左右傾向を集計します。");
  if(shotRoot){
