@@ -1036,7 +1036,7 @@ function renderPhase3(){
 // ---- Phase 4: bookshelf knowledge context ----
 function phase4BookText(){
  const detail=document.getElementById('bookDetail');if(!detail)return '';
- return (detail.innerText||detail.textContent||'').replace(/\\s+/g,' ').trim().slice(0,6000);
+ return (detail.innerText||detail.textContent||'').replace(/\s+/g,' ').trim().slice(0,6000);
 }
 function renderPhase4(){
  const root=document.getElementById('phase4-content');if(!root)return;
