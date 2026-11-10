@@ -933,7 +933,7 @@ function renderPhase3(){
 }
 function renderPhase4(){
  const books=document.getElementById("phase4-books"),data=document.getElementById("phase4-data");
- const bookText=(document.getElementById("bookDetail")?.innerText||"").trim();
+ const bookText=(document.getElementById("bookDetail")?.textContent||"").trim();
  if(books)books.textContent=bookText?1:0;
  if(data)data.textContent=["round","practice_session","club_distance","shot_data","course_note","golf_goal"].reduce((n,t)=>n+typed(t).length,0);
  const btn=document.getElementById("phase4-copy");
