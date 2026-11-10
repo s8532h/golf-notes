@@ -1178,10 +1178,18 @@ function courseText(v){return String(v??"").trim();}
 function courseCacheFresh(record){const t=Date.parse(record?.fetchedAt||record?.updatedAt||"");return Number.isFinite(t)&&(Date.now()-t)<COURSE_CACHE_DAYS*86400000;}
 function cachedCourse(slug){return typed("course_external").find(x=>x.slug===slug&&x.payload&&courseCacheFresh(x));}
 function cachedCourseSearch(query){const q=courseText(query).toLocaleLowerCase("ja");return typed("course_search_cache").find(x=>x.queryKey===q&&Array.isArray(x.items)&&courseCacheFresh(x));}
+function renderSavedExternalCourses(){
+ const root=document.getElementById("savedExternalCourses");if(!root)return;
+ const courses=typed("course_external").filter(x=>x.payload&&x.slug).sort((a,b)=>(b.fetchedAt||"").localeCompare(a.fetchedAt||""));
+ root.innerHTML='<b>保存済みコース（'+courses.length+'）</b><p class="small">この端末に保存されたコース詳細です。保存済みデータを開くとAPI通信は発生しません。</p>'+
+ (courses.length?courses.map(x=>'<div class="item" style="padding:9px;margin:7px 0"><b>'+esc(x.course||x.payload.name||"名称未登録")+'</b><div class="item-meta">保存日：'+esc((x.fetchedAt||"").slice(0,10)||"—")+' ・ 30日間キャッシュ</div><button class="chip" type="button" data-open-saved-course="'+esc(x.slug)+'" style="margin-top:6px">保存済みデータを開く</button></div>').join(""):'<p class="small">まだ保存済みコースはありません。検索して詳細を取得すると、ここに追加されます。</p>');
+ root.querySelectorAll("[data-open-saved-course]").forEach(b=>b.addEventListener("click",()=>{const item=typed("course_external").find(x=>x.slug===b.dataset.openSavedCourse&&x.payload);if(item){renderExternalCourseDetail(item.payload);const s=document.getElementById("externalCourseStatus");if(s)s.textContent="保存済みデータを表示中（API通信なし）。";}}));
+}
 function saveCourseCache(record){
  const old=typed(record.type).find(x=>record.type==="course_external"?x.slug===record.slug:x.queryKey===record.queryKey);
  if(old){const idx=saved.findIndex(x=>x.id===old.id);if(idx>=0)saved[idx]={...old,...record,id:old.id,updatedAt:new Date().toISOString()};persistSaved();}
  else addTyped(record);
+ renderSavedExternalCourses();
 }
 function renderExternalCourseDetail(course){
  const root=document.getElementById("externalCourseDetail");if(!root)return;
@@ -1264,6 +1272,7 @@ async function loadExternalCourse(slug,name,forceRefresh=false){
 }
 document.getElementById("searchExternalCourse")?.addEventListener("click",()=>searchExternalCourses(false));
 document.getElementById("refreshExternalCourse")?.addEventListener("click",()=>searchExternalCourses(true));
+renderSavedExternalCourses();
 // ---- Record-based adaptive player profile ----
 function learningProfile(){
  const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score)));
