@@ -41,7 +41,10 @@ exports.handler = async (event) => {
     return json(429, { error: "Too many requests. Please wait one minute and try again." });
   }
 
-  const path = (event.path || "").replace(/^.*?\\/.netlify\\/functions\\/golfcore/, "");
+  const marker = "/.netlify/functions/golfcore";
+  const fullPath = event.path || "";
+  const markerIndex = fullPath.indexOf(marker);
+  const path = markerIndex >= 0 ? fullPath.slice(markerIndex + marker.length) : "";
   let upstreamUrl;
 
   if (path === "/courses" || path === "") {
@@ -54,9 +57,10 @@ exports.handler = async (event) => {
     upstreamUrl.searchParams.set("country", "jp");
     upstreamUrl.searchParams.set("limit", "10");
   } else {
-    const match = path.match(/^\\/courses\\/([a-zA-Z0-9_-]{1,100})$/);
-    if (!match) return json(404, { error: "Unknown GolfCore endpoint." });
-    upstreamUrl = new URL(API_BASE + "/courses/" + encodeURIComponent(match[1]));
+    const prefix = "/courses/";
+    const slug = path.startsWith(prefix) ? path.slice(prefix.length) : "";
+    if (!/^[a-zA-Z0-9_-]{1,100}$/.test(slug)) return json(404, { error: "Unknown GolfCore endpoint." });
+    upstreamUrl = new URL(API_BASE + "/courses/" + encodeURIComponent(slug));
   }
 
   try {
