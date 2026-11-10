@@ -884,13 +884,70 @@ renderExtra();
 // ---- Guide-book bookshelf ----
 const memoTab=document.getElementById("memoTab"), libraryTab=document.getElementById("libraryTab"), coachTab=document.getElementById("coachTab");
 const memoPage=document.getElementById("memoPage"), libraryPage=document.getElementById("libraryPage"), coachPage=document.getElementById("coachPage");
+
+/* Phase 2-4 extensions: analytical scoring, closed-loop practice, knowledge integration. */
+function ensurePhasePanels(){
+ const score=document.getElementById("analysis-panel");
+ if(score&&!document.getElementById("phase2-analysis")) score.insertAdjacentHTML("beforeend",'<section class="item" id="phase2-analysis" style="margin-top:14px"><h3 style="font-size:14px;margin:0 0 8px">スコア詳細分析</h3><div id="phase2-score-detail" class="small">記録を分析しています…</div><div id="phase2-miss-detail" style="margin-top:10px"></div><div id="phase2-club-detail" style="margin-top:10px"></div></section>');
+ const growth=document.getElementById("progress-panel");
+ if(growth&&!document.getElementById("phase3-training")) growth.insertAdjacentHTML("beforeend",'<section class="item" id="phase3-training" style="margin-top:14px"><h3 style="font-size:14px;margin:0 0 8px">次回のおすすめ練習</h3><p class="small">ラウンド記録・練習履歴から、優先課題をルールベースで抽出します。データ不足時は推測しません。</p><div id="phase3-recommendation"></div><button class="chip active" id="phase3-save" type="button" style="width:100%;margin-top:8px">おすすめ練習を記録に追加</button><p id="phase3-status" class="small" aria-live="polite"></p></section>');
+ const coach=document.getElementById("coachPage");
+ if(coach&&!document.getElementById("phase4-knowledge")) coach.insertAdjacentHTML("beforeend",'<section class="panel" id="phase4-knowledge"><h2>知識・データ統合</h2><p class="small">本棚の教材要点、ラウンド、練習、飛距離・計測データをまとめてAIへの依頼文に含められます。外部送信はせず、コピー操作のみ行います。</p><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><b id="phase4-books">0</b><span>教材ソース</span></div><div class="stat"><b id="phase4-data">0</b><span>個人データ件数</span></div></div><button class="chip active" id="phase4-copy" type="button" style="width:100%;margin-top:10px">教材＋個人データを含むAI依頼文をコピー</button><p id="phase4-status" class="small" aria-live="polite"></p></section>');
+}
+function renderPhase2(){
+ const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score)));
+ const recent=rounds.slice(0,5),prior=rounds.slice(5,10);
+ const mean=a=>a.length?a.reduce((v,r)=>v+Number(r.score),0)/a.length:null;
+ const m1=mean(recent),m0=mean(prior);
+ const scored=rounds.length;
+ const detail=document.getElementById("phase2-score-detail");
+ if(detail) detail.innerHTML=scored?'<div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><b>'+(m1===null?"—":m1.toFixed(1))+'</b><span>直近5回平均</span></div><div class="stat"><b>'+(m0===null?"—":m0.toFixed(1))+'</b><span>その前の最大5回平均</span></div><div class="stat"><b>'+(m1!==null&&m0!==null?((m1-m0)>0?"+":"")+(m1-m0).toFixed(1):"—")+'</b><span>平均スコア差（小さいほど改善）</span></div><div class="stat"><b>'+rounds.length+'</b><span>分析対象ラウンド</span></div></div><p class="small">比較は記録された順の直近5回と、その前の最大5回。ラウンド数が少ない場合は比較を表示しません。</p>':'<p class="empty">スコア付きラウンドを登録すると分析します。</p>';
+ const miss={};rounds.forEach(r=>{if(r.miss)miss[r.miss]=(miss[r.miss]||0)+1;});
+ const missEl=document.getElementById("phase2-miss-detail");
+ if(missEl) missEl.innerHTML='<b class="small">主なミス傾向</b>'+(Object.keys(miss).length?Object.entries(miss).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="item-meta">'+esc(k)+'：'+v+'件</div>').join(""):'<p class="small">ラウンド記録にミス傾向が入力されていません。</p>');
+ const shot=typed("shot_data"),groups={};shot.forEach(x=>{if(x.club&&Number.isFinite(Number(x.carry)))(groups[x.club]??=[]).push(Number(x.carry));});
+ const clubEl=document.getElementById("phase2-club-detail");
+ if(clubEl)clubEl.innerHTML='<b class="small">クラブ別実測キャリー（CSV）</b>'+(Object.keys(groups).length?Object.entries(groups).map(([k,v])=>'<div class="item-meta">'+esc(k)+'：'+safeMean(v).toFixed(1)+' yd / '+v.length+'件</div>').join(""):'<p class="small">計測CSVを取り込むと、クラブごとの平均キャリーを比較できます。</p>');
+}
+function phase3Recommendation(){
+ const rounds=typed("round"),prs=typed("practice_session"),suggestions=[];
+ const recent=rounds.slice(0,5);
+ const avg=key=>{const a=recent.map(r=>Number(r[key])).filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;};
+ const putts=avg("putts"),pen=avg("penalties")??avg("ob"),gir=avg("gir"),three=avg("threePutts");
+ if(pen!==null&&pen>=2)suggestions.push({title:"ペナルティを減らすティーショット練習",why:"直近ラウンドの平均ペナルティが"+pen.toFixed(1)+"打。方向性と安全な狙い所を優先。",menu:"7割スイングで左右の散らばりを確認 → 狙い所を決めて10球×2セット"});
+ if(three!==null&&three>=2)suggestions.push({title:"ファーストパットの距離感",why:"3パット以上が平均"+three.toFixed(1)+"回。",menu:"距離を変えてロングパットを各5球。カップから1m以内に止める意識"});
+ if(putts!==null&&putts>36)suggestions.push({title:"1〜2mのショートパット",why:"平均パット数が"+putts.toFixed(1)+"。",menu:"1m・1.5m・2mを各5球。方向と打ち出しを記録"});
+ if(gir!==null&&gir<6)suggestions.push({title:"アイアンの方向性・番手選択",why:"平均パーオン数が"+gir.toFixed(1)+"。",menu:"得意なミドルアイアンで目標幅を設定し、左右のミスを記録"});
+ const missCounts={};recent.forEach(r=>{if(r.miss)missCounts[r.miss]=(missCounts[r.miss]||0)+1;});
+ const topMiss=Object.entries(missCounts).sort((a,b)=>b[1]-a[1])[0];
+ if(topMiss)suggestions.push({title:topMiss[0]+"の再現性チェック",why:"直近ラウンドで最も多く記録されたミス。",menu:"小さい振り幅で10球、通常スイングで10球。打点と出球を比較"});
+ if(!suggestions.length)suggestions.push({title:"基礎データを増やす",why:"優先課題を判断するためのラウンド指標が不足しています。",menu:"次回はパット数・ペナルティ・パーオン数・主なミスを記録"});
+ return suggestions.slice(0,2);
+}
+function renderPhase3(){
+ const el=document.getElementById("phase3-recommendation");if(!el)return;
+ const recs=phase3Recommendation();window.__golfPhase3=recs;
+ el.innerHTML=recs.map((r,i)=>'<div class="item" style="padding:10px;margin:8px 0"><b>'+(i+1)+'. '+esc(r.title)+'</b><p class="small">'+esc(r.why)+'</p><div>'+esc(r.menu)+'</div></div>').join("");
+ const btn=document.getElementById("phase3-save");
+ if(btn)btn.onclick=()=>{const r=(window.__golfPhase3||[])[0];if(!r)return;addTyped({type:"practice_session",date:todayISO(),focus:r.title,place:"",minutes:null,balls:null,drills:r.menu,feel:"Golf Notesの分析提案から追加"});const status=document.getElementById("phase3-status");if(status)status.textContent="おすすめ練習を練習記録に追加しました。";};
+}
+function renderPhase4(){
+ const books=document.getElementById("phase4-books"),data=document.getElementById("phase4-data");
+ const bookText=(document.getElementById("bookDetail")?.innerText||"").trim();
+ if(books)books.textContent=bookText?1:0;
+ if(data)data.textContent=["round","practice_session","club_distance","shot_data","course_note","golf_goal"].reduce((n,t)=>n+typed(t).length,0);
+ const btn=document.getElementById("phase4-copy");
+ if(btn)btn.onclick=()=>{const cb=document.getElementById("includeCoachContext");if(cb)cb.checked=true;const prompt=buildCoachPrompt();const knowledge=bookText?"\n\n【本棚の教材要点】\n"+bookText.slice(0,5000):"\n\n【本棚】教材要点は未登録です。";const full=prompt+knowledge;const status=document.getElementById("phase4-status");if(navigator.clipboard?.writeText)navigator.clipboard.writeText(full).then(()=>{if(status)status.textContent="教材要点と個人データを含む依頼文をコピーしました。";}).catch(()=>{if(status)status.textContent="コピーできませんでした。通常のAI依頼文コピーを利用してください。";});else if(status)status.textContent="この環境では自動コピーできません。";};
+}
+
 function showPage(which){
+ ensurePhasePanels();
  const names={home:"ホーム",memo:"メモ",books:"本棚",coach:"AI分析カルテ",settings:"設定",round:"ラウンド記録",growth:"成長ダッシュボード・課題目標管理",ninety:"90切り分析・スコアシミュレーター",score:"スコア分析",practice:"練習記録・計測データ取り込み",distance:"飛距離データベース",course:"攻略ノート"};
  document.querySelectorAll(".app-page").forEach(p=>p.hidden=p.dataset.page!==which);
  const label=document.getElementById("currentPageLabel");if(label)label.textContent=names[which]||"ホーム";
  document.querySelectorAll("#pageMenu [data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===which));
  const menu=document.getElementById("pageMenu"),toggle=document.getElementById("menuToggle");if(menu)menu.hidden=true;if(toggle)toggle.setAttribute("aria-expanded","false");
- if(which==="coach")renderCoach();if(which==="ninety")renderAdvanced();if(which==="growth")renderExtra();
+ if(which==="coach"){renderCoach();renderPhase4();}if(which==="ninety")renderAdvanced();if(which==="growth"){renderExtra();renderPhase3();}if(which==="score"){renderPhase2();}
  window.scrollTo({top:0,behavior:"smooth"});
 }
 memoTab.addEventListener("click",()=>showPage("memo"));libraryTab.addEventListener("click",()=>showPage("books"));coachTab.addEventListener("click",()=>showPage("coach"));
