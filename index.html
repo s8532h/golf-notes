@@ -173,7 +173,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
       <button data-page="home">ホーム</button><button data-page="memo">メモ</button><button data-page="books">本棚</button><button data-page="coach">AI分析カルテ</button>
       <button data-page="round">ラウンド記録</button><button data-page="growth">成長ダッシュボード・課題目標管理</button>
       <button data-page="ninety">90切り分析・スコアシミュレーター</button><button data-page="score">スコア分析</button>
-      <button data-page="practice">練習記録・計測データ取り込み</button><button data-page="distance">飛距離データベース</button><button data-page="course">攻略ノート</button><button data-page="settings">設定</button>
+      <button data-page="practice">練習記録・計測データ取り込み</button><button data-page="swing">スイング動画レビュー</button><button data-page="distance">飛距離データベース</button><button data-page="course">攻略ノート</button><button data-page="settings">設定</button>
     </nav>
   </div>
 </div>
@@ -349,25 +349,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <div id="csvMapping" hidden style="margin-top:10px"></div>
   <div id="csvPreview" style="margin-top:10px"></div><div id="shotDataList" style="margin-top:10px"></div><div id="shotMetricList" style="margin-top:10px"></div>
 </section>
-<section class="panel" id="swing-video-panel">
-  <h2>スイング動画レビュー</h2>
-  <p class="small">動画はこの端末内で再生・確認します。サーバーにはアップロードしません。AIによる自動骨格推定ではなく、コマ送り・キーフレーム保存によるセルフチェック機能です。</p>
-  <label class="small" for="swingVideoFile">スイング動画を選択</label>
-  <input id="swingVideoFile" type="file" accept="video/*">
-  <video id="swingVideoPlayer" controls playsinline style="display:none;width:100%;max-height:420px;border-radius:14px;background:#111;margin-top:10px"></video>
-  <div id="swingVideoControls" hidden style="margin-top:10px">
-    <label class="small" for="swingFrameSeek">動画位置</label>
-    <input id="swingFrameSeek" type="range" min="0" max="1000" value="0" style="width:100%">
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="chip" id="swingStepBack" type="button">−1秒</button>
-      <button class="chip" id="swingStepForward" type="button">＋1秒</button>
-      <button class="chip active" id="swingCaptureFrame" type="button">このコマを保存</button>
-    </div>
-    <p class="small" id="swingVideoStatus" aria-live="polite">動画を読み込んでください。</p>
-    <div id="swingFrameGallery" class="phase-grid"></div>
-    <canvas id="swingFrameCanvas" hidden></canvas>
-  </div>
-</section>
+
 <div class="panel" id="edit-panel" hidden>
   <h2>メモを編集</h2>
   <input id="editTitle" maxlength="80" placeholder="タイトル">
@@ -542,7 +524,25 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     </div>
   </section>
 </section>
-</main>
+<section class="app-page" data-page="swing" hidden><div class="panel">
+  <h2>スイング動画レビュー</h2>
+  <p class="small">動画はこの端末内で再生・確認します。サーバーにはアップロードしません。AIによる自動骨格推定ではなく、コマ送り・キーフレーム保存によるセルフチェック機能です。</p>
+  <label class="small" for="swingVideoFile">スイング動画を選択</label>
+  <input id="swingVideoFile" type="file" accept="video/*">
+  <video id="swingVideoPlayer" controls playsinline style="display:none;width:100%;max-height:420px;border-radius:14px;background:#111;margin-top:10px"></video>
+  <div id="swingVideoControls" hidden style="margin-top:10px">
+    <label class="small" for="swingFrameSeek">動画位置</label>
+    <input id="swingFrameSeek" type="range" min="0" max="1000" value="0" style="width:100%">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="chip" id="swingStepBack" type="button">−1秒</button>
+      <button class="chip" id="swingStepForward" type="button">＋1秒</button>
+      <button class="chip active" id="swingCaptureFrame" type="button">このコマを保存</button>
+    </div>
+    <p class="small" id="swingVideoStatus" aria-live="polite">動画を読み込んでください。</p>
+    <div id="swingFrameGallery" class="phase-grid"></div>
+    <canvas id="swingFrameCanvas" hidden></canvas>
+  </div>
+</div></section></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ---- Phase 2-4: advanced analysis, improvement loop, simulator, CSV import ----
@@ -1368,7 +1368,7 @@ function renderLearningProfile(){
 }
 
 function showPage(which){
- const names={home:"ホーム",memo:"メモ",books:"本棚",coach:"AI分析カルテ",settings:"設定",round:"ラウンド記録",growth:"成長ダッシュボード・課題目標管理",ninety:"90切り分析・スコアシミュレーター",score:"スコア分析",practice:"練習記録・計測データ取り込み",distance:"飛距離データベース",course:"攻略ノート"};
+ const names={home:"ホーム",memo:"メモ",books:"本棚",coach:"AI分析カルテ",settings:"設定",round:"ラウンド記録",growth:"成長ダッシュボード・課題目標管理",ninety:"90切り分析・スコアシミュレーター",score:"スコア分析",practice:"練習記録・計測データ取り込み",distance:"飛距離データベース",course:"攻略ノート",swing:"スイング動画レビュー"};
  document.querySelectorAll(".app-page").forEach(p=>p.hidden=p.dataset.page!==which);
  const label=document.getElementById("currentPageLabel");if(label)label.textContent=names[which]||"ホーム";
  document.querySelectorAll("#pageMenu [data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===which));
