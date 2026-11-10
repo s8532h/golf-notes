@@ -283,6 +283,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
       <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label class="small" for="practiceMinutes">時間（分）</label><input id="practiceMinutes" type="number" min="1" max="600" placeholder="50"></div><div><label class="small" for="practiceBalls">球数</label><input id="practiceBalls" type="number" min="1" max="2000" placeholder="100"></div></div>
       <label class="small" for="practiceDrills">実施したドリル</label><textarea id="practiceDrills" rows="2" placeholder="ハーフスイング、片手打ちなど"></textarea>
       <label class="small" for="practiceFeel">結果・気づき</label><textarea id="practiceFeel" rows="2" placeholder="良かった感覚、残った課題など"></textarea>
+      <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px"><div><label class="small" for="practiceBeforeRate">練習前の成功率（%）</label><input id="practiceBeforeRate" type="number" min="0" max="100" placeholder="40"></div><div><label class="small" for="practiceAfterRate">練習後の成功率（%）</label><input id="practiceAfterRate" type="number" min="0" max="100" placeholder="60"></div></div><p class="small">同じ課題・同じ条件で測った成功率を入力すると、練習前後の変化を集計します。</p>
     </details>
     <button class="chip active" type="submit" style="width:100%;min-height:44px">練習を保存</button></form><p id="practiceSaveStatus" class="small" role="status" aria-live="polite" style="margin:8px 0"></p><div id="practiceInsights" style="margin-top:12px"></div><div id="practiceList"></div>
 </section>
@@ -309,6 +310,9 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   </div>
   <div id="missAnalysis" style="margin-top:12px"></div>
   <div id="improvementPlan" style="margin-top:12px"></div>
+  <div id="phase6-performance" class="phase-note" style="margin-top:12px"></div>
+  <div id="phase6-practice" class="phase-note" style="margin-top:12px"></div>
+  <div id="phase6-course" class="phase-note" style="margin-top:12px"></div>
 </section>
 <section class="panel" id="simulator-panel">
   <h2>90切りスコアシミュレーター</h2>
@@ -508,6 +512,28 @@ function renderAdvanced(){
  const metricEl=document.getElementById('shotMetricList');if(metricEl){const rows=shots.filter(x=>metricDefs.some(([k])=>x[k]!=null&&x[k]!==''));metricEl.innerHTML=rows.length?'<h3>ショット計測値（直近30件）</h3>'+rows.slice(0,30).map(x=>'<div class="item" style="padding:9px 11px;margin:6px 0"><b>'+esc(x.date||'日付未登録')+' ・ '+esc(x.club||'クラブ未登録')+'</b><div class="item-meta">'+metricDefs.filter(([k])=>x[k]!=null&&x[k]!=='').map(([k,label,unit])=>esc(label)+'：'+esc(x[k])+unit).join(' ／ ')+'</div></div>').join(''):'<p class="small">計測値を含むCSVを取り込むと、ここに表示されます。</p>';}
  const missCounts={};rs.forEach(x=>{if(x.miss)missCounts[x.miss]=(missCounts[x.miss]||0)+1;});const missEl=document.getElementById("missAnalysis");if(missEl){const sorted=Object.entries(missCounts).sort((a,b)=>b[1]-a[1]);missEl.innerHTML='<h3>ミス傾向</h3>'+(sorted.length?sorted.map(([k,v])=>`<div class="item-meta">${esc(k)}：${v}ラウンド</div>`).join(""):'<p class="empty">ラウンド記録の「主なミス傾向」を入力すると、ここに集計されます。</p>');}
  const plan=[];if(penalties!==null&&penalties>1)plan.push(`ペナルティ平均${penalties.toFixed(1)}打：ティーショットの安全な狙い所を決め、OB・池を避けるマネジメントを優先。`);if(threes!==null&&threes>1)plan.push(`3パット以上が平均${threes.toFixed(1)}回：ファーストパットの距離感練習を優先。`);if(gir!==null&&gir<6)plan.push(`パーオン平均${gir.toFixed(1)}回：無理にグリーンを狙わず、得意距離に刻む選択も検討。`);if(putts!==null&&putts>36)plan.push(`平均${putts.toFixed(1)}パット：1〜2mの方向性とロングパットの距離感を分けて練習。`);if(!plan.length)plan.push("記録が増えると、改善優先順位をより具体的に出せます。空欄の項目は次回から分かる範囲で入力しましょう。");const p=document.getElementById("improvementPlan");if(p)p.innerHTML='<h3>改善優先順位のヒント</h3><ul>'+plan.map(x=>`<li>${esc(x)}</li>`).join("")+'</ul>';
+ const insight=document.getElementById('phase6-performance');
+ if(insight){
+  const recent=valid.slice(0,5),older=valid.slice(5,10),mean=a=>a.length?a.reduce((s,r)=>s+Number(r.score),0)/a.length:null;
+  const rAvg=mean(recent),oAvg=mean(older),gap=rAvg===null?null:Math.max(0,rAvg-89);
+  const trend=valid.slice(0,10).reverse().map(r=>'<span class="phase-tag">'+esc((r.date||'').slice(5))+'：'+esc(r.score)+'打</span>').join(' ');
+  const byClub={};shots.forEach(x=>{const v=x.side??x.sideSpin??x.launchHorizontal;if(x.club&&v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v)))(byClub[x.club]??=[]).push(Number(v));});
+  const dispersion=Object.entries(byClub).map(([club,a])=>{const m=a.reduce((s,v)=>s+v,0)/a.length,sd=Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length);return '<div class="item-meta">'+esc(club)+'：左右指標の標準偏差 '+sd.toFixed(1)+'（'+a.length+'件）</div>';}).join('');
+  insight.innerHTML='<h3>90切りまでの距離・スコア推移</h3><div class="phase-grid"><div class="phase-stat"><strong>'+(rAvg===null?'—':rAvg.toFixed(1)+'打')+'</strong><span>直近5ラウンド平均</span></div><div class="phase-stat"><strong>'+(gap===null?'—':gap.toFixed(1)+'打')+'</strong><span>89打までの改善幅</span></div><div class="phase-stat"><strong>'+(oAvg===null||rAvg===null?'—':(rAvg-oAvg>0?'+':'')+(rAvg-oAvg).toFixed(1)+'打')+'</strong><span>前の5ラウンド比（マイナス改善）</span></div></div><p class="small">直近スコア：'+(trend||'記録なし')+'</p><h4>クラブ別ショット左右ばらつき</h4>'+(dispersion||'<p class="small">side / sideSpin / launchHorizontal のいずれかを含むCSVが必要です。</p>')+'<p class="small">左右指標は取り込み元の単位・符号に依存します。異なる計測指標を混在させず、同じ計測器・同じ指標内で比較してください。</p>';
+ }
+ const practiceInsight=document.getElementById('phase6-practice');
+ if(practiceInsight){
+  const prs=typed('practice_session').filter(x=>x.beforeRate!==null&&x.beforeRate!==undefined&&x.beforeRate!==''&&x.afterRate!==null&&x.afterRate!==undefined&&x.afterRate!==''&&Number.isFinite(Number(x.beforeRate))&&Number.isFinite(Number(x.afterRate)));
+  const deltas=prs.map(x=>Number(x.afterRate)-Number(x.beforeRate)),avg=deltas.length?deltas.reduce((a,b)=>a+b,0)/deltas.length:null,groups={};
+  prs.forEach(x=>(groups[x.focus]??=[]).push(Number(x.afterRate)-Number(x.beforeRate)));
+  practiceInsight.innerHTML='<h3>練習効果（自己計測）</h3><p>'+(avg===null?'成功率の練習前・後を記録すると集計します。':'比較記録 '+prs.length+'件 ・ 平均変化 '+(avg>0?'+':'')+avg.toFixed(1)+'ポイント')+'</p>'+Object.entries(groups).map(([k,a])=>{const d=a.reduce((s,v)=>s+v,0)/a.length;return '<div class="item-meta">'+esc(k)+'：'+(d>0?'+':'')+d.toFixed(1)+'pt（'+a.length+'件）</div>';}).join('')+'<p class="small">自己記録の前後比較です。条件や測定方法が異なる場合、練習の因果効果を示すものではありません。</p>';
+ }
+ const courseInsight=document.getElementById('phase6-course');
+ if(courseInsight){
+  const notes=typed('course_note'),latest=valid[0],matched=latest?notes.filter(n=>n.course===latest.course):[];
+  courseInsight.innerHTML='<h3>コース別攻略・振り返り</h3>'+(matched.length?'<b>直近ラウンドのコース：'+esc(latest.course)+'</b>'+matched.map(n=>'<div class="item-meta">Hole '+esc(n.hole||'—')+'：'+esc(n.strategy||n.next||'メモなし')+'</div>').join(''):'<p class="small">直近ラウンドのコースに一致する攻略メモはありません。コース攻略ページでメモを登録してください。</p>');
+ }
+
 }
 function runSimulator(){const val=id=>Math.max(0,Number(document.getElementById(id).value)||0);const start=Math.max(72,Number(document.getElementById("simScore").value)||96);const cuts=val("simPenalty")+val("simPutts")+val("simApproach")+val("simOther");const end=start-cuts;document.getElementById("simResult").textContent=`改善後の想定スコア：${end}（${cuts}打改善）。${end<90?"90切り達成圏内の試算です。":"90切りまであと"+(end-89)+"打。改善項目を少しずつ積み上げましょう。"}`;}
 document.getElementById("runSimulator").addEventListener("click",runSimulator);runSimulator();
@@ -977,7 +1003,7 @@ document.getElementById("practiceForm").addEventListener("submit",e=>{
  const status=get("practiceSaveStatus");
  if(!date||!focus){status.textContent="練習日と今日のテーマを入力してください。";form.reportValidity();return;}
  try{
-  addTyped({type:"practice_session",date,place:get("practicePlace").value.trim(),focus,minutes:Number(get("practiceMinutes").value)||null,balls:Number(get("practiceBalls").value)||null,drills:get("practiceDrills").value.trim(),feel:get("practiceFeel").value.trim()});
+  addTyped({type:"practice_session",date,place:get("practicePlace").value.trim(),focus,minutes:Number(get("practiceMinutes").value)||null,balls:Number(get("practiceBalls").value)||null,drills:get("practiceDrills").value.trim(),feel:get("practiceFeel").value.trim(),beforeRate:get("practiceBeforeRate").value===""?null:Number(get("practiceBeforeRate").value),afterRate:get("practiceAfterRate").value===""?null:Number(get("practiceAfterRate").value)});
   form.reset();get("practiceDate").value=todayISO();
   status.textContent="練習記録を保存しました。この端末に保存されています。別端末に反映するには設定ページで同期してください。";
  }catch(err){
@@ -1067,7 +1093,9 @@ function phase4BookText(){
 function renderPhase4(){
  const root=document.getElementById('phase4-content');if(!root)return;
  const text=phase4BookText();
- root.innerHTML=`<div class="phase-stat"><strong>${text?text.length.toLocaleString()+'字':'未登録'}</strong><span>本棚の表示中コンテンツから取得できる文字数</span></div><p>${text?'教材テキストをAIコーチの依頼文に含められます。':'本棚の教材本文が見つかりません。教材を開いてから再表示してください。'}</p><label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="includeBookContext"> AIコーチへの依頼文に本棚の教材テキストを含める</label><p class="small">教材本文は依頼文をコピーするまで外部送信されません。長文は最大6,000文字に制限します。</p>`;
+ root.innerHTML=`<div class="phase-stat"><strong>${text?text.length.toLocaleString()+'字':'未登録'}</strong><span>本棚の表示中コンテンツから取得できる文字数</span></div><p>${text?'教材テキストをAIコーチの依頼文に含められます。':'本棚の教材本文が見つかりません。教材を開いてから再表示してください。'}</p><label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="includeBookContext"> AIコーチへの依頼文に本棚の教材テキストを含める</label><div style="margin-top:12px"><h4>教材内キーワード検索</h4><input id="bookKnowledgeSearch" type="search" placeholder="例：振り子、回転、足の動き" style="width:100%"><div id="bookKnowledgeResults" class="small" style="margin-top:8px">現在表示中の本棚テキストを検索します。</div></div><p class="small">検索対象は本棚に表示されている登録済み要約・本文のみです。元PDF全ページの全文検索やページ単位の出典表示ではありません。教材本文は依頼文をコピーするまで外部送信されません。最大6,000文字です。</p>`;
+ const search=root.querySelector('#bookKnowledgeSearch'),results=root.querySelector('#bookKnowledgeResults');
+ if(search&&results)search.oninput=()=>{const q=search.value.trim().toLowerCase();if(!q){results.textContent='キーワードを入力してください。';return;}const source=document.getElementById('bookDetail'),raw=(source?.innerText||source?.textContent||''),lines=raw.split(/\\n+/).map(x=>x.trim()).filter(Boolean),hits=lines.filter(x=>x.toLowerCase().includes(q)).slice(0,8);results.innerHTML=hits.length?'<b>検索結果 '+hits.length+'件（登録済みテキスト）</b>'+hits.map(x=>'<div class="item-meta">・'+esc(x.slice(0,240))+'</div>').join(''):'該当する記述は見つかりませんでした。';};
 }
 
 function showPage(which){
