@@ -1152,4 +1152,65 @@ document.getElementById("exportNormalizedData")?.addEventListener("click",()=>{
  document.addEventListener("click",e=>{if(!e.target.closest(".menu-wrap")){const menu=document.getElementById("pageMenu");if(menu)menu.hidden=true;document.getElementById("menuToggle").setAttribute("aria-expanded","false");}});
  showPage("home");
 })();
+
+/* Phase 7: extended score, shot, practice, course and coaching feedback */
+function phase7Mean(a){const v=a.filter(x=>x!==null&&x!==undefined&&x!==""&&Number.isFinite(Number(x))).map(Number);return v.length?v.reduce((x,y)=>x+y,0)/v.length:null;}
+function phase7ValidRounds(){return typed("round").filter(r=>r.score!==null&&r.score!==undefined&&r.score!==""&&Number.isFinite(Number(r.score)));}
+function phase7Panel(parentId,id,title,description){const parent=document.getElementById(parentId);if(!parent)return null;let el=document.getElementById(id);if(!el){el=document.createElement("section");el.id=id;el.className="phase-note";el.innerHTML="<h3>"+title+"</h3><p>"+description+"</p><div class='phase7-content'></div>";parent.appendChild(el);}return el.querySelector(".phase7-content");}
+function renderPhase7(){
+ const rounds=phase7ValidRounds(),prs=typed("practice_session"),shots=typed("shot_data"),notes=typed("course_note");
+ const scoreRoot=phase7Panel("analysis-panel","phase7-long-trends","長期パフォーマンス推移","記録済みのラウンド指標を時系列で比較します。空欄は集計対象外です。");
+ if(scoreRoot){
+  const defs=[["score","スコア","打"],["putts","総パット","回"],["gir","パーオン","回"],["threePutts","3パット","回"],["penalties","ペナルティ","回"]];
+  const rows=defs.map(([k,label,unit])=>{const recent=rounds.slice(0,5).map(r=>k==="penalties"?(r.ob==null&&r.penalties==null?null:Number(r.ob||0)+Number(r.penalties||0)):r[k]);const older=rounds.slice(5,10).map(r=>k==="penalties"?(r.ob==null&&r.penalties==null?null:Number(r.ob||0)+Number(r.penalties||0)):r[k]);const a=phase7Mean(recent),b=phase7Mean(older);return "<div class='item-meta'><b>"+label+"</b>　直近："+(a===null?"—":a.toFixed(1)+unit)+"　前5件："+(b===null?"—":b.toFixed(1)+unit)+(a!==null&&b!==null?"　差："+(a-b>0?"+":"")+(a-b).toFixed(1)+unit:"")+"</div>";}).join("");
+  scoreRoot.innerHTML="<div class='phase-stat'><strong>"+rounds.length+"件</strong><span>分析対象ラウンド</span></div>"+rows+"<p class='small'>直近5件とその前5件の比較です。スコア・パット数などは入力された値だけで計算します。</p>";
+ }
+ const shotRoot=phase7Panel("advanced-panel","phase7-shot-detail","ショット詳細分析","CSVの計測データから番手別の飛距離と左右傾向を集計します。");
+ if(shotRoot){
+  const clubs={};shots.forEach(x=>{if(!x.club)return;(clubs[x.club]??=[]).push(x);});
+  const rows=Object.entries(clubs).map(([club,a])=>{
+   const carry=phase7Mean(a.map(x=>x.carry)),total=phase7Mean(a.map(x=>x.total));
+   const metricKey=["side","launchHorizontal","sideSpin"].find(k=>a.some(x=>x[k]!==null&&x[k]!==undefined&&x[k]!==""));
+   const vals=metricKey?a.map(x=>x[metricKey]).filter(v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))).map(Number):[];
+   const left=vals.filter(v=>v<0).length,right=vals.filter(v=>v>0).length,avg=phase7Mean(vals),sd=avg===null?null:Math.sqrt(vals.reduce((sum,v)=>sum+(v-avg)**2,0)/vals.length);
+   return "<div class='phase-note'><h4>"+esc(club)+"（"+a.length+"件）</h4><p>平均キャリー："+(carry===null?"—":carry.toFixed(1)+"yd")+" ／ トータル："+(total===null?"—":total.toFixed(1)+"yd")+"</p><p>"+(metricKey?"左右指標："+metricKey+" ・ 左側"+left+"件／右側"+right+"件 ・ 標準偏差 "+(sd===null?"—":sd.toFixed(2)):"左右指標の計測値なし")+"</p></div>";
+  }).join("");
+  shotRoot.innerHTML=rows||"<p class='small'>ショットCSVを取り込むと番手別分析が表示されます。</p>";
+  shotRoot.innerHTML+="<p class='small'>左右の符号・単位は計測器によって異なります。左右判定は各データの正負をそのまま数えたもので、異なる計測器や指標の比較には使えません。</p>";
+ }
+ const practiceRoot=phase7Panel("progress-panel","phase7-practice-loop","練習の継続率・ラウンド結果との振り返り","練習記録に実施済みチェックを付けると、継続率に反映されます。練習テーマと後続ラウンドの関係は参考値です。");
+ if(practiceRoot){
+  const done=prs.filter(x=>x.completed===true).length,rate=prs.length?done/prs.length*100:null;
+  const byFocus={};prs.forEach(p=>(byFocus[p.focus||"テーマ未設定"]??=[]).push(p));
+  const focusRows=Object.entries(byFocus).map(([focus,items])=>{const dates=items.map(x=>x.date).filter(Boolean).sort();const follow=rounds.filter(r=>dates.some(d=>d<=String(r.date||""))&&String(r.date||"")>=dates[0]);const avg=phase7Mean(follow.map(r=>r.score));return "<div class='item-meta'><b>"+esc(focus)+"</b>："+items.length+"回 ・ 実施済み "+items.filter(x=>x.completed===true).length+"回"+(follow.length?" ・ 以後のラウンド平均 "+(avg===null?"—":avg.toFixed(1)+"打")+"（"+follow.length+"件）":"")+"</div>";}).join("");
+  practiceRoot.innerHTML="<div class='phase-grid'><div class='phase-stat'><strong>"+done+"/"+prs.length+"</strong><span>実施済み練習</span></div><div class='phase-stat'><strong>"+(rate===null?"—":rate.toFixed(0)+"%")+"</strong><span>実施率</span></div></div>"+(focusRows||"<p class='small'>練習記録がありません。</p>")+"<p class='small'>テーマ別のラウンド平均は、練習日以降の記録を参考表示したものです。練習がスコア改善を引き起こしたという因果関係を示すものではありません。</p><h4>練習記録の実施状況</h4>"+prs.slice(0,20).map(p=>"<label style='display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)'><input type='checkbox' data-phase7-practice='"+esc(p.id)+"' "+(p.completed===true?"checked":"")+" style='width:18px;height:18px;margin:0'><span>"+esc(p.date||"日付未登録")+" ・ "+esc(p.focus||"テーマ未設定")+"</span></label>").join("");
+  practiceRoot.querySelectorAll("[data-phase7-practice]").forEach(el=>el.onchange=()=>{const p=saved.find(x=>x.id===el.dataset.phase7Practice&&x.type==="practice_session");if(!p)return;p.completed=el.checked;p.updatedAt=new Date().toISOString();persistSaved();renderPhase7();});
+ }
+ const courseRoot=phase7Panel("course-panel","phase7-course-analysis","コース・ホール別の攻略分析","過去のラウンドと攻略メモから、実績ベースの注意ホールを抽出します。");
+ if(courseRoot){
+  const courseGroups={};rounds.forEach(r=>{if(r.course)(courseGroups[r.course]??=[]).push(r);});
+  const courseRows=Object.entries(courseGroups).map(([course,rs])=>{const avg=phase7Mean(rs.map(r=>r.score));const holes={};rs.forEach(r=>(r.holes||[]).forEach(h=>{if(h.score!=null&&h.par!=null)(holes[h.number]??=[]).push(Number(h.score)-Number(h.par));}));const tough=Object.entries(holes).map(([n,a])=>({n,avg:phase7Mean(a)})).filter(x=>x.avg!==null).sort((a,b)=>b.avg-a.avg).slice(0,3);const ns=notes.filter(n=>n.course===course);return "<div class='phase-note'><h4>"+esc(course)+"</h4><p>ラウンド "+rs.length+"件 ・ 平均 "+(avg===null?"—":avg.toFixed(1)+"打")+"</p><p>"+(tough.length?"要注意ホール（平均対Par）："+tough.map(x=>x.n+"H "+(x.avg>0?"+":"")+x.avg.toFixed(1)).join(" ／ "):"ホール別スコア・パーの記録があると苦手ホールを特定できます。")+"</p>"+(ns.length?ns.map(n=>"<p class='small'>"+esc(n.hole||"ホール未指定")+"："+esc(n.strategy||n.next||"攻略メモ")+"</p>").join(""):"<p class='small'>攻略メモなし</p>")+"</div>";}).join("");
+  courseRoot.innerHTML=courseRows||"<p class='small'>コース名付きラウンドを登録するとコース別に集計します。</p>";
+ }
+ const growthRoot=phase7Panel("progress-panel","phase7-90-plan","90切り・練習計画の自動調整","直近のラウンド指標から、次の練習優先順位を提案します。");
+ if(growthRoot){
+  const recent=rounds.slice(0,5),avg=phase7Mean(recent.map(r=>r.score)),gap=avg===null?null:Math.max(0,avg-89);
+  const metrics=[{name:"ペナルティ",value:phase7Mean(recent.map(r=>r.ob==null&&r.penalties==null?null:Number(r.ob||0)+Number(r.penalties||0))),limit:1.5,drill:"ティーショットで安全な狙い所を決め、刻む判断を練習する"},{name:"3パット",value:phase7Mean(recent.map(r=>r.threePutts)),limit:1.5,drill:"10〜20mの距離感と1mの返しをセットで練習する"},{name:"総パット",value:phase7Mean(recent.map(r=>r.putts)),limit:36,drill:"ロングパットの距離感と1〜2mの方向性を分けて練習する"},{name:"GIR",value:phase7Mean(recent.map(r=>r.gir)),limit:6,drill:"得意距離を残すレイアップとグリーン周りの寄せを練習する"}];
+  const priorities=metrics.filter(m=>m.value!==null&&(m.name==="GIR"?m.value<m.limit:m.value>m.limit)).sort((a,b)=>{const score=m=>m.name==="GIR"?(m.limit-m.value)/m.limit:(m.value-m.limit)/m.limit;return score(b)-score(a);});
+  const plan=priorities.slice(0,3).map((m,i)=>"<div class='phase-note'><span class='phase-tag'>優先 "+(i+1)+"</span><h4>"+m.name+"："+m.value.toFixed(1)+(m.name==="GIR"?"回":"回")+"</h4><p>"+m.drill+"</p><button class='chip active' data-phase7-plan='"+esc(m.name)+"' type='button'>この練習を記録に追加</button></div>").join("");
+  growthRoot.innerHTML="<div class='phase-grid'><div class='phase-stat'><strong>"+(avg===null?"—":avg.toFixed(1)+"打")+"</strong><span>直近5ラウンド平均</span></div><div class='phase-stat'><strong>"+(gap===null?"—":gap.toFixed(1)+"打")+"</strong><span>89打までの差</span></div></div>"+(plan||"<p class='small'>直近データ上、設定した基準を超える課題はありません。データ不足の場合は指標を入力してください。</p>")+"<p class='small'>基準値は練習優先順位を決めるための目安です。90切りの達成確率を統計的に予測するものではありません。</p>";
+  growthRoot.querySelectorAll("[data-phase7-plan]").forEach(b=>b.onclick=()=>{const m=metrics.find(x=>x.name===b.dataset.phase7Plan);if(!m)return;addTyped({type:"practice_session",date:todayISO(),focus:m.name+"改善",drills:m.drill,feel:"90切り計画から追加"});renderPhase7();});
+ }
+ const coachRoot=phase7Panel("coachPage","phase7-coach-feedback","AIコーチ・改善履歴","過去の分析で提案した練習の実施状況と、その後のラウンド指標を確認します。");
+ if(coachRoot){
+  const analyses=typed("ai_analysis"),items=analyses.slice(0,10);
+  coachRoot.innerHTML=items.length?items.map(a=>{const count=(a.practice||[]).length,done=(a.practiceDone||[]).filter(Boolean).length;const after=rounds.filter(r=>String(r.date||"")>String(a.date||""));const avg=phase7Mean(after.map(r=>r.score));return "<div class='item-meta'><b>"+esc(a.title||"AI分析")+"</b>："+done+"/"+count+"件の練習チェック済み"+(after.length?" ・ 分析日以降のラウンド平均 "+(avg===null?"—":avg.toFixed(1)+"打")+"（"+after.length+"件）":" ・ 分析日以降のラウンドなし")+"</div>";}).join(""):"<p class='small'>AI分析を保存すると、提案ドリルの実施状況とその後のラウンドを振り返れます。</p>";
+  coachRoot.innerHTML+="<p class='small'>これは保存済み分析と後続ラウンドの時系列比較です。AIモデル自体を自動再学習するものではありません。</p>";
+ }
+}
+const _phase7ShowPage=showPage;
+showPage=function(which){_phase7ShowPage(which);renderPhase7();};
+const _phase7RenderExtra=renderExtra;
+renderExtra=function(){_phase7RenderExtra();renderPhase7();};
+renderPhase7();
 </script></body></html>
