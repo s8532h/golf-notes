@@ -304,6 +304,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <p class="small" id="externalCourseStatus" aria-live="polite">検索はユーザーが操作したときだけ実行します。検索・詳細は保存済みキャッシュを優先します。</p>
     <div id="externalCourseResults"></div>
     <div id="externalCourseDetail"></div>
+    <div class="phase-note" id="savedExternalCourses" style="margin-top:12px"><b>保存済みコース</b><div class="small">取得済みのコースデータはこの端末に保存されます。</div></div>
     <p class="small">データ：<a href="https://www.golfcore.org/developers/" target="_blank" rel="noopener">GolfCore Course Data API</a>。出典リンクを保持し、外部データの正確性・掲載範囲は提供元に依存します。</p>
   </div>
   <div id="courseList"></div>
@@ -1185,24 +1186,46 @@ function saveCourseCache(record){
 function renderExternalCourseDetail(course){
  const root=document.getElementById("externalCourseDetail");if(!root)return;
  const layouts=Array.isArray(course.layouts)?course.layouts:[];
- const layoutHtml=layouts.map(layout=>{
-  const tees=Array.isArray(layout.tees)?layout.tees:[];
-  return "<div class='phase-note'><b>"+esc(layout.name||"コース")+"</b>"+tees.map(tee=>{
-   const holes=Array.isArray(tee.holes)?tee.holes:[];
-   const rows=holes.map(h=>"<tr><td>"+esc(h.position??"—")+"</td><td>"+esc(h.par??"—")+"</td><td>"+esc(h.yards??"—")+"</td><td>"+esc(h.stroke_index??"—")+"</td></tr>").join("");
-   return "<p class='small'>"+esc(tee.name||"ティー")+" ・ "+esc(tee.gender||"")+" ・ Rating "+esc(tee.rating??"—")+" ・ Slope "+esc(tee.slope??"—")+" ・ Total "+esc(tee.yards??"—")+" yd</p>"+(rows?"<div style='overflow-x:auto'><table><thead><tr><th>Hole</th><th>Par</th><th>Yards</th><th>HDCP</th></tr></thead><tbody>"+rows+"</tbody></table></div>":"<p class='small'>このティーのホール別データは未提供です。</p>");
-  }).join("")+"</div>";
- }).join("");
- const recent=typed("round").find(r=>courseText(r.course).toLowerCase()===courseText(course.name).toLowerCase()||courseText(r.course).toLowerCase().includes(courseText(course.name).toLowerCase())||courseText(course.name).toLowerCase().includes(courseText(r.course).toLowerCase()));
- let compare="";
- if(recent&&Array.isArray(recent.holes)&&recent.holes.length){
-  const parMap={};layouts.forEach(l=>(l.tees||[]).forEach(t=>(t.holes||[]).forEach(h=>{if(h.position!=null&&h.par!=null)parMap[Number(h.position)]=Number(h.par);})));
-  const rows=recent.holes.map(h=>{const p=h.par??parMap[Number(h.number)];return p==null||h.score==null?null:{hole:h.number,par:Number(p),score:Number(h.score),diff:Number(h.score)-Number(p)};}).filter(Boolean);
-  const delta=rows.reduce((s,x)=>s+x.diff,0);
-  compare="<div class='phase-note'><b>あなたのラウンドとの比較</b><p>"+esc(recent.date||"")+" ・ "+esc(recent.score??"—")+"打</p><p>ホール別パーと照合できた "+rows.length+"ホール / "+(rows.length?((delta>0?"+":"")+delta+" オーバー"):"比較データなし")+"</p>"+rows.map(x=>"<div class='item-meta'>"+x.hole+"H："+x.score+"打 / Par "+x.par+" ("+(x.diff>0?"+":"")+x.diff+")</div>").join("")+"</div>";
+ const savedRounds=typed("round").filter(r=>courseText(r.course).toLowerCase()===courseText(course.name).toLowerCase()||courseText(r.course).toLowerCase().includes(courseText(course.name).toLowerCase())||courseText(course.name).toLowerCase().includes(courseText(r.course).toLowerCase())).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+ const layoutOptions=layouts.map((l,i)=>'<option value="'+i+'">'+esc(l.name||("コース "+(i+1)))+'</option>').join("");
+ const roundOptions=savedRounds.map((r,i)=>'<option value="'+i+'">'+esc(r.date||"日付未登録")+' ・ '+esc(r.score??"—")+'打</option>').join("");
+ root.innerHTML='<h4>'+esc(course.name||"コースデータ")+'</h4><p class="small">'+esc(course.address||"所在地未登録")+' ・ '+esc(course.phone||"")+'</p>'+
+ '<div class="phase-note"><b>ラウンド照合・攻略分析</b><p class="small">コース・ティーを選択すると、登録済みスコアとホール別に照合します。ラウンドにホール別スコアがない場合、比較は行いません。</p>'+
+ (savedRounds.length?'<label class="small" for="externalRoundSelect">比較するラウンド</label><select id="externalRoundSelect" style="width:100%;margin:5px 0 10px">'+roundOptions+'</select>':'<p class="small">このゴルフ場のラウンド記録はまだありません。ラウンド記録に同じゴルフ場名を登録すると比較できます。</p>')+
+ (layouts.length?'<label class="small" for="externalLayoutSelect">コース</label><select id="externalLayoutSelect" style="width:100%;margin:5px 0 10px">'+layoutOptions+'</select>':'')+
+ '<label class="small" for="externalTeeSelect">ティー</label><select id="externalTeeSelect" style="width:100%;margin:5px 0 10px"></select><div id="externalCourseAnalysis"></div></div>'+
+ '<div id="externalCourseLayouts"></div><p class="small">出典：<a href="'+esc(course.url||"https://www.golfcore.org/developers/")+'" target="_blank" rel="noopener">GolfCore コース情報</a></p>';
+ const layoutSelect=root.querySelector("#externalLayoutSelect"),teeSelect=root.querySelector("#externalTeeSelect"),roundSelect=root.querySelector("#externalRoundSelect");
+ function selectedLayout(){return layouts[Number(layoutSelect?.value||0)]||layouts[0]||{};}
+ function fillTees(){const tees=selectedLayout().tees||[];teeSelect.innerHTML=tees.map((t,i)=>'<option value="'+i+'">'+esc(t.name||("ティー "+(i+1)))+' ・ '+esc(t.yards??"—")+' yd</option>').join("");renderSelected();}
+ function renderSelected(){
+  const layout=selectedLayout(),tees=layout.tees||[],tee=tees[Number(teeSelect?.value||0)]||tees[0]||{},holes=Array.isArray(tee.holes)?tee.holes:[];
+  const selectedRound=savedRounds[Number(roundSelect?.value||0)],roundHoles=Array.isArray(selectedRound?.holes)?selectedRound.holes:[];
+  const stats=holes.map(h=>{const n=Number(h.position),rh=roundHoles.find(x=>Number(x.number)===n),par=Number(h.par),score=rh?.score==null?null:Number(rh.score);return {...h,n,par,score,diff:score==null?null:score-par};});
+  const scored=stats.filter(x=>x.diff!==null),totalDiff=scored.reduce((s,x)=>s+x.diff,0);
+  const avgByHole={};savedRounds.forEach(r=>(r.holes||[]).forEach(h=>{const n=Number(h.number);if(Number.isFinite(n)&&Number.isFinite(Number(h.score))){(avgByHole[n]||(avgByHole[n]=[])).push(Number(h.score));}}));
+  const rows=stats.map(h=>{const avg=avgByHole[h.n],avgText=avg?.length?(avg.reduce((a,b)=>a+b,0)/avg.length).toFixed(1):"—";return '<tr><td>'+esc(h.n)+'</td><td>'+esc(h.par??"—")+'</td><td>'+esc(h.yards??"—")+'</td><td>'+esc(h.stroke_index??"—")+'</td><td>'+(h.score==null?"—":h.score)+'</td><td>'+(h.diff==null?"—":(h.diff>0?"+":"")+h.diff)+'</td><td>'+avgText+'</td></tr>';}).join("");
+  const analysis=document.getElementById("externalCourseAnalysis");
+  if(analysis)analysis.innerHTML='<div class="phase-grid"><div class="phase-stat"><strong>'+esc(tee.yards??"—")+' yd</strong><span>選択ティー総距離</span></div><div class="phase-stat"><strong>'+esc(tee.rating??"—")+'</strong><span>コースレーティング</span></div><div class="phase-stat"><strong>'+esc(tee.slope??"—")+'</strong><span>スロープ</span></div><div class="phase-stat"><strong>'+scored.length+'/18</strong><span>照合ホール数</span></div></div>'+
+  (selectedRound&&roundHoles.length?'<p><b>'+esc(selectedRound.date||"")+' の記録：</b>'+esc(selectedRound.score??"—")+'打 ／ 照合分は'+(totalDiff>0?"+":"")+totalDiff+'（対Par）</p>':'<p class="small">ホール別スコアが入力されたラウンドを選ぶと、実績と照合できます。</p>')+
+  '<div style="overflow-x:auto"><table><thead><tr><th>Hole</th><th>Par</th><th>Yards</th><th>HDCP</th><th>今回</th><th>対Par</th><th>平均</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  const ranked=stats.filter(h=>Number.isFinite(h.n)&&Number.isFinite(h.par)&&Number.isFinite(Number(h.stroke_index))).sort((a,b)=>Number(a.stroke_index)-Number(b.stroke_index));
+  const hardest=ranked.slice(0,3),longest=stats.filter(h=>Number.isFinite(Number(h.yards))).sort((a,b)=>Number(b.yards)-Number(a.yards)).slice(0,3);
+  const advice=[];
+  if(hardest.length)advice.push("難易度上位（HDCP 1〜3相当）は "+hardest.map(h=>h.n+"H（Par "+h.par+"）").join("・")+"。無理にパーを狙わず、ボギー許容のマネジメントを候補に。");
+  if(longest.length)advice.push("距離の長いホールは "+longest.map(h=>h.n+"H（"+h.yards+"yd）").join("・")+"。ティーショットは飛距離より次打を打ちやすい位置を優先。");
+  const weak=stats.filter(h=>avgByHole[h.n]?.length>=2).map(h=>({...h,avg:avgByHole[h.n].reduce((a,b)=>a+b,0)/avgByHole[h.n].length,diffAvg:avgByHole[h.n].reduce((a,b)=>a+b,0)/avgByHole[h.n].length-h.par})).sort((a,b)=>b.diffAvg-a.diffAvg).slice(0,3);
+  if(weak.length)advice.push("過去の平均スコアがパーより多いホール："+weak.map(h=>h.n+"H（平均"+h.avg.toFixed(1)+"／Par "+h.par+"）").join("・")+"。次回の重点攻略候補。");
+  const adviceRoot=document.getElementById("externalCourseLayouts");
+  if(adviceRoot)adviceRoot.innerHTML='<h4>ホール別データ</h4><p class="small">今回スコア：選択したラウンドのホール別スコア。平均：このコース名で登録された全ラウンドの同一ホール平均。</p>'+
+  '<div class="phase-note"><b>コース攻略のヒント</b>'+ (advice.length?advice.map(x=>'<p>'+esc(x)+'</p>').join(""):'<p class="small">コースデータをもとにした一般的なヒントを表示します。複数ラウンドの記録が増えると、苦手ホールも分析できます。</p>')+'</div>';
  }
- root.innerHTML="<h4>"+esc(course.name||"コースデータ")+"</h4><p class='small'>"+esc(course.address||"所在地未登録")+" ・ "+esc(course.phone||"")+"</p>"+compare+layoutHtml+"<p class='small'>出典：<a href='"+esc(course.url||"https://www.golfcore.org/developers/")+"' target='_blank' rel='noopener'>GolfCore コース情報</a></p>";
+ if(layoutSelect)layoutSelect.addEventListener("change",fillTees);
+ if(teeSelect)teeSelect.addEventListener("change",renderSelected);
+ if(roundSelect)roundSelect.addEventListener("change",renderSelected);
+ fillTees();
 }
+
 function renderExternalCourseResults(items,cacheLabel){
  const root=document.getElementById("externalCourseResults");if(!root)return;
  root.innerHTML=items.slice(0,10).map(x=>"<div class='item' style='padding:10px;margin:8px 0'><b>"+esc(x.name||x.course_name||"名称未登録")+"</b><div class='item-meta'>"+esc(x.city||x.region||x.address||"所在地情報なし")+" ・ Coverage: "+esc(x.coverage||"未確認")+"</div><button class='chip' type='button' data-course-slug='"+esc(x.slug||x.id||"")+"' data-course-name='"+esc(x.name||x.course_name||"")+"' style='margin-top:7px'>詳細・ホールデータを表示</button></div>").join("");
