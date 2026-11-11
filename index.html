@@ -659,7 +659,7 @@ function renderRoundInsights(rounds){
  const el=document.getElementById("roundInsights");if(!el)return;
  const valid=rounds.filter(r=>Number.isFinite(Number(r.score))&&Number(r.score)>0);
  const recent=valid.slice(0,5);
- if(!valid.length){el.innerHTML='<div class="item" style="padding:12px"><b>90切りに向けたラウンド分析</b><p class="small">ラウンドを登録すると、直近5回のスコアと失点要因から改善目標を自動作成します。</p></div>';return;}
+ if(!recent.length){el.innerHTML='<div class="item" style="padding:12px"><b>90切りに向けた改善ダッシュボード</b><p class="small">ラウンドを登録すると、直近5回のスコアと記録済み指標から改善状況を表示します。</p></div>';return;}
  const mean=arr=>{const a=arr.filter(v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))).map(Number);return a.length?{value:a.reduce((x,y)=>x+y,0)/a.length,count:a.length}:null;};
  const metrics={
   putts:mean(recent.map(r=>r.putts)),
@@ -671,36 +671,43 @@ function renderRoundInsights(rounds){
  };
  const avgScore=mean(recent.map(r=>r.score)).value;
  const gap=Math.max(0,avgScore-89);
- const fmt=m=>m?m.value.toFixed(1)+"（"+m.count+"回）":"未記録";
+ const fmt=(m,unit)=>m?m.value.toFixed(1)+" "+unit+" / "+m.count+"ラウンド":"未記録";
  const goals=[];
- if(metrics.penalties&&metrics.penalties.value>0.8)goals.push({rank:1,title:"ペナルティを減らす",detail:"OB・池などを直近平均"+metrics.penalties.value.toFixed(1)+"打から1打以内へ。危険側を避けたティーショットの狙い所を決める。"});
- if(metrics.threes&&metrics.threes.value>1)goals.push({rank:2,title:"3パットを減らす",detail:"直近平均"+metrics.threes.value.toFixed(1)+"回から1回以内へ。ロングパットはカップインより1m以内に止める距離感を優先。"});
- if(metrics.putts&&metrics.putts.value>36)goals.push({rank:3,title:"パット数を36以下へ",detail:"直近平均"+metrics.putts.value.toFixed(1)+"パット。1〜2mの成功率とロングパットの距離感を分けて練習。"});
- if(metrics.gir&&metrics.gir.value<5)goals.push({rank:4,title:"パーオン数を増やす",detail:"直近平均"+metrics.gir.value.toFixed(1)+"回。無理なグリーン狙いを減らし、得意なウェッジ距離を残すマネジメントも使う。"});
- if(metrics.fairway&&metrics.fairway.value<6)goals.push({rank:5,title:"ティーショットの安定",detail:"FWキープ直近平均"+metrics.fairway.value.toFixed(1)+"回。飛距離より次打を打てる場所に置くことを優先。"});
- if(metrics.upDown&&metrics.upDown.value<4)goals.push({rank:6,title:"寄せワンを増やす",detail:"直近平均"+metrics.upDown.value.toFixed(1)+"回。グリーン周りはまず2パット圏内に乗せることを目標にする。"});
+ if(metrics.penalties&&metrics.penalties.value>0.8)goals.push({rank:1,title:"ペナルティを減らす",current:metrics.penalties.value.toFixed(1)+"打/ラウンド",target:"まず1打/ラウンド以内",detail:"OB・池などの合計。危険側を避け、次打を安全に打てる場所へ運ぶ。"});
+ if(metrics.threes&&metrics.threes.value>1)goals.push({rank:2,title:"3パット以上を減らす",current:metrics.threes.value.toFixed(1)+"回/ラウンド",target:"まず1回/ラウンド以内",detail:"ロングパットはカップインより1m以内に止める距離感を優先。"});
+ if(metrics.putts&&metrics.putts.value>36)goals.push({rank:3,title:"パット数を減らす",current:metrics.putts.value.toFixed(1)+"打/ラウンド",target:"36打以下",detail:"1〜2mのショートパットとロングパットの距離感を分けて練習。"});
+ if(metrics.gir&&metrics.gir.value<5)goals.push({rank:4,title:"パーオン数を増やす",current:metrics.gir.value.toFixed(1)+"回/ラウンド",target:"まず5回以上",detail:"無理なグリーン狙いを減らし、得意なウェッジ距離を残すマネジメントも使う。"});
+ if(metrics.fairway&&metrics.fairway.value<6)goals.push({rank:5,title:"ティーショットを安定させる",current:metrics.fairway.value.toFixed(1)+"回/ラウンド",target:"まず6回以上",detail:"飛距離より、次打を打てる場所に置くことを優先。"});
+ if(metrics.upDown&&metrics.upDown.value<4)goals.push({rank:6,title:"寄せワンを増やす",current:metrics.upDown.value.toFixed(1)+"回/ラウンド",target:"まず4回以上",detail:"グリーン周りは、まず2パット圏内に乗せることを目標にする。"});
  goals.sort((a,b)=>a.rank-b.rank);
  const rows=[
-  ["平均スコア",avgScore.toFixed(1)+"打"],
-  ["パット数",fmt(metrics.putts)],
-  ["OB＋その他ペナルティ",fmt(metrics.penalties)+" 打"],
-  ["3パット以上",fmt(metrics.threes)+" 回"],
-  ["パーオン（GIR）",fmt(metrics.gir)+" 回"],
-  ["FWキープ",fmt(metrics.fairway)+" 回"]
+  ["パット数",fmt(metrics.putts,"打")],
+  ["OB＋その他ペナルティ",fmt(metrics.penalties,"打")],
+  ["3パット以上",fmt(metrics.threes,"回")],
+  ["パーオン（GIR）",fmt(metrics.gir,"回")],
+  ["FWキープ",fmt(metrics.fairway,"回")],
+  ["寄せワン",fmt(metrics.upDown,"回")]
  ];
- const target=gap>0?("平均スコアから90切りまで約"+gap.toFixed(1)+"打の改善が目安。まずは直近5回で平均"+Math.max(89,avgScore-2).toFixed(1)+"打を目指そう。"):"直近5回の平均は90未満。再現性を高め、80台を安定させよう。";
+ const milestones=[108,105,100,95,89];
+ const next=milestones.find(v=>avgScore>v);
+ const target=next?("次の目標は平均"+next+"打。現在から"+(avgScore-next).toFixed(1)+"打の改善を目指そう。"):"平均89打以下を達成。次は80台の安定を目指そう。";
+ const progress=Math.max(0,Math.min(100,(110-avgScore)/(110-89)*100));
  el.innerHTML=`<div class="item" style="padding:12px;border-color:#d9e3d7">
-  <b>直近5ラウンドの自動分析</b>
-  <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">
-   <div class="stat"><b>${avgScore.toFixed(1)}</b><span>平均スコア</span></div>
-   <div class="stat"><b>${gap>0?gap.toFixed(1)+"打":"達成"}</b><span>90切りまでの差</span></div>
+  <b>90切りに向けた改善ダッシュボード</b>
+  <p class="small" style="margin:4px 0 8px">分析対象：直近${recent.length}ラウンド（最大5回）／平均スコアの記録数：${recent.length}回</p>
+  <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px">
+   <div class="stat"><b>${avgScore.toFixed(1)}</b><span>直近平均スコア</span></div>
+   <div class="stat"><b>${gap>0?gap.toFixed(1)+"打":"達成"}</b><span>89打までの差</span></div>
   </div>
+  <div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>90切りまでの進捗目安</span><b>${progress.toFixed(0)}%</b></div><div style="height:9px;background:#edf3ec;border-radius:8px;overflow:hidden;margin-top:5px"><div style="height:100%;width:${progress}%;background:var(--green);border-radius:8px"></div></div></div>
   <p class="small" style="margin:10px 0 6px">${target}</p>
-  <h3 style="font-size:13px;margin:12px 0 6px">指標一覧（記録済みデータのみ）</h3>
+  <h3 style="font-size:13px;margin:12px 0 6px">スコア目標ステップ</h3>
+  <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px">${milestones.map(v=>`<div style="text-align:center;padding:7px 2px;border-radius:9px;background:${avgScore<=v?"#e5efe5":"#f3f4ee"};border:1px solid ${avgScore<=v?"#b9d0bd":"var(--line)"}"><b style="font-size:13px">${v}</b><div class="small">${avgScore<=v?"達成":"目標"}</div></div>`).join("")}</div>
+  <h3 style="font-size:13px;margin:13px 0 6px">指標一覧（記録済みデータのみ）</h3>
   <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>${rows.map(([k,v])=>`<tr><td style="padding:6px 4px;border-bottom:1px solid var(--line)">${k}</td><td style="padding:6px 4px;text-align:right;border-bottom:1px solid var(--line);font-weight:700">${v}</td></tr>`).join("")}</tbody></table></div>
   <h3 style="font-size:13px;margin:13px 0 6px">次回ラウンドの改善優先順位</h3>
-  ${goals.length?`<ol style="padding-left:20px;margin:5px 0">${goals.slice(0,3).map(g=>`<li style="margin:7px 0"><b>${g.title}</b><div class="small">${g.detail}</div></li>`).join("")}</ol>`:'<p class="small">入力済みの指標では大きな弱点を特定できません。ホール別記録や未入力項目を追加すると、さらに具体的に分析できます。</p>'}
-  <p class="small" style="margin-top:9px">※未入力項目は平均から除外。OBとOB以外のペナルティは合算して表示。推定値は使用しません。</p>
+  ${goals.length?`<ol style="padding-left:20px;margin:5px 0">${goals.slice(0,3).map(g=>`<li style="margin:8px 0"><b>${g.title}</b><div class="small">現状：${g.current} ／ 目標：${g.target}</div><div class="small">${g.detail}</div></li>`).join("")}</ol>`:'<p class="small">入力済みの指標では大きな弱点を特定できません。ホール別記録を追加すると、さらに具体的に分析できます。</p>'}
+  <p class="small" style="margin-top:9px">※平均値は、その項目を入力したラウンドだけで計算。OBとOB以外のペナルティは合算。改善効果の打数は推定していません。</p>
  </div>`;
 }
 function renderHoleAnalytics(rounds){
