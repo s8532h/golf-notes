@@ -1101,7 +1101,7 @@ function courseMapSvg(shape,hazards){
  if(shape==="water-right")extras='<path d="M350 20 Q285 45 305 90 T295 180 L350 180Z" fill="#9bd0df" opacity=".9"/>';
  if(shape==="bunkers")extras='<ellipse cx="110" cy="65" rx="19" ry="10" fill="#e6d6a9" stroke="#c9b77e"/><ellipse cx="238" cy="115" rx="20" ry="11" fill="#e6d6a9" stroke="#c9b77e"/><ellipse cx="185" cy="28" rx="17" ry="8" fill="#e6d6a9" stroke="#c9b77e"/>';
  extras+='<ellipse cx="175" cy="18" rx="30" ry="13" fill="#5e9a57" stroke="#417849"/><circle cx="175" cy="18" r="4" fill="#fff"/><path d="M175 18 V2" stroke="#263b2d" stroke-width="2"/><path d="M176 3 L194 8 L176 13Z" fill="#d95b4b"/><circle cx="175" cy="176" r="5" fill="#fff" stroke="#35543a" stroke-width="2"/>';
- return '<svg class="course-map" viewBox="0 0 350 195" role="img" aria-label="簡易コースレイアウト図"><rect x="0" y="0" width="350" height="195" rx="12" fill="#edf3e8"/>'+extras+fairway+'<text x="175" y="192" text-anchor="middle">TEE</text><text x="215" y="18">GREEN</text></svg><p class="small">簡易イメージ図（実際の測量図・公式レイアウトではありません）'+(hazards?' ・ '+esc(hazards):'')+'</p>';
+ return '<svg class="course-map" viewBox="0 0 350 195" role="img" aria-label="簡易コースレイアウト図"><rect x="0" y="0" width="350" height="195" rx="12" fill="#edf3e8"/>'+fairway+extras+'<text x="175" y="192" text-anchor="middle">TEE</text><text x="215" y="18">GREEN</text></svg><p class="small">簡易イメージ図（実際の測量図・公式レイアウトではありません）'+(hazards?' ・ '+esc(hazards):'')+'</p>';
 }
 function renderCourseMapPreview(){
  const box=document.getElementById("courseMapPreview");if(!box)return;
@@ -1115,11 +1115,12 @@ function renderAICoachInsights(){
  const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score))&&Number(r.score)>0);
  const recent=rounds.slice(0,5),practices=typed("practice_session"),goals=typed("golf_goal").filter(g=>!g.done);
  const mean=(a)=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+ const present=(v)=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v));
  const metrics=[
-  {name:"ペナルティ",value:mean(recent.map(r=>Number(r.ob||0)+Number(r.penalties||0)).filter(Number.isFinite)),target:1,unit:"打/回",detail:"ティーショットは飛距離より安全な着地点を優先"},
-  {name:"パット数",value:mean(recent.map(r=>Number(r.putts)).filter(Number.isFinite)),target:36,unit:"打/回",detail:"ロングパットの距離感と1〜2mの成功率を分けて練習"},
-  {name:"3パット以上",value:mean(recent.map(r=>Number(r.threePutts)).filter(Number.isFinite)),target:1,unit:"回/回",detail:"ファーストパットをカップから1m以内に止める距離感を優先"},
-  {name:"GIR",value:mean(recent.map(r=>Number(r.gir)).filter(Number.isFinite)),target:5,unit:"回/回",detail:"無理なパーオン狙いを減らし、得意なウェッジ距離を残す"}
+  {name:"ペナルティ",value:mean(recent.filter(r=>present(r.ob)||present(r.penalties)).map(r=>Number(r.ob||0)+Number(r.penalties||0))),target:1,unit:"打/回",detail:"ティーショットは飛距離より安全な着地点を優先"},
+  {name:"パット数",value:mean(recent.filter(r=>present(r.putts)).map(r=>Number(r.putts))),target:36,unit:"打/回",detail:"ロングパットの距離感と1〜2mの成功率を分けて練習"},
+  {name:"3パット以上",value:mean(recent.filter(r=>present(r.threePutts)).map(r=>Number(r.threePutts))),target:1,unit:"回/回",detail:"ファーストパットをカップから1m以内に止める距離感を優先"},
+  {name:"GIR",value:mean(recent.filter(r=>present(r.gir)).map(r=>Number(r.gir))),target:5,unit:"回/回",detail:"無理なパーオン狙いを減らし、得意なウェッジ距離を残す"}
  ];
  const weak=metrics.filter(m=>m.value!==null).sort((a,b)=>{const sa=a.name==="GIR"?Math.max(0,a.target-a.value):Math.max(0,a.value-a.target);const sb=b.name==="GIR"?Math.max(0,b.target-b.value):Math.max(0,b.value-b.target);return sb-sa;})[0];
  const holes=rounds.flatMap(r=>(r.holes||[]).filter(h=>h.par!=null&&Number.isFinite(Number(h.score))).map(h=>({par:Number(h.par),diff:Number(h.score)-Number(h.par)})));
