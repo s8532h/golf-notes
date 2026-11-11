@@ -1134,7 +1134,7 @@ function renderAICoachInsights(){
  el.innerHTML='<div class="ai-coach-card"><div class="item-meta">分析対象：直近'+recent.length+'ラウンド ・ 練習記録'+practices.length+'件 ・ 未達成目標'+goals.length+'件</div><ol style="padding-left:20px;margin:8px 0">'+suggestions.map(x=>'<li style="margin:8px 0">'+x+'</li>').join("")+'</ol><p class="small">これは入力データに基づくルールベースの提案です。AIによる診断ではなく、データ不足時は推測しません。</p></div>';
 }
 function bookSearchCorpus(){
- const builtIn=document.getElementById("bookDetail")?.innerText||"";
+ const builtIn=document.getElementById("bookDetail")?.textContent||"";
  const custom=typed("book_reference").map(n=>({title:n.title,category:n.category,body:n.body,id:n.id}));
  return [{title:"スイング大全",category:"登録済み書籍",body:builtIn,id:"builtin-swing"},...custom];
 }
