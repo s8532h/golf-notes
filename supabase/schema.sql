@@ -103,76 +103,73 @@ alter table public.golf_memos enable row level security;
 alter table public.golf_rounds enable row level security;
 alter table public.golf_user_data enable row level security;
 
+-- Remove all prior policies on these four tables first. This avoids leaving
+-- an older permissive policy in place alongside the policies below.
+do $$
+declare
+  p record;
+begin
+  for p in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('golf_notes','golf_memos','golf_rounds','golf_user_data')
+  loop
+    execute format('drop policy if exists %I on %I.%I', p.policyname, p.schemaname, p.tablename);
+  end loop;
+end $$;
+
 -- Legacy table policies.
-drop policy if exists "Users can read their own golf notes" on public.golf_notes;
 create policy "Users can read their own golf notes"
   on public.golf_notes for select to authenticated
   using (auth.uid() = user_id);
-drop policy if exists "Users can insert their own golf notes" on public.golf_notes;
 create policy "Users can insert their own golf notes"
   on public.golf_notes for insert to authenticated
   with check (auth.uid() = user_id);
-drop policy if exists "Users can update their own golf notes" on public.golf_notes;
 create policy "Users can update their own golf notes"
   on public.golf_notes for update to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
-drop policy if exists "Users can delete their own golf notes" on public.golf_notes;
 create policy "Users can delete their own golf notes"
   on public.golf_notes for delete to authenticated
   using (auth.uid() = user_id);
 
 -- Memo table policies.
-drop policy if exists "Users can read their own golf memos" on public.golf_memos;
 create policy "Users can read their own golf memos"
   on public.golf_memos for select to authenticated
   using (auth.uid() = user_id);
-drop policy if exists "Users can insert their own golf memos" on public.golf_memos;
 create policy "Users can insert their own golf memos"
   on public.golf_memos for insert to authenticated
   with check (auth.uid() = user_id);
-drop policy if exists "Users can update their own golf memos" on public.golf_memos;
 create policy "Users can update their own golf memos"
   on public.golf_memos for update to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
-drop policy if exists "Users can delete their own golf memos" on public.golf_memos;
 create policy "Users can delete their own golf memos"
   on public.golf_memos for delete to authenticated
   using (auth.uid() = user_id);
 
 -- Round table policies.
-drop policy if exists "Users can read their own golf rounds" on public.golf_rounds;
 create policy "Users can read their own golf rounds"
   on public.golf_rounds for select to authenticated
   using (auth.uid() = user_id);
-drop policy if exists "Users can insert their own golf rounds" on public.golf_rounds;
 create policy "Users can insert their own golf rounds"
   on public.golf_rounds for insert to authenticated
   with check (auth.uid() = user_id);
-drop policy if exists "Users can update their own golf rounds" on public.golf_rounds;
 create policy "Users can update their own golf rounds"
   on public.golf_rounds for update to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
-drop policy if exists "Users can delete their own golf rounds" on public.golf_rounds;
 create policy "Users can delete their own golf rounds"
   on public.golf_rounds for delete to authenticated
   using (auth.uid() = user_id);
 
 -- Other user data policies.
-drop policy if exists "Users can read their own golf user data" on public.golf_user_data;
 create policy "Users can read their own golf user data"
   on public.golf_user_data for select to authenticated
   using (auth.uid() = user_id);
-drop policy if exists "Users can insert their own golf user data" on public.golf_user_data;
 create policy "Users can insert their own golf user data"
   on public.golf_user_data for insert to authenticated
   with check (auth.uid() = user_id);
-drop policy if exists "Users can update their own golf user data" on public.golf_user_data;
 create policy "Users can update their own golf user data"
   on public.golf_user_data for update to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
-drop policy if exists "Users can delete their own golf user data" on public.golf_user_data;
-create policy "Users can delete their own golf user data"
-  on public.golf_user_data for delete to authenticated
-  using (auth.uid() = user_id);
 
 -- No anon/public policies. Do not expose private records.
