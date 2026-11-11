@@ -160,6 +160,20 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
 .book-search-results .item{margin:7px 0}
 .book-source-form{display:grid;gap:7px;margin-top:12px}
 .ai-coach-card{border:1px solid #d7e2d5;background:#f7faf5;border-radius:12px;padding:12px;margin:9px 0}
+
+.book-detail .book-extra{background:#f3f6f0;border:1px solid #e2e9df;border-radius:11px;padding:10px 12px;margin:8px 0}
+.book-detail .book-extra> b{display:block;color:var(--green);font-size:12px;margin-bottom:5px}
+.book-detail .book-fields{display:grid;gap:7px}
+.book-detail .book-field{padding:8px 10px;border-left:3px solid #c6d4c3;background:#f7f8f4;border-radius:7px}
+.book-detail .book-field>b,.book-detail .drill-field>b{display:block;color:#526b57;font-size:12px;margin-bottom:3px}
+.book-detail .book-field>div,.book-detail .drill-field>div{font-size:13px}
+.book-detail .book-list{margin:4px 0;padding-left:20px}
+.book-detail .drill-grid{grid-template-columns:1fr;gap:10px}
+.book-detail .drill{background:#f4f6f0;border:1px solid #e2e8df;border-radius:12px;padding:12px}
+.book-detail .drill-title{display:block;font-size:14px;color:var(--green);margin-bottom:8px}
+.book-detail .drill-field{padding-top:7px;margin-top:7px;border-top:1px solid #e0e7dc}
+.book-detail .drill-field p{margin:2px 0}
+@media(min-width:650px){.book-detail .drill-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style></head><body>
 <header><div class="wrap"><div class="kicker">MY GOLF JOURNAL</div><h1>Golf Notes</h1><p class="sub">ゴルフの気づき・ラウンド・AI分析をまとめて管理。</p></div>
 <svg class="hero-art" viewBox="0 0 260 150" role="img" aria-label="ゴルフグリーンと旗、ゴルフボールのイラスト">
@@ -1175,11 +1189,11 @@ function renderCustomBookShelf(){
  const books=[...groups.entries()].map(([key,items])=>({key,book:items[0],items}));
  if(count)count.textContent="登録済み："+(books.length+1)+"冊（追加書籍 "+books.length+"冊）";
  shelf.className="shelf-grid";
- shelf.innerHTML=books.length?books.map(({key,book,items},i)=>'<button class="book-card custom-book-card" type="button" data-custom-book="'+esc(key)+'"><span class="book-spine"></span><span class="book-label">'+esc((book.category||"REFERENCE BOOK").toUpperCase())+' / VOL. '+String(i+2).padStart(2,"0")+'</span><strong>'+esc(book.title)+'</strong><small>'+esc(book.summary.slice(0,100)||book.note||"要点・ドリルをまとめた参考資料")+(book.summary.length>100?"…":"")+(items.length>1?" ・ "+items.length+"件の重複を統合表示":"")+'</small></button>').join(""):'<p class="small" style="grid-column:1/-1">追加した書籍・資料はここに表示されます。</p>';
+ shelf.innerHTML=books.length?books.map(({key,book,items},i)=>'<button class="book-card custom-book-card" type="button" data-custom-book="'+esc(key)+'"><span class="book-spine"></span><span class="book-label">'+esc((book.category||"REFERENCE BOOK").toUpperCase())+' / VOL. '+String(i+2).padStart(2,"0")+'</span><strong>'+esc(book.title)+'</strong><small>'+esc(book.summary.slice(0,100)||book.note||"要点・ドリルをまとめた参考資料")+(book.summary.length>100?"…":"")+'</small></button>').join(""):'<p class="small" style="grid-column:1/-1">追加した書籍・資料はここに表示されます。</p>';
  shelf.querySelectorAll("[data-custom-book]").forEach(btn=>btn.addEventListener("click",()=>{
   const group=books.find(x=>x.key===btn.dataset.customBook);if(!group)return;const b=group.book;
   const fieldLabels={
-   heading:"見出し",title:"タイトル",summary:"要約",body:"内容",content:"内容",description:"説明",
+   heading:"見出し",title:"タイトル",summary:"要約",body:"内容",content:"内容",description:"説明",overview:"概要",distance_basics:"飛距離の基本",repetition_drills:"反復ドリル",
    memo_topics:"Golf Notesに残すテーマ",practice_cues:"練習で意識すること",routine:"練習ルーティン",
    practice_menu:"練習メニュー",menu:"練習メニュー",checklist:"チェックリスト",key_points:"重要ポイント",
    points:"ポイント",drills:"実践ドリル",examples:"具体例",notes:"補足",application:"実践への応用",
@@ -1190,7 +1204,7 @@ function renderCustomBookShelf(){
   };
   const hiddenKeys=new Set(["id","type","storage","visibility","schema","schemaversion","version","app","createdat","updatedat","exportedat","userid","source"]);
   const labelFor=k=>fieldLabels[k]||k.replace(/([A-Z])/g," $1").replace(/_/g," ").replace(/^./,c=>c.toUpperCase());
-  const visibleEntries=obj=>Object.entries(obj||{}).filter(([k,v])=>!hiddenKeys.has(k.toLowerCase())&&v!=null&&v!==""&&!(Array.isArray(v)&&!v.length));
+  const visibleEntries=obj=>Object.entries(obj||{}).filter(([k,v])=>!hiddenKeys.has(k.toLowerCase())&&!/^id(?:_|$)/i.test(k)&&v!=null&&v!==""&&!(Array.isArray(v)&&!v.length));
   const renderValue=value=>{
    if(value==null||value==="")return "";
    if(Array.isArray(value))return '<ul class="book-list">'+value.map(v=>'<li>'+renderValue(v)+'</li>').join("")+'</ul>';
@@ -1213,7 +1227,7 @@ function renderCustomBookShelf(){
    return '<div class="drill"><b class="drill-title">'+esc(x.name||x.title||x.heading||("メニュー "+(i+1)))+'</b>'+entries.map(([k,v])=>'<div class="drill-field"><b>'+esc(labelFor(k))+'</b><div>'+renderValue(v)+'</div></div>').join("")+'</div>';
   }).join("")+'</div>':"";
   detail.hidden=false;
-  detail.innerHTML='<div class="tag">'+esc(b.category)+' ・ 登録本</div><h3>'+esc(b.title)+'</h3><p class="small">登録日：'+esc(b.date||"")+(group.items.length>1?' ・ 同名の登録 '+group.items.length+'件を統合表示':'')+'</p>'+(b.summary?'<h4>本全体の要約</h4><div class="practice"><p>'+esc(b.summary)+'</p></div>':"")+(b.note&&b.note!==b.summary?'<p class="small">'+esc(b.note)+'</p>':"")+(b.chapters.length?'<h4>章ごとの要点</h4>'+chapterHtml:"")+points+drills+'<button type="button" class="chip" id="deleteCustomBook" style="margin-top:18px;color:#9b3e32;border-color:#d9aaa2">この本を削除</button>';
+  detail.innerHTML='<div class="tag">'+esc(b.category)+' ・ 登録本</div><h3>'+esc(b.title)+'</h3><p class="small">登録日：'+esc(b.date||"")+'</p>'+(b.summary?'<h4>本全体の要約</h4><div class="practice"><p>'+esc(b.summary)+'</p></div>':"")+(b.note&&b.note!==b.summary?'<p class="small">'+esc(b.note)+'</p>':"")+(b.chapters.length?'<h4>章ごとの要点</h4>'+chapterHtml:"")+points+drills+'<button type="button" class="chip" id="deleteCustomBook" style="margin-top:18px;color:#9b3e32;border-color:#d9aaa2">この本を削除</button>';
   document.getElementById("deleteCustomBook").addEventListener("click",()=>{
    const ids=new Set(group.items.map(x=>x.id));
    if(!confirm('「'+b.title+'」を本棚から削除しますか？\n同名で登録された'+ids.size+'件をまとめて削除します。この操作は同期後、ほかの端末にも反映されます。'))return;
