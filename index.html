@@ -1150,24 +1150,55 @@ function renderAICoachInsights(){
  if(!suggestions.length)suggestions.push('記録がまだ少ないため、断定的な課題はありません。ラウンドと練習の指標を入力すると優先順位を表示します。');
  el.innerHTML='<div class="ai-coach-card"><div class="item-meta">分析対象：直近'+recent.length+'ラウンド ・ 練習記録'+practices.length+'件 ・ 未達成目標'+goals.length+'件</div><ol style="padding-left:20px;margin:8px 0">'+suggestions.map(x=>'<li style="margin:8px 0">'+x+'</li>').join("")+'</ol><p class="small">これは入力データに基づくルールベースの提案です。AIによる診断ではなく、データ不足時は推測しません。</p></div>';
 }
+function normalizeBookRecord(record){
+ let data=null;const raw=String(record.body||"").trim();
+ if(raw.startsWith("{")||raw.startsWith("[")){try{data=JSON.parse(raw);}catch(_){}}
+ if(!data||typeof data!=="object"||Array.isArray(data))data={summary:raw};
+ const title=String(data.title||record.title||"参考資料").replace(/（全\d+冊）/,"").trim();
+ const summary=String(data.summary||data.overview||data.description||data.note||record.body||"").trim();
+ const note=String(data.note||"").trim();
+ const chapters=Array.isArray(data.chapters)?data.chapters:Array.isArray(data.sections)?data.sections:[];
+ const points=Array.isArray(data.key_points)?data.key_points:Array.isArray(data.keyPoints)?data.keyPoints:[];
+ const drills=Array.isArray(data.drills)?data.drills:Array.isArray(data.practice)?data.practice:[];
+ return {...record,data,title,summary,note,chapters,points,drills,category:String(data.category||record.category||"参考資料")};
+}
 function bookSearchCorpus(){
  const builtIn=document.getElementById("bookDetail")?.textContent||"";
- const custom=typed("book_reference").map(n=>({title:n.title,category:n.category,body:n.body,id:n.id}));
+ const custom=typed("book_reference").map(n=>{const b=normalizeBookRecord(n);return {title:b.title,category:b.category,body:[b.summary,b.note,...b.chapters.map(c=>typeof c==="string"?c:(c.title||"")+" "+(c.summary||c.body||"")),...b.points].join(" "),id:b.id};});
  return [{title:"スイング大全",category:"登録済み書籍",body:builtIn,id:"builtin-swing"},...custom];
 }
 function renderCustomBookShelf(){
  const shelf=document.getElementById("customBookShelf"),count=document.getElementById("bookShelfCount"),detail=document.getElementById("customBookDetail");
  if(!shelf)return;
- const books=typed("book_reference");
- if(count)count.textContent="登録済み："+(books.length+1)+"冊（追加資料 "+books.length+"件）";
- shelf.innerHTML=books.length?books.map(b=>'<button type="button" data-custom-book="'+esc(b.id)+'" class="item" style="text-align:left;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);cursor:pointer"><span class="small">'+esc(b.category||"参考資料")+'</span><strong style="display:block;margin:5px 0">'+esc(b.title)+'</strong><span class="small">'+esc(String(b.body||"").slice(0,120))+(String(b.body||"").length>120?"…":"")+'</span></button>').join(""):'<p class="small">追加した書籍・資料はここに表示されます。</p>';
+ const rawBooks=typed("book_reference").map(normalizeBookRecord),groups=new Map();
+ rawBooks.forEach(b=>{const key=b.title.toLocaleLowerCase().replace(/\s+/g,"");if(!groups.has(key))groups.set(key,[]);groups.get(key).push(b);});
+ const books=[...groups.entries()].map(([key,items])=>({key,book:items[0],items}));
+ if(count)count.textContent="登録済み："+(books.length+1)+"冊（追加書籍 "+books.length+"冊）";
+ shelf.className="shelf-grid";
+ shelf.innerHTML=books.length?books.map(({key,book,items},i)=>'<button class="book-card custom-book-card" type="button" data-custom-book="'+esc(key)+'"><span class="book-spine"></span><span class="book-label">'+esc((book.category||"REFERENCE BOOK").toUpperCase())+' / VOL. '+String(i+2).padStart(2,"0")+'</span><strong>'+esc(book.title)+'</strong><small>'+esc(book.summary.slice(0,100)||book.note||"要点・ドリルをまとめた参考資料")+(book.summary.length>100?"…":"")+(items.length>1?" ・ "+items.length+"件の重複を統合表示":"")+'</small></button>').join(""):'<p class="small" style="grid-column:1/-1">追加した書籍・資料はここに表示されます。</p>';
  shelf.querySelectorAll("[data-custom-book]").forEach(btn=>btn.addEventListener("click",()=>{
-  const book=books.find(b=>b.id===btn.dataset.customBook);if(!book)return;
+  const group=books.find(x=>x.key===btn.dataset.customBook);if(!group)return;const b=group.book;
+  const chapterHtml=b.chapters.map((c,i)=>{
+   const title=typeof c==="string"?"第"+(i+1)+"章":String(c.title||c.name||"第"+(i+1)+"章");
+   const body=typeof c==="string"?"":String(c.summary||c.body||c.content||"");
+   const list=Array.isArray(c.points)?c.points:Array.isArray(c.key_points)?c.key_points:[];
+   return '<div class="chapter"><b>'+esc(title)+'</b>'+(body?'<p>'+esc(body)+'</p>':"")+(list.length?'<ul>'+list.map(x=>'<li>'+esc(typeof x==="string"?x:JSON.stringify(x))+'</li>').join("")+'</ul>':"")+'</div>';
+  }).join("");
+  const points=b.points.length?'<h4>要点</h4><ul>'+b.points.map(x=>'<li>'+esc(typeof x==="string"?x:JSON.stringify(x))+'</li>').join("")+'</ul>':"";
+  const drills=b.drills.length?'<h4>実践ドリル</h4><div class="drill-grid">'+b.drills.map(x=>'<div class="drill"><b>'+esc(typeof x==="string"?x:(x.name||x.title||"ドリル"))+'</b>'+(typeof x==="object"&&x.purpose?'<p>'+esc(x.purpose)+'</p>':typeof x==="object"&&x.description?'<p>'+esc(x.description)+'</p>':"")+'</div>').join("")+'</div>':"";
   detail.hidden=false;
-  detail.innerHTML='<div class="tag">'+esc(book.category||"参考資料")+'</div><h3>'+esc(book.title)+'</h3><p class="small">登録日：'+esc(book.date||"")+'</p><div style="white-space:pre-wrap;line-height:1.8">'+esc(book.body||"")+'</div>';
+  detail.innerHTML='<div class="tag">'+esc(b.category)+' ・ 登録本</div><h3>'+esc(b.title)+'</h3><p class="small">登録日：'+esc(b.date||"")+(group.items.length>1?' ・ 同名の登録 '+group.items.length+'件を統合表示':'')+'</p>'+(b.summary?'<h4>本全体の要約</h4><div class="practice"><p>'+esc(b.summary)+'</p></div>':"")+(b.note&&b.note!==b.summary?'<p class="small">'+esc(b.note)+'</p>':"")+(b.chapters.length?'<h4>章ごとの要点</h4>'+chapterHtml:"")+points+drills+'<button type="button" class="chip" id="deleteCustomBook" style="margin-top:18px;color:#9b3e32;border-color:#d9aaa2">この本を削除</button>';
+  document.getElementById("deleteCustomBook").addEventListener("click",()=>{
+   const ids=new Set(group.items.map(x=>x.id));
+   if(!confirm('「'+b.title+'」を本棚から削除しますか？\n同名で登録された'+ids.size+'件をまとめて削除します。この操作は同期後、ほかの端末にも反映されます。'))return;
+   const now=new Date().toISOString();saved=saved.filter(x=>!ids.has(x.id));ids.forEach(id=>saved.push({id,type:"deleted",deletedAt:now,updatedAt:now}));
+   persistSaved();renderCustomBookShelf();renderBookSearch();detail.hidden=true;
+   document.getElementById("backupStatus").textContent="書籍を削除しました。ほかの端末にも反映するには「今すぐ同期」を押してください。";
+  });
   detail.scrollIntoView({behavior:"smooth",block:"start"});
  }));
 }
+
 function renderBookSearch(){
  const input=document.getElementById("bookSearch"),out=document.getElementById("bookSearchResults");if(!input||!out)return;
  const q=input.value.trim().toLowerCase();
