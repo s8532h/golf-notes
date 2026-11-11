@@ -306,6 +306,21 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <label class="small" for="courseAim">ティーショットの狙い</label><input id="courseAim" placeholder="例：フェアウェイ左センター狙い">
   <label class="small" for="courseGreen">グリーン周り</label><input id="courseGreen" placeholder="例：奥から速い、右手前に傾斜">
   <div id="courseMapPreview" class="small" aria-live="polite">レイアウトを選ぶと簡易コース図を表示します。</div>
+  <div class="item" id="golfCorePanel" style="padding:12px;margin:12px 0">
+    <b>GolfCore 実コースデータ</b>
+    <p class="small">ゴルフ場を検索して選択すると、登録されているコース・ティー・ホールのパーと距離を自動入力します。</p>
+    <label class="small" for="golfCoreQuery">ゴルフ場名で検索</label><input id="golfCoreQuery" placeholder="例：東千葉カントリークラブ">
+    <button class="chip active" id="golfCoreSearch" type="button" style="width:100%;margin-top:8px">GolfCoreで検索</button>
+    <p class="small" id="golfCoreStatus" aria-live="polite">検索はボタンを押したときだけ実行します。</p>
+    <div id="golfCoreResults"></div>
+    <div id="golfCoreSelection" hidden>
+      <label class="small" for="golfCoreLayout">コース</label><select id="golfCoreLayout"></select>
+      <label class="small" for="golfCoreTee">ティー</label><select id="golfCoreTee"></select>
+      <label class="small" for="golfCoreHole">ホール</label><select id="golfCoreHole"></select>
+      <div id="golfCoreHoleInfo" class="small" style="margin-top:8px"></div>
+    </div>
+    <p class="small">データ提供：<a href="https://www.golfcore.org/developers/" target="_blank" rel="noopener">GolfCore</a>。データがないコースは手入力できます。</p>
+  </div>
 <label class="small" for="courseStrategy">攻略メモ</label><textarea id="courseStrategy" rows="3" placeholder="ティーショットの狙い、避けたい場所、グリーンの特徴"></textarea><label class="small" for="courseNext">次回の作戦</label><textarea id="courseNext" rows="2" placeholder="例：右バンカーを避けて左サイドから"></textarea><button class="chip active" type="submit" style="width:100%;min-height:44px">攻略ノートを保存</button></form><div class="item" style="padding:12px;margin-top:14px"><b>ラウンド前・攻略チェックリスト</b><p class="small">チェック状態はこの端末に保存されます。</p><div id="courseChecklist"></div></div><div id="courseList"></div>
 </section>
 <section class="panel" id="goal-panel">
@@ -1224,8 +1239,66 @@ document.getElementById("practiceForm").addEventListener("submit",e=>{
  }
 });
 document.getElementById("clubForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"club_distance",date:clubDate.value,club:clubName.value.trim(),carry:Number(clubCarry.value),total:Number(clubTotal.value)||null,conditions:clubConditions.value.trim()});e.target.reset();clubDate.value=todayISO();});
-document.getElementById("courseForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"course_note",date:courseNoteDate.value,course:courseNoteName.value.trim(),hole:courseHole.value.trim(),par:Number(document.getElementById("coursePar").value)||null,shape:document.getElementById("courseShape").value,hazards:document.getElementById("courseHazards").value.trim(),aim:document.getElementById("courseAim").value.trim(),green:document.getElementById("courseGreen").value.trim(),strategy:courseStrategy.value.trim(),next:courseNext.value.trim()});e.target.reset();courseNoteDate.value=todayISO();renderCourseMapPreview();});
+document.getElementById("courseForm").addEventListener("submit",e=>{e.preventDefault();const gc=window.golfCoreSelected||{};addTyped({type:"course_note",date:courseNoteDate.value,course:courseNoteName.value.trim(),hole:courseHole.value.trim(),par:Number(document.getElementById("coursePar").value)||null,shape:document.getElementById("courseShape").value,hazards:document.getElementById("courseHazards").value.trim(),aim:document.getElementById("courseAim").value.trim(),green:document.getElementById("courseGreen").value.trim(),strategy:courseStrategy.value.trim(),next:courseNext.value.trim(),golfCoreSlug:gc.slug||null,golfCoreCourse:gc.name||null,golfCoreLayout:gc.layout||null,golfCoreTee:gc.tee||null,golfCoreYards:gc.yards??null,source:gc.slug?"GolfCore":null});e.target.reset();window.golfCoreSelected=null;document.getElementById("golfCoreSelection").hidden=true;courseNoteDate.value=todayISO();renderCourseMapPreview();});
 document.getElementById("goalForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"golf_goal",title:goalTitle.value.trim(),due:goalDue.value,metric:goalMetric.value.trim(),note:goalNote.value.trim(),done:false,date:todayISO()});e.target.reset();});
+/* GolfCore course lookup. Credentials remain server-side in Netlify. */
+const GOLFCORE_ENDPOINT="/.netlify/functions/golfcore";
+let golfCoreCourse=null;
+const golfCoreCache={};
+function gcSetStatus(message){const el=document.getElementById("golfCoreStatus");if(el)el.textContent=message;}
+async function golfCoreSearch(){
+ const q=String(document.getElementById("golfCoreQuery")?.value||"").trim(),results=document.getElementById("golfCoreResults");
+ if(!q){gcSetStatus("ゴルフ場名を入力してください。");return;}
+ results.innerHTML="";gcSetStatus("GolfCoreを検索しています…");
+ try{
+  const response=await fetch(GOLFCORE_ENDPOINT+"/courses?q="+encodeURIComponent(q),{headers:{Accept:"application/json"}});
+  if(!response.ok)throw new Error("APIエラー "+response.status);
+  const data=await response.json(),items=Array.isArray(data)?data:(data.courses||data.results||data.data||[]);
+  if(!items.length){gcSetStatus("該当するコースが見つかりませんでした。手入力は引き続き利用できます。");return;}
+  results.innerHTML=items.slice(0,10).map((x,i)=>'<div class="item" style="padding:9px;margin:7px 0"><b>'+esc(x.name||x.course_name||"名称未登録")+'</b><div class="small">'+esc(x.address||x.prefecture||"")+'</div><button class="chip" type="button" data-gc-index="'+i+'">このゴルフ場を選択</button></div>').join("");
+  results.querySelectorAll("[data-gc-index]").forEach(btn=>btn.addEventListener("click",()=>golfCoreLoad(items[Number(btn.dataset.gcIndex)])));
+  gcSetStatus(items.length+"件の候補が見つかりました。");
+ }catch(error){gcSetStatus("検索できませんでした："+error.message+"。GolfCore APIの設定・接続が必要です。");}
+}
+async function golfCoreLoad(item){
+ const slug=String(item.slug||item.id||"").trim();
+ if(!slug){gcSetStatus("この候補にはGolfCoreのコースIDがありません。");return;}
+ gcSetStatus("コース詳細を取得しています…");
+ try{
+  let course=golfCoreCache[slug];
+  if(!course){const response=await fetch(GOLFCORE_ENDPOINT+"/courses/"+encodeURIComponent(slug),{headers:{Accept:"application/json"}});if(!response.ok)throw new Error("APIエラー "+response.status);course=await response.json();golfCoreCache[slug]=course;}
+  course.name=course.name||item.name||item.course_name||"";course.slug=slug;golfCoreCourse=course;
+  window.golfCoreSelected={slug,name:course.name};document.getElementById("courseNoteName").value=course.name;
+  document.getElementById("golfCoreSelection").hidden=false;
+  const layouts=Array.isArray(course.layouts)?course.layouts:[];
+  document.getElementById("golfCoreLayout").innerHTML=layouts.map((x,i)=>'<option value="'+i+'">'+esc(x.name||("コース "+(i+1)))+'</option>').join("");
+  if(!layouts.length){document.getElementById("golfCoreHoleInfo").textContent="このコースにはホール別データが登録されていません。";gcSetStatus("コースを選択しました。ホールデータは未登録です。");return;}
+  golfCoreRenderTees();gcSetStatus("コース情報を取得しました。コース・ティー・ホールを選択してください。");
+ }catch(error){gcSetStatus("詳細取得に失敗しました："+error.message);}
+}
+function golfCoreRenderTees(){
+ const layout=golfCoreCourse?.layouts?.[Number(document.getElementById("golfCoreLayout").value)]||{},tees=Array.isArray(layout.tees)?layout.tees:[];
+ document.getElementById("golfCoreTee").innerHTML=tees.map((t,i)=>'<option value="'+i+'">'+esc(t.name||("ティー "+(i+1)))+" ・ "+esc(t.yards??"—")+" yd</option>").join("");
+ golfCoreRenderHoles();
+}
+function golfCoreRenderHoles(){
+ const layout=golfCoreCourse?.layouts?.[Number(document.getElementById("golfCoreLayout").value)]||{},tee=layout.tees?.[Number(document.getElementById("golfCoreTee").value)]||{},holes=Array.isArray(tee.holes)?tee.holes:[];
+ document.getElementById("golfCoreHole").innerHTML=holes.map((h,i)=>'<option value="'+i+'">'+esc(h.position??i+1)+'H ・ Par '+esc(h.par??"—")+' ・ '+esc(h.yards??"—")+' yd</option>').join("");
+ golfCoreApplyHole();
+}
+function golfCoreApplyHole(){
+ const layout=golfCoreCourse?.layouts?.[Number(document.getElementById("golfCoreLayout").value)]||{},tee=layout.tees?.[Number(document.getElementById("golfCoreTee").value)]||{},hole=tee.holes?.[Number(document.getElementById("golfCoreHole").value)];
+ if(!hole)return;
+ const n=Number(hole.position)||Number(document.getElementById("golfCoreHole").value)+1;
+ document.getElementById("courseHole").value=(n<=9?"OUT "+n:"IN "+(n-9))+"番";
+ document.getElementById("coursePar").value=String(hole.par??"");
+ document.getElementById("golfCoreHoleInfo").textContent="Par "+(hole.par??"—")+" ／ "+(hole.yards??"—")+" yd ／ HDCP "+(hole.stroke_index??"—");
+ window.golfCoreSelected={slug:golfCoreCourse.slug,name:golfCoreCourse.name,layout:layout.name||"",tee:tee.name||"",yards:hole.yards??null};
+}
+document.getElementById("golfCoreSearch")?.addEventListener("click",golfCoreSearch);
+document.getElementById("golfCoreLayout")?.addEventListener("change",golfCoreRenderTees);
+document.getElementById("golfCoreTee")?.addEventListener("change",golfCoreRenderHoles);
+document.getElementById("golfCoreHole")?.addEventListener("change",golfCoreApplyHole);
 renderExtra();
 
 // ---- Guide-book bookshelf ----
