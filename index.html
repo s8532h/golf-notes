@@ -498,64 +498,13 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <section class="panel">
     <h2>本棚</h2>
     <div class="shelf-grid" id="bookShelf">
-      <button class="book-card" type="button" data-book="swing">
-        <span class="book-spine"></span><span class="book-label">SWING GUIDE / VOL. 01</span>
-        <strong>スイング大全</strong>
-        <small>振り子・回転・足の動き<br>全3冊の要点まとめ</small>
-      </button>
       <button class="book-card add-book" type="button" id="futureBook">
         <strong>＋ 次のガイド本</strong><small>本を追加するときの棚</small>
       </button>
     </div>
     <div id="customBookShelf" aria-live="polite" style="display:grid;gap:10px;margin-top:12px"></div>
     <div id="customBookDetail" class="book-detail" hidden></div>
-    <div id="bookDetail" class="book-detail" hidden>
-      <div class="tag">登録本 01 ・ 全3冊</div>
-      <h3>スイング大全</h3>
-      <p class="small">テーマ：振り子・体の回転・足の動きを連動させ、再現性のあるスイングを目指す。</p>
-      <h4>本全体の核となる考え方</h4>
-      <p><b>手先でクラブを操作するのではなく、クラブの自然な動きと体全体の連動を利用する。</b> 本書の中心となる要素は「振り子」「回転」「足の動き」の3つ。</p>
-      <div class="practice">
-        <b>スイングの基本イメージ</b>
-        <p>足の動き → 体の回転 → クラブの振り子 → インパクト</p>
-        <p class="small">これは本書の3つの土台を練習向けに並べた整理。実際のスイングでは各要素が連動する。</p>
-      </div>
-      <h4>章ごとの要点</h4>
-      <div class="chapter"><b>第1章｜振り子の動きをスイングに取り入れよう</b><ul><li>クラブを腕力だけで操作せず、クラブの重さと振り子の動きを感じる。</li><li>振り子の支点や軌道を安定させ、毎回同じ動きを再現する。</li><li>手首は固めきらず、体の回転と合わせてクラブの動きを生かす。</li></ul></div>
-      <div class="chapter"><b>第2章｜正しい回転を身につけよう</b><ul><li>背骨を軸に、上半身だけでなく体全体の向きを変える。</li><li>バックスイングからフォローまで回転をつなげる。</li><li>回転差や腰まわりの張りを意識し、腕だけで振らない。</li></ul></div>
-      <div class="chapter"><b>第3章｜足の動きを覚えよう</b><ul><li>足の動きで体重移動と回転を促す。</li><li>左足の踏み込みを使い、下半身からスイングを連動させる。</li><li>足の動きと体の回転を、ブランコのようなリズムでつなげる。</li></ul></div>
-      <div class="chapter"><b>第4章｜ポジションごとの動きや形を覚えよう</b><ul><li>アドレス、グリップ、テークバック、トップ、切り返し、インパクト、フィニッシュを確認する。</li><li>各ポジションを個別に作るだけでなく、一連の動作としてつなげる。</li><li>切り返しで急いで腕を振り下ろさず、下半身の動きとクラブの自然な動きを合わせる。</li></ul></div>
-      <div class="chapter"><b>第5章｜クラブによる打ち方の違いを知ろう</b><ul><li>クラブの長さ・ロフト・ボール位置に合わせて構えや振り幅を調整する。</li><li>ドライバー、FW、アイアン、ウェッジで同じ基本を使いつつ、打ち方を使い分ける。</li><li>ウェッジは振り幅を基準に距離を打ち分ける。</li></ul></div>
-      <div class="chapter"><b>第6章｜絶対にやるべき目的別反復ドリル</b><ul><li>目的を決めてドリルを反復し、動きを体に覚えさせる。</li><li>小さな振り幅や片手打ちで、クラブ・腕・体の役割を確認する。</li><li>足踏みや一歩前フォローなどで、足と体の連動を練習する。</li></ul></div>
-      <h4>掲載ドリル一覧</h4>
-      <div class="drill-grid">
-        <div class="drill">2ヤードアプローチ<br><span class="small">振り子の感覚</span></div>
-        <div class="drill">親指外し打ち<br><span class="small">グリップ・手首</span></div>
-        <div class="drill">ショートスイング<br><span class="small">小さな振り幅</span></div>
-        <div class="drill">右片手打ち・左片手打ち<br><span class="small">左右の腕の役割</span></div>
-        <div class="drill">クラブ回し①②<br><span class="small">体とクラブの回転</span></div>
-        <div class="drill">スプリットハンド<br><span class="small">左右の手の連動</span></div>
-        <div class="drill">連続素振り<br><span class="small">リズム・軌道</span></div>
-        <div class="drill">ショルダータン<br><span class="small">体の回転</span></div>
-        <div class="drill">ストレッチボディターン<br><span class="small">回転・柔軟性</span></div>
-        <div class="drill">両足揃え打ち<br><span class="small">バランス・回転</span></div>
-        <div class="drill">お腹回し・ハーフスイング<br><span class="small">体幹・基本動作</span></div>
-        <div class="drill">足踏みスイング<br><span class="small">足と体の連動</span></div>
-        <div class="drill">一歩前フォロー<br><span class="small">体重移動</span></div>
-        <div class="drill">片足打ち・スクワット打ち<br><span class="small">バランス・下半身</span></div>
-        <div class="drill">ウエストターン<br><span class="small">腰の回転</span></div>
-        <div class="drill">ジャンプチェック<br><span class="small">足の動き・地面の使い方</span></div>
-      </div>
-      <h4>今の練習に取り入れるポイント</h4>
-      <ul><li>最初は足の動きと体の回転を意識する。</li><li>2ヤードアプローチやショートスイングで、クラブの重さと振り子の感覚を確かめる。</li><li>ハーフスイングで打点と方向性を整えてから、徐々にフルスイングへ移行する。</li><li>ウェッジは振り幅ごとの距離を記録し、スコアメイクにつなげる。</li></ul>
-      <div class="practice">
-        <b>50分の練習メニュー</b>
-        <table><tr><td>5分</td><td>足踏みスイング</td></tr><tr><td>5分</td><td>両足揃え打ち</td></tr><tr><td>10分</td><td>2ヤードアプローチ</td></tr><tr><td>10分</td><td>ハーフスイング</td></tr><tr><td>10分</td><td>7番アイアンで応用</td></tr><tr><td>10分</td><td>ウェッジの距離打ち分け</td></tr></table>
-      </div>
-      <h4>読み返すときの注意</h4>
-      <p class="small">このページは、アップロードされた『スイング大全』3冊の内容を会話内で整理したサマリー。ドリル名や章の主旨を素早く確認するための要約であり、細かな動作は原本の写真・説明に戻って確認する。</p>
-      <button class="chip" type="button" id="closeBook" style="margin-top:10px">本棚に戻る</button>
-    </div>
+
   </section>
 </section>
 </main>
@@ -1177,9 +1126,8 @@ function normalizeBookRecord(record){
  return {...record,data,title,summary,note,chapters,points,drills,category:String(data.category||record.category||"参考資料")};
 }
 function bookSearchCorpus(){
- const builtIn=document.getElementById("bookDetail")?.textContent||"";
  const custom=typed("book_reference").map(n=>{const b=normalizeBookRecord(n);return {title:b.title,category:b.category,body:[b.summary,b.note,...b.chapters.map(c=>typeof c==="string"?c:(c.title||"")+" "+(c.summary||c.body||"")),...b.points].join(" "),id:b.id};});
- return [{title:"スイング大全",category:"登録済み書籍",body:builtIn,id:"builtin-swing"},...custom];
+ return custom;
 }
 function renderCustomBookShelf(){
  const shelf=document.getElementById("customBookShelf"),count=document.getElementById("bookShelfCount"),detail=document.getElementById("customBookDetail");
@@ -1187,7 +1135,7 @@ function renderCustomBookShelf(){
  const rawBooks=typed("book_reference").map(normalizeBookRecord),groups=new Map();
  rawBooks.forEach(b=>{const key=b.title.toLocaleLowerCase().replace(/\s+/g,"");if(!groups.has(key))groups.set(key,[]);groups.get(key).push(b);});
  const books=[...groups.entries()].map(([key,items])=>({key,book:items[0],items}));
- if(count)count.textContent="登録済み："+(books.length+1)+"冊（追加書籍 "+books.length+"冊）";
+ if(count)count.textContent="登録済み："+books.length+"冊";
  shelf.className="shelf-grid";
  shelf.innerHTML=books.length?books.map(({key,book,items},i)=>'<button class="book-card custom-book-card" type="button" data-custom-book="'+esc(key)+'"><span class="book-spine"></span><span class="book-label">'+esc((book.category||"REFERENCE BOOK").toUpperCase())+' / VOL. '+String(i+2).padStart(2,"0")+'</span><strong>'+esc(book.title)+'</strong><small>'+esc(book.summary.slice(0,100)||book.note||"要点・ドリルをまとめた参考資料")+(book.summary.length>100?"…":"")+'</small></button>').join(""):'<p class="small" style="grid-column:1/-1">追加した書籍・資料はここに表示されます。</p>';
  shelf.querySelectorAll("[data-custom-book]").forEach(btn=>btn.addEventListener("click",()=>{
@@ -1227,7 +1175,8 @@ function renderCustomBookShelf(){
    return '<div class="drill"><b class="drill-title">'+esc(x.name||x.title||x.heading||("メニュー "+(i+1)))+'</b>'+entries.map(([k,v])=>'<div class="drill-field"><b>'+esc(labelFor(k))+'</b><div>'+renderValue(v)+'</div></div>').join("")+'</div>';
   }).join("")+'</div>':"";
   detail.hidden=false;
-  detail.innerHTML='<div class="tag">'+esc(b.category)+' ・ 登録本</div><h3>'+esc(b.title)+'</h3><p class="small">登録日：'+esc(b.date||"")+'</p>'+(b.summary?'<h4>本全体の要約</h4><div class="practice"><p>'+esc(b.summary)+'</p></div>':"")+(b.note&&b.note!==b.summary?'<p class="small">'+esc(b.note)+'</p>':"")+(b.chapters.length?'<h4>章ごとの要点</h4>'+chapterHtml:"")+points+drills+'<button type="button" class="chip" id="deleteCustomBook" style="margin-top:18px;color:#9b3e32;border-color:#d9aaa2">この本を削除</button>';
+  detail.innerHTML='<div class="tag">'+esc(b.category)+' ・ 登録本</div><h3>'+esc(b.title)+'</h3><p class="small">登録日：'+esc(b.date||"")+'</p>'+(b.summary?'<h4>本全体の要約</h4><div class="practice"><p>'+esc(b.summary)+'</p></div>':"")+(b.note&&b.note!==b.summary?'<p class="small">'+esc(b.note)+'</p>':"")+(b.chapters.length?'<h4>章ごとの要点</h4>'+chapterHtml:"")+points+drills+'<button type="button" class="chip" id="deleteCustomBook" style="margin-top:18px;color:#9b3e32;border-color:#d9aaa2">この本を削除</button><button type="button" class="chip" id="closeCustomBook" style="margin:18px 0 4px">閉じる</button>';
+  document.getElementById("closeCustomBook").addEventListener("click",()=>{detail.hidden=true;shelf.scrollIntoView({behavior:"smooth",block:"start"});});
   document.getElementById("deleteCustomBook").addEventListener("click",()=>{
    const ids=new Set(group.items.map(x=>x.id));
    if(!confirm('「'+b.title+'」を本棚から削除しますか？\n同名で登録された'+ids.size+'件をまとめて削除します。この操作は同期後、ほかの端末にも反映されます。'))return;
@@ -1400,9 +1349,6 @@ function showPage(which){
  window.scrollTo({top:0,behavior:"smooth"});
 }
 memoTab.addEventListener("click",()=>showPage("memo"));libraryTab.addEventListener("click",()=>showPage("books"));coachTab.addEventListener("click",()=>showPage("coach"));
-const bookDetail=document.getElementById("bookDetail");
-document.querySelector('[data-book="swing"]').addEventListener("click",()=>{bookDetail.hidden=false;bookDetail.scrollIntoView({behavior:"smooth",block:"start"});});
-document.getElementById("closeBook").addEventListener("click",()=>{bookDetail.hidden=true;document.getElementById("bookShelf").scrollIntoView({behavior:"smooth",block:"center"});});
 document.getElementById("futureBook").addEventListener("click",()=>alert("次のガイド本を追加するときは、この本棚にカードとサマリーを追加できます。"));
 
 // Build the requested ten independent page views. Data elements remain in the DOM for existing forms and renderers.
