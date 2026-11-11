@@ -349,8 +349,8 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <span class="small" id="normalizedExportStatus" aria-live="polite"></span>
   </div>
   <h2>バックアップ・復元</h2>
-  <p class="small">追加したメモをJSONファイルに書き出せます。クラウド同期を使わない場合は、機種変更前にバックアップしてください。</p>
-  <button class="chip" id="exportBtn" type="button">メモをバックアップ</button>
+  <p class="small">ラウンド・練習・飛距離・目標・攻略ノート・AI分析・メモなど、この端末に保存された全データをJSONに書き出します。機種変更やブラウザ変更の前に定期的に保存してください。</p>
+  <button class="chip" id="exportBtn" type="button">全データをバックアップ</button>
   <label class="chip" for="importFile" style="display:inline-flex;align-items:center;min-height:38px;margin-left:5px">バックアップを読み込む</label>
   <input id="importFile" type="file" accept="application/json,.json" style="display:none">
   <p class="small" id="backupStatus" aria-live="polite"></p>
@@ -660,6 +660,7 @@ function renderRoundInsights(rounds){
  const el=document.getElementById("roundInsights");if(!el)return;
  const valid=rounds.filter(r=>Number.isFinite(Number(r.score))&&Number(r.score)>0);
  const recent=valid.slice(0,5);
+ const longTerm=valid;
  if(!recent.length){el.innerHTML='<div class="item" style="padding:12px"><b>90切りに向けた改善ダッシュボード</b><p class="small">ラウンドを登録すると、直近5回のスコアと記録済み指標から改善状況を表示します。</p></div>';return;}
  const mean=arr=>{const a=arr.filter(v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))).map(Number);return a.length?{value:a.reduce((x,y)=>x+y,0)/a.length,count:a.length}:null;};
  const metrics={
@@ -671,6 +672,8 @@ function renderRoundInsights(rounds){
   upDown:mean(recent.map(r=>r.upDown))
  };
  const avgScore=mean(recent.map(r=>r.score)).value;
+ const longAvg=mean(longTerm.map(r=>r.score)).value;
+ const scoreDelta=longAvg===null?null:avgScore-longAvg;
  const gap=Math.max(0,avgScore-89);
  const fmt=(m,unit)=>m?m.value.toFixed(1)+" "+unit+" / "+m.count+"ラウンド":"未記録";
  const goals=[];
@@ -697,9 +700,12 @@ function renderRoundInsights(rounds){
   <b>90切りに向けた改善ダッシュボード</b>
   <p class="small" style="margin:4px 0 8px">分析対象：直近${recent.length}ラウンド（最大5回）／平均スコアの記録数：${recent.length}回</p>
   <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px">
-   <div class="stat"><b>${avgScore.toFixed(1)}</b><span>直近平均スコア</span></div>
-   <div class="stat"><b>${gap>0?gap.toFixed(1)+"打":"達成"}</b><span>89打までの差</span></div>
+   <div class="stat"><b>${avgScore.toFixed(1)}</b><span>直近5回平均</span></div>
+   <div class="stat"><b>${longAvg.toFixed(1)}</b><span>全期間平均（${longTerm.length}回）</span></div>
+   <div class="stat"><b>${gap>0?gap.toFixed(1)+"打":"達成"}</b><span>直近平均から89打まで</span></div>
+   <div class="stat"><b>${scoreDelta===null?"—":(scoreDelta>0?"+":"")+scoreDelta.toFixed(1)}</b><span>直近 − 全期間（打）</span></div>
   </div>
+  <p class="small">直近平均との差：${scoreDelta===null?"—":scoreDelta<0?Math.abs(scoreDelta).toFixed(1)+"打改善":scoreDelta>0?scoreDelta.toFixed(1)+"打悪化":"全期間平均と同じ"}。直近5回と全期間を比べ、短期的な変化を確認できます。</p>
   <div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>90切りまでの進捗目安</span><b>${progress.toFixed(0)}%</b></div><div style="height:9px;background:#edf3ec;border-radius:8px;overflow:hidden;margin-top:5px"><div style="height:100%;width:${progress}%;background:var(--green);border-radius:8px"></div></div></div>
   <p class="small" style="margin:10px 0 6px">${target}</p>
   <h3 style="font-size:13px;margin:12px 0 6px">スコア目標ステップ</h3>
@@ -788,7 +794,7 @@ memoForm.addEventListener("submit",e=>{
   document.getElementById("search").value="";
 });
 document.getElementById("exportBtn").addEventListener("click",()=>{
-  const payload={app:"Golf Notes",version:2,exportedAt:new Date().toISOString(),notes:saved};
+  const payload={app:"Golf Notes",version:3,exportedAt:new Date().toISOString(),recordCount:saved.length,notes:saved};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);const a=document.createElement("a");
   a.href=url;a.download="golf_notes_backup.json";a.click();URL.revokeObjectURL(url);
@@ -797,9 +803,13 @@ document.getElementById("exportBtn").addEventListener("click",()=>{
 document.getElementById("importFile").addEventListener("change",async e=>{
   const file=e.target.files&&e.target.files[0];if(!file)return;
   try{
+    if(file.size>15*1024*1024)throw new Error("ファイルサイズが15MBを超えています");
     const data=JSON.parse(await file.text());
+    if(!Array.isArray(data)&&data.app!=="Golf Notes")throw new Error("Golf Notesのバックアップではありません");
     const incoming=Array.isArray(data)?data:data.notes;
-    if(!Array.isArray(incoming))throw new Error("invalid");
+    if(!Array.isArray(incoming)||!incoming.length)throw new Error("有効な記録がありません");
+    if(incoming.length>20000||incoming.some(n=>!n||typeof n!=="object"||Array.isArray(n)))throw new Error("データ形式を確認してください");
+    if(!confirm(incoming.length+"件のバックアップを現在のデータに統合します。既存データは原則として残ります。続行しますか？"))return;
     const byId=new Map(saved.map(n=>[n.id||makeId(),n]));
     for(const raw of incoming){
       if(!raw||typeof raw!=="object")continue;
@@ -808,10 +818,12 @@ document.getElementById("importFile").addEventListener("change",async e=>{
       if(!prev||(n.updatedAt||n.deletedAt||"")>=(prev.updatedAt||prev.deletedAt||""))byId.set(n.id,n);
     }
     const merged=[...byId.values()];
-    localStorage.setItem(key,JSON.stringify(merged));
+    const serialized=JSON.stringify(merged);
+    if(serialized.length>4*1024*1024)throw new Error("復元後のデータが大きすぎます");
+    localStorage.setItem(key,serialized);
     saved=merged;
     location.reload();
-  }catch(err){document.getElementById("backupStatus").textContent="読み込めませんでした。Golf NotesのJSONバックアップを選んでください。";}
+  }catch(err){document.getElementById("backupStatus").textContent="読み込めませんでした。ファイル形式・容量・保存領域を確認してください。";}
   e.target.value="";
 });
 
