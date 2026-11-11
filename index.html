@@ -154,6 +154,12 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
 @media(min-width:650px){header{padding:42px 20px 35px}.panel{padding:21px;margin-bottom:17px}.wrap{width:min(100% - 40px,860px)}}
 @media(prefers-reduced-motion:no-preference){.panel{animation:panel-in .35s ease both}@keyframes panel-in{from{opacity:.75;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}}
 
+
+.course-map{width:100%;max-width:520px;margin:8px auto;background:#edf3e8;border:1px solid #d5e1d2;border-radius:12px;display:block}
+.course-map text{font-family:system-ui,sans-serif;font-size:10px;fill:#314b38}
+.book-search-results .item{margin:7px 0}
+.book-source-form{display:grid;gap:7px;margin-top:12px}
+.ai-coach-card{border:1px solid #d7e2d5;background:#f7faf5;border-radius:12px;padding:12px;margin:9px 0}
 </style></head><body>
 <header><div class="wrap"><div class="kicker">MY GOLF JOURNAL</div><h1>Golf Notes</h1><p class="sub">ゴルフの気づき・ラウンド・AI分析をまとめて管理。</p></div>
 <svg class="hero-art" viewBox="0 0 260 150" role="img" aria-label="ゴルフグリーンと旗、ゴルフボールのイラスト">
@@ -291,7 +297,16 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
 </section>
 <section class="panel" id="course-panel">
   <h2>ゴルフ場別攻略ノート</h2><p class="small">コースの特徴、ホールごとの狙いどころ、危険エリア、次回の作戦を保存します。</p>
-  <form id="courseForm"><label class="small" for="courseNoteName">ゴルフ場</label><input id="courseNoteName" required placeholder="例：東千葉カントリークラブ"><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label class="small" for="courseHole">ホール（任意）</label><input id="courseHole" placeholder="例：OUT 3番"></div><div><label class="small" for="courseNoteDate">訪問日</label><input id="courseNoteDate" type="date"></div></div><label class="small" for="courseStrategy">攻略メモ</label><textarea id="courseStrategy" rows="3" placeholder="ティーショットの狙い、避けたい場所、グリーンの特徴"></textarea><label class="small" for="courseNext">次回の作戦</label><textarea id="courseNext" rows="2" placeholder="例：右バンカーを避けて左サイドから"></textarea><button class="chip active" type="submit" style="width:100%;min-height:44px">攻略ノートを保存</button></form><div id="courseList"></div>
+  <form id="courseForm"><label class="small" for="courseNoteName">ゴルフ場</label><input id="courseNoteName" required placeholder="例：東千葉カントリークラブ"><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label class="small" for="courseHole">ホール（任意）</label><input id="courseHole" placeholder="例：OUT 3番"></div><div><label class="small" for="courseNoteDate">訪問日</label><input id="courseNoteDate" type="date"></div></div>
+  <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div><label class="small" for="coursePar">ホールのパー</label><select id="coursePar"><option value="">未設定</option><option value="3">Par 3</option><option value="4">Par 4</option><option value="5">Par 5</option></select></div>
+    <div><label class="small" for="courseShape">レイアウト</label><select id="courseShape"><option value="straight">ストレート</option><option value="dogleg-left">左ドッグレッグ</option><option value="dogleg-right">右ドッグレッグ</option><option value="water-left">左に池・水辺</option><option value="water-right">右に池・水辺</option><option value="bunkers">バンカー注意</option></select></div>
+  </div>
+  <label class="small" for="courseHazards">ハザード・注意点</label><input id="courseHazards" placeholder="例：右OB、左サイドに池、グリーン手前バンカー">
+  <label class="small" for="courseAim">ティーショットの狙い</label><input id="courseAim" placeholder="例：フェアウェイ左センター狙い">
+  <label class="small" for="courseGreen">グリーン周り</label><input id="courseGreen" placeholder="例：奥から速い、右手前に傾斜">
+  <div id="courseMapPreview" class="small" aria-live="polite">レイアウトを選ぶと簡易コース図を表示します。</div>
+<label class="small" for="courseStrategy">攻略メモ</label><textarea id="courseStrategy" rows="3" placeholder="ティーショットの狙い、避けたい場所、グリーンの特徴"></textarea><label class="small" for="courseNext">次回の作戦</label><textarea id="courseNext" rows="2" placeholder="例：右バンカーを避けて左サイドから"></textarea><button class="chip active" type="submit" style="width:100%;min-height:44px">攻略ノートを保存</button></form><div id="courseList"></div>
 </section>
 <section class="panel" id="goal-panel">
   <h2>課題・目標管理</h2><p class="small">数字で追える目標を登録し、達成したらチェック。90切りまでの小さな改善を積み上げます。</p>
@@ -408,6 +423,11 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <div id="coachPreview" class="book-detail" hidden></div>
   </section>
   <section class="panel">
+    <h2>データ連動・AI改善提案</h2>
+    <p class="small">保存済みのラウンド・練習・課題目標から、次に取り組む優先課題を自動整理します。AIへの自動送信は行いません。</p>
+    <div id="aiCoachInsights"></div>
+  </section>
+  <section class="panel">
     <h2>保存した分析</h2>
     <input id="coachSearch" placeholder="分析タイトル・課題・練習メニューを検索">
     <div class="filters" id="coachFilters"></div>
@@ -430,6 +450,21 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <h2 style="font-size:20px;margin:5px 0">本棚</h2>
     <p class="small">読んだゴルフ本の要点・理論・ドリルを、本棚からいつでも読み返せるように整理。</p>
     <div class="small" style="margin-top:8px">登録済み：1冊　・　今後、参考書を追加できます</div>
+  </section>
+  <section class="panel">
+    <h2>書籍・資料の横断検索</h2>
+    <p class="small">登録済み書籍の要約・ドリルと、追加した参考資料をまとめて検索できます。</p>
+    <input id="bookSearch" placeholder="例：右ミス、振り子、アプローチ、体の回転">
+    <div id="bookSearchResults" class="book-search-results" aria-live="polite"></div>
+    <details style="margin-top:12px"><summary class="small" style="cursor:pointer;font-weight:700;color:var(--green)">参考資料を追加</summary>
+      <form id="bookSourceForm" class="book-source-form">
+        <input id="bookSourceTitle" required maxlength="100" placeholder="書籍・資料名">
+        <select id="bookSourceCategory"><option>スイング</option><option>ショートゲーム</option><option>コースマネジメント</option><option>クラブ・ギア</option><option>フィジカル</option><option>その他</option></select>
+        <textarea id="bookSourceBody" required rows="5" placeholder="書籍の要点・章のまとめ・ドリルなどを貼り付け"></textarea>
+        <p class="small">PDFの自動解析は行いません。PDFからコピーした本文や、ChatGPTで作成した要約を貼り付けて保存してください。</p>
+        <button class="chip active" type="submit">資料を本棚に追加</button>
+      </form>
+    </details>
   </section>
   <section class="panel">
     <h2>本棚</h2>
@@ -1015,6 +1050,7 @@ function parseCoachInput(raw){
 }
 function coachPreviewHtml(n){return `<div class="tag">${coachEsc(n.category)} ・ 優先度：${n.issue.priority==="high"?"高":n.issue.priority==="low"?"低":"中"}</div><h3>${coachEsc(n.title)}</h3><p>${coachEsc(n.summary||"要約なし")}</p>${n.issue.symptom?`<h4>課題</h4><p>${coachEsc(n.issue.symptom)}${n.issue.clubs?`（対象：${coachEsc(n.issue.clubs)}）`:""}</p>`:""}${n.analysis.length?`<h4>分析・原因候補</h4><ul>${n.analysis.map(x=>`<li>${coachEsc(x)}</li>`).join("")}</ul>`:""}${n.practice.length?`<h4>練習メニュー</h4><ul>${n.practice.map(x=>`<li><b>${coachEsc(x.name)}</b>${x.purpose?`：${coachEsc(x.purpose)}`:""}</li>`).join("")}</ul>`:""}${n.next_action?`<div class="next">次に試すこと：${coachEsc(n.next_action)}</div>`:""}${n.tags.length?`<p class="small">タグ：${n.tags.map(coachEsc).join(" ・ ")}</p>`:""}`;}
 function renderCoach(){
+ renderAICoachInsights();
  const records=coachRecords();
  document.getElementById("coachCount").textContent=records.length;
  document.getElementById("coachPracticeCount").textContent=records.reduce((a,n)=>a+(n.practice||[]).length,0);
@@ -1039,7 +1075,9 @@ function buildCoachPrompt(){
  const practices=typed("practice_session").slice(0,8).map(r=>({date:r.date||null,focus:r.focus||null,minutes:r.minutes??null,balls:r.balls??null,drills:r.drills||null,feel:r.feel||null}));
  const clubs=typed("club_distance").map(r=>({club:r.club,carry:r.carry,total:r.total??null,date:r.date||null}));
  const shots=typed("shot_data").slice(0,100).map(r=>({date:r.date||null,club:r.club,carry:r.carry,total:r.total??null,direction:r.direction||null,side:r.side||null}));
- const context={rounds,practiceSessions:practices,clubDistances:clubs,shotMeasurements:shots};
+ const goals=typed("golf_goal").map(g=>({title:g.title,metric:g.metric||null,done:!!g.done,due:g.due||null}));
+ const holes=rounds.filter(r=>Array.isArray(r.holes)).map(r=>({date:r.date,course:r.course,startCourse:r.startCourse,holes:r.holes.map(h=>({number:h.number,par:h.par,score:h.score,putts:h.putts}))}));
+ const context={rounds,practiceSessions:practices,clubDistances:clubs,shotMeasurements:shots,goals,holeByHole:holes};
  document.getElementById("coachContextStatus").textContent=`ラウンド${rounds.length}件・練習${practices.length}件・クラブ${clubs.length}件・計測${shots.length}件の要約を依頼文に含めます。メモ本文は含みません。`;
  return base+"\n\n以下はユーザーが選択したGolf Notesの記録要約です。記録がない項目は推測せず、サンプル数の少なさも考慮してください。\n"+JSON.stringify(context,null,2);
 }
@@ -1069,7 +1107,8 @@ function renderExtra(){
  const shotRows=typed("shot_data");const dInsight=document.getElementById("distanceInsights");
  if(dInsight){const byClub={};shotRows.forEach(x=>{(byClub[x.club]??=[]).push(Number(x.carry));});const shotSummary=Object.entries(byClub).map(([club,v])=>`${club}：${safeMean(v)?.toFixed(1)??"—"}yd（${v.length}件）`).join(" / ");dInsight.innerHTML=`<div class="item" style="padding:10px 12px"><b>計測データの集計</b><div class="item-meta">CSVショット記録 ${shotRows.length}件 ・ 登録クラブ ${clubs.length}種類</div><p class="small">${esc(shotSummary||"CSVデータを取り込むとクラブ別平均キャリーを表示します。")}</p></div>`;}
  document.getElementById("clubList").innerHTML=clubs.length?'<h3 class="group-title">登録済みクラブ</h3>'+clubs.map(n=>`<div class="item" style="padding:10px 12px"><b>${esc(n.club)}</b>　<strong>${esc(n.carry)} yd</strong><span class="small"> キャリー${n.total?" / "+esc(n.total)+" yd トータル":""}</span><div class="item-meta">${esc(n.date||"測定日未登録")} ${esc(n.conditions||"")}</div><button class="chip" data-extra-delete="${esc(n.id)}">削除</button></div>`).join(""):'<p class="empty">飛距離データはまだありません。</p>';
- const courses=typed("course_note");document.getElementById("courseList").innerHTML=courses.length?courses.map(n=>`<div class="item" style="padding:10px 12px"><b>${esc(n.course)} ${n.hole?"・"+esc(n.hole):""}</b><div class="item-meta">${esc(n.date||"訪問日未登録")}</div><p class="small">${esc(n.strategy||"")}</p>${n.next?`<div class="next">次回：${esc(n.next)}</div>`:""}<button class="chip" data-extra-delete="${esc(n.id)}">削除</button></div>`).join(""):'<p class="empty">攻略ノートはまだありません。</p>';
+ const courses=typed("course_note");document.getElementById("courseList").innerHTML=courses.length?courses.map(n=>'<div class="item" style="padding:10px 12px"><b>'+esc(n.course)+' '+(n.hole?'・'+esc(n.hole):'')+'</b><div class="item-meta">'+esc(n.date||"訪問日未登録")+(n.par?' ・ Par '+n.par:'')+'</div>'+courseMapSvg(n.shape||"straight",n.hazards||"")+(n.aim?'<p class="small"><b>狙い：</b>'+esc(n.aim)+'</p>':'')+(n.hazards?'<p class="small"><b>注意：</b>'+esc(n.hazards)+'</p>':'')+(n.green?'<p class="small"><b>グリーン：</b>'+esc(n.green)+'</p>':'')+(n.strategy?'<p class="small">'+esc(n.strategy)+'</p>':'')+(n.next?'<div class="next">次回：'+esc(n.next)+'</div>':'')+'<button class="chip" data-extra-delete="'+esc(n.id)+'">削除</button></div>').join(""):'<p class="empty">攻略ノートはまだありません。</p>';
+
  const goals=typed("golf_goal");document.getElementById("goalList").innerHTML=goals.length?goals.map(n=>`<div class="item" style="padding:10px 12px"><label style="display:flex;gap:9px;align-items:flex-start"><input type="checkbox" data-goal-done="${esc(n.id)}" ${n.done?"checked":""} style="width:18px;height:18px;margin:2px 0"><span><b style="${n.done?"text-decoration:line-through;opacity:.6":""}">${esc(n.title)}</b><span class="small">${n.due?" ・期限 "+esc(n.due):""}${n.metric?" ・目標 "+esc(n.metric):""}</span>${n.note?`<br><span class="small">${esc(n.note)}</span>`:""}</span></label><button class="chip" data-extra-delete="${esc(n.id)}">削除</button></div>`).join(""):'<p class="empty">目標を登録して進捗を管理しましょう。</p>';
  document.querySelectorAll("[data-extra-delete]").forEach(b=>b.onclick=()=>removeTyped(b.dataset.extraDelete));
  document.querySelectorAll("[data-goal-done]").forEach(b=>b.onchange=()=>{const n=saved.find(x=>x.id===b.dataset.goalDone);if(n){n.done=b.checked;n.updatedAt=new Date().toISOString();localStorage.setItem(key,JSON.stringify(saved));}});
@@ -1092,7 +1131,7 @@ document.getElementById("practiceForm").addEventListener("submit",e=>{
  }
 });
 document.getElementById("clubForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"club_distance",date:clubDate.value,club:clubName.value.trim(),carry:Number(clubCarry.value),total:Number(clubTotal.value)||null,conditions:clubConditions.value.trim()});e.target.reset();clubDate.value=todayISO();});
-document.getElementById("courseForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"course_note",date:courseNoteDate.value,course:courseNoteName.value.trim(),hole:courseHole.value.trim(),strategy:courseStrategy.value.trim(),next:courseNext.value.trim()});e.target.reset();courseNoteDate.value=todayISO();});
+document.getElementById("courseForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"course_note",date:courseNoteDate.value,course:courseNoteName.value.trim(),hole:courseHole.value.trim(),par:Number(document.getElementById("coursePar").value)||null,shape:document.getElementById("courseShape").value,hazards:document.getElementById("courseHazards").value.trim(),aim:document.getElementById("courseAim").value.trim(),green:document.getElementById("courseGreen").value.trim(),strategy:courseStrategy.value.trim(),next:courseNext.value.trim()});e.target.reset();courseNoteDate.value=todayISO();renderCourseMapPreview();});
 document.getElementById("goalForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"golf_goal",title:goalTitle.value.trim(),due:goalDue.value,metric:goalMetric.value.trim(),note:goalNote.value.trim(),done:false,date:todayISO()});e.target.reset();});
 renderExtra();
 
@@ -1105,7 +1144,7 @@ function showPage(which){
  const label=document.getElementById("currentPageLabel");if(label)label.textContent=names[which]||"ホーム";
  document.querySelectorAll("#pageMenu [data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===which));
  const menu=document.getElementById("pageMenu"),toggle=document.getElementById("menuToggle");if(menu)menu.hidden=true;if(toggle)toggle.setAttribute("aria-expanded","false");
- if(which==="coach")renderCoach();if(which==="ninety")renderAdvanced();if(which==="growth")renderExtra();
+ if(which==="coach")renderCoach();if(which==="books")renderBookSearch();if(which==="course")renderCourseMapPreview();if(which==="ninety")renderAdvanced();if(which==="growth")renderExtra();
  window.scrollTo({top:0,behavior:"smooth"});
 }
 memoTab.addEventListener("click",()=>showPage("memo"));libraryTab.addEventListener("click",()=>showPage("books"));coachTab.addEventListener("click",()=>showPage("coach"));
