@@ -608,7 +608,7 @@ function dedupeMemoRecords(records){
 
 function buildAll(){
  const deletedIds=new Set(saved.filter(n=>n.type==="deleted").map(n=>n.id));
- const memoSaved=dedupeMemoRecords(saved.filter(n=>!["round","deleted","ai_analysis","practice_session","club_distance","course_note","golf_goal","shot_data"].includes(n.type)));
+ const memoSaved=dedupeMemoRecords(saved.filter(n=>!["round","deleted","ai_analysis","practice_session","club_distance","course_note","golf_goal","shot_data","book_reference"].includes(n.type)));
  const overrides=new Map(memoSaved.filter(n=>n.id).map(n=>[n.id,n]));
  const replaced=initial.filter(n=>!deletedIds.has(n.id)).map(n=>overrides.get(n.id)||n);
  const extra=memoSaved.filter(s=>!initial.some(n=>n.id===s.id));
@@ -1091,6 +1091,69 @@ for(const id of ["roundDate","practiceDate","clubDate","courseNoteDate"]) {const
 function typed(t){return saved.filter(x=>x.type===t&&!saved.some(d=>d.type==="deleted"&&d.id===x.id)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));}
 function addTyped(record){saved.unshift({id:makeId(),updatedAt:new Date().toISOString(),...record});persistSaved();renderExtra();document.getElementById("backupStatus").textContent="記録を保存しました。この端末内に保存されています。ほかの端末にも反映するには「今すぐ同期」を押してください。";}
 function removeTyped(id){const n=saved.find(x=>x.id===id);if(!n||!confirm("この記録を削除しますか？同期後はほかの端末にも反映されます。"))return;saved=saved.filter(x=>x.id!==id);saved.push({id,type:"deleted",deletedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});persistSaved();renderExtra();}
+
+function courseMapSvg(shape,hazards){
+ const center='<path d="M175 176 C160 145 190 120 175 92 C160 64 190 42 175 18" stroke="#76a96f" stroke-width="42" fill="none" stroke-linecap="round"/><path d="M175 176 C160 145 190 120 175 92 C160 64 190 42 175 18" stroke="#c9dfb9" stroke-width="34" fill="none" stroke-linecap="round"/>';
+ let fairway=center,extras='';
+ if(shape==="dogleg-left")fairway='<path d="M175 176 C165 145 105 140 105 100 C105 62 150 50 175 18" stroke="#76a96f" stroke-width="42" fill="none" stroke-linecap="round"/><path d="M175 176 C165 145 105 140 105 100 C105 62 150 50 175 18" stroke="#c9dfb9" stroke-width="34" fill="none" stroke-linecap="round"/>';
+ if(shape==="dogleg-right")fairway='<path d="M175 176 C185 145 245 140 245 100 C245 62 200 50 175 18" stroke="#76a96f" stroke-width="42" fill="none" stroke-linecap="round"/><path d="M175 176 C185 145 245 140 245 100 C245 62 200 50 175 18" stroke="#c9dfb9" stroke-width="34" fill="none" stroke-linecap="round"/>';
+ if(shape==="water-left")extras='<path d="M0 20 Q65 45 45 90 T55 180 L0 180Z" fill="#9bd0df" opacity=".9"/>';
+ if(shape==="water-right")extras='<path d="M350 20 Q285 45 305 90 T295 180 L350 180Z" fill="#9bd0df" opacity=".9"/>';
+ if(shape==="bunkers")extras='<ellipse cx="110" cy="65" rx="19" ry="10" fill="#e6d6a9" stroke="#c9b77e"/><ellipse cx="238" cy="115" rx="20" ry="11" fill="#e6d6a9" stroke="#c9b77e"/><ellipse cx="185" cy="28" rx="17" ry="8" fill="#e6d6a9" stroke="#c9b77e"/>';
+ extras+='<ellipse cx="175" cy="18" rx="30" ry="13" fill="#5e9a57" stroke="#417849"/><circle cx="175" cy="18" r="4" fill="#fff"/><path d="M175 18 V2" stroke="#263b2d" stroke-width="2"/><path d="M176 3 L194 8 L176 13Z" fill="#d95b4b"/><circle cx="175" cy="176" r="5" fill="#fff" stroke="#35543a" stroke-width="2"/>';
+ return '<svg class="course-map" viewBox="0 0 350 195" role="img" aria-label="簡易コースレイアウト図"><rect x="0" y="0" width="350" height="195" rx="12" fill="#edf3e8"/>'+extras+fairway+'<text x="175" y="192" text-anchor="middle">TEE</text><text x="215" y="18">GREEN</text></svg><p class="small">簡易イメージ図（実際の測量図・公式レイアウトではありません）'+(hazards?' ・ '+esc(hazards):'')+'</p>';
+}
+function renderCourseMapPreview(){
+ const box=document.getElementById("courseMapPreview");if(!box)return;
+ const shape=document.getElementById("courseShape")?.value||"straight";
+ box.innerHTML=courseMapSvg(shape,document.getElementById("courseHazards")?.value||"");
+}
+document.getElementById("courseShape")?.addEventListener("change",renderCourseMapPreview);
+document.getElementById("courseHazards")?.addEventListener("input",renderCourseMapPreview);
+function renderAICoachInsights(){
+ const el=document.getElementById("aiCoachInsights");if(!el)return;
+ const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score))&&Number(r.score)>0);
+ const recent=rounds.slice(0,5),practices=typed("practice_session"),goals=typed("golf_goal").filter(g=>!g.done);
+ const mean=(a)=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+ const metrics=[
+  {name:"ペナルティ",value:mean(recent.map(r=>Number(r.ob||0)+Number(r.penalties||0)).filter(Number.isFinite)),target:1,unit:"打/回",detail:"ティーショットは飛距離より安全な着地点を優先"},
+  {name:"パット数",value:mean(recent.map(r=>Number(r.putts)).filter(Number.isFinite)),target:36,unit:"打/回",detail:"ロングパットの距離感と1〜2mの成功率を分けて練習"},
+  {name:"3パット以上",value:mean(recent.map(r=>Number(r.threePutts)).filter(Number.isFinite)),target:1,unit:"回/回",detail:"ファーストパットをカップから1m以内に止める距離感を優先"},
+  {name:"GIR",value:mean(recent.map(r=>Number(r.gir)).filter(Number.isFinite)),target:5,unit:"回/回",detail:"無理なパーオン狙いを減らし、得意なウェッジ距離を残す"}
+ ];
+ const weak=metrics.filter(m=>m.value!==null).sort((a,b)=>{const sa=a.name==="GIR"?Math.max(0,a.target-a.value):Math.max(0,a.value-a.target);const sb=b.name==="GIR"?Math.max(0,b.target-b.value):Math.max(0,b.value-b.target);return sb-sa;})[0];
+ const holes=rounds.flatMap(r=>(r.holes||[]).filter(h=>h.par!=null&&Number.isFinite(Number(h.score))).map(h=>({par:Number(h.par),diff:Number(h.score)-Number(h.par)})));
+ const parRows=[3,4,5].map(p=>({par:p,rows:holes.filter(h=>h.par===p)})).filter(x=>x.rows.length>=4).map(x=>({par:x.par,rate:x.rows.filter(h=>h.diff>=2).length/x.rows.length,n:x.rows.length})).sort((a,b)=>b.rate-a.rate);
+ const suggestions=[];
+ if(weak&&((weak.name==="GIR"&&weak.value<weak.target)||(weak.name!=="GIR"&&weak.value>weak.target)))suggestions.push('<b>最優先：</b>'+weak.name+'の改善（直近'+recent.length+'回平均 '+weak.value.toFixed(1)+weak.unit+'）。'+weak.detail+'。');
+ if(parRows[0]&&parRows[0].rate>=.25)suggestions.push('<b>ホール別：</b>Par '+parRows[0].par+'でダボ以上が'+Math.round(parRows[0].rate*100)+'%（'+parRows[0].n+'ホール）。'+(parRows[0].par===3?'ティーショットでグリーンセンターを狙い、外しても安全な側を選ぶ。':'2打目で無理をせず、得意距離に刻む選択肢を持つ。'));
+ if(practices.length<2)suggestions.push('<b>練習記録：</b>練習のテーマ・球数・結果をあと2回ほど記録すると、ラウンド指標とのつながりを比較しやすくなります。');
+ if(goals.length)suggestions.push('<b>継続中の目標：</b>'+goals.slice(0,2).map(g=>esc(g.title)).join(" / ")+'。次回練習で実施したか記録しましょう。');
+ if(!suggestions.length)suggestions.push('記録がまだ少ないため、断定的な課題はありません。ラウンドと練習の指標を入力すると優先順位を表示します。');
+ el.innerHTML='<div class="ai-coach-card"><div class="item-meta">分析対象：直近'+recent.length+'ラウンド ・ 練習記録'+practices.length+'件 ・ 未達成目標'+goals.length+'件</div><ol style="padding-left:20px;margin:8px 0">'+suggestions.map(x=>'<li style="margin:8px 0">'+x+'</li>').join("")+'</ol><p class="small">これは入力データに基づくルールベースの提案です。AIによる診断ではなく、データ不足時は推測しません。</p></div>';
+}
+function bookSearchCorpus(){
+ const builtIn=document.getElementById("bookDetail")?.innerText||"";
+ const custom=typed("book_reference").map(n=>({title:n.title,category:n.category,body:n.body,id:n.id}));
+ return [{title:"スイング大全",category:"登録済み書籍",body:builtIn,id:"builtin-swing"},...custom];
+}
+function renderBookSearch(){
+ const input=document.getElementById("bookSearch"),out=document.getElementById("bookSearchResults");if(!input||!out)return;
+ const q=input.value.trim().toLowerCase();
+ if(!q){out.innerHTML='<p class="small">キーワードを入力すると、登録済み書籍・資料の該当箇所を表示します。</p>';return;}
+ const terms=q.split(/\s+/).filter(Boolean);
+ const hits=bookSearchCorpus().map(b=>{const text=(b.title+" "+b.category+" "+b.body).toLowerCase();const score=terms.filter(t=>text.includes(t)).length;return {...b,score};}).filter(b=>b.score>0).sort((a,b)=>b.score-a.score);
+ out.innerHTML=hits.length?hits.map(b=>{const body=String(b.body||"");const idx=body.toLowerCase().indexOf(terms[0]);const snippet=idx>=0?body.slice(Math.max(0,idx-90),Math.min(body.length,idx+220)):body.slice(0,220);return '<div class="item" style="padding:10px 12px"><b>'+esc(b.title)+'</b><div class="item-meta">'+esc(b.category||"資料")+' ・ 一致 '+b.score+'/'+terms.length+'語</div><p class="small">'+esc(snippet)+(snippet.length<body.length?'…':'')+'</p></div>';}).join(""):'<div class="empty">該当する資料がありません。キーワードを変えるか、参考資料を追加してください。</div>';
+}
+document.getElementById("bookSearch")?.addEventListener("input",renderBookSearch);
+document.getElementById("bookSourceForm")?.addEventListener("submit",e=>{
+ e.preventDefault();
+ const title=document.getElementById("bookSourceTitle").value.trim(),body=document.getElementById("bookSourceBody").value.trim();
+ if(!title||!body)return;
+ addTyped({type:"book_reference",title,category:document.getElementById("bookSourceCategory").value,body,date:todayISO()});
+ e.target.reset();renderBookSearch();alert("資料を本棚に追加しました。");
+});
+
 function renderExtra(){
  const prs=typed("practice_session"), rounds=typed("round");
  document.getElementById("dashPractice").textContent=prs.length;
