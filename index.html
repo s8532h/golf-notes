@@ -1178,14 +1178,24 @@ function renderCustomBookShelf(){
  shelf.innerHTML=books.length?books.map(({key,book,items},i)=>'<button class="book-card custom-book-card" type="button" data-custom-book="'+esc(key)+'"><span class="book-spine"></span><span class="book-label">'+esc((book.category||"REFERENCE BOOK").toUpperCase())+' / VOL. '+String(i+2).padStart(2,"0")+'</span><strong>'+esc(book.title)+'</strong><small>'+esc(book.summary.slice(0,100)||book.note||"要点・ドリルをまとめた参考資料")+(book.summary.length>100?"…":"")+(items.length>1?" ・ "+items.length+"件の重複を統合表示":"")+'</small></button>').join(""):'<p class="small" style="grid-column:1/-1">追加した書籍・資料はここに表示されます。</p>';
  shelf.querySelectorAll("[data-custom-book]").forEach(btn=>btn.addEventListener("click",()=>{
   const group=books.find(x=>x.key===btn.dataset.customBook);if(!group)return;const b=group.book;
+  const fieldLabels={heading:"見出し",memo_topics:"メモのテーマ",practice_cues:"練習時の意識",routine:"練習ルーティン",checklist:"チェックリスト",key_points:"重要ポイント",points:"ポイント",drills:"ドリル",examples:"具体例",notes:"補足",application:"実践への応用",summary:"要約",description:"説明",purpose:"目的",steps:"手順",warning:"注意点"};
+  const renderValue=value=>{
+   if(value==null||value==="")return "";
+   if(Array.isArray(value))return '<ul>'+value.map(v=>'<li>'+renderValue(v)+'</li>').join("")+'</ul>';
+   if(typeof value==="object")return '<dl>'+Object.entries(value).map(([k,v])=>'<dt style="font-weight:700;margin-top:6px">'+esc(fieldLabels[k]||k)+'</dt><dd style="margin:2px 0 6px 12px">'+renderValue(v)+'</dd>').join("")+'</dl>';
+   return esc(String(value)).replace(/\n/g,"<br>");
+  };
   const chapterHtml=b.chapters.map((c,i)=>{
-   const title=typeof c==="string"?"第"+(i+1)+"章":String(c.title||c.name||"第"+(i+1)+"章");
-   const body=typeof c==="string"?"":String(c.summary||c.body||c.content||"");
+   if(typeof c==="string")return '<div class="chapter"><b>第'+(i+1)+'章</b><p>'+esc(c)+'</p></div>';
+   const title=String(c.heading||c.title||c.name||"第"+(i+1)+"章");
+   const body=c.summary||c.body||c.content||c.description||"";
    const list=Array.isArray(c.points)?c.points:Array.isArray(c.key_points)?c.key_points:[];
-   return '<div class="chapter"><b>'+esc(title)+'</b>'+(body?'<p>'+esc(body)+'</p>':"")+(list.length?'<ul>'+list.map(x=>'<li>'+esc(typeof x==="string"?x:JSON.stringify(x))+'</li>').join("")+'</ul>':"")+'</div>';
+   const known=new Set(["heading","title","name","summary","body","content","description","points","key_points"]);
+   const extra=Object.entries(c).filter(([k,v])=>!known.has(k)&&v!=null&&v!=="").map(([k,v])=>'<div class="next"><b>'+esc(fieldLabels[k]||k)+'</b>'+renderValue(v)+'</div>').join("");
+   return '<div class="chapter"><b>'+esc(title)+'</b>'+(body?'<p>'+renderValue(body)+'</p>':"")+(list.length?'<ul>'+list.map(x=>'<li>'+renderValue(x)+'</li>').join("")+'</ul>':"")+extra+'</div>';
   }).join("");
   const points=b.points.length?'<h4>要点</h4><ul>'+b.points.map(x=>'<li>'+esc(typeof x==="string"?x:JSON.stringify(x))+'</li>').join("")+'</ul>':"";
-  const drills=b.drills.length?'<h4>実践ドリル</h4><div class="drill-grid">'+b.drills.map(x=>'<div class="drill"><b>'+esc(typeof x==="string"?x:(x.name||x.title||"ドリル"))+'</b>'+(typeof x==="object"&&x.purpose?'<p>'+esc(x.purpose)+'</p>':typeof x==="object"&&x.description?'<p>'+esc(x.description)+'</p>':"")+'</div>').join("")+'</div>':"";
+  const drills=b.drills.length?'<h4>実践ドリル</h4><div class="drill-grid">'+b.drills.map(x=>typeof x==="string"?'<div class="drill"><p>'+esc(x)+'</p></div>':'<div class="drill"><b>'+esc(x.name||x.title||"ドリル")+'</b>'+Object.entries(x).filter(([k,v])=>!["name","title"].includes(k)&&v!=null&&v!=="").map(([k,v])=>'<div style="margin-top:6px"><b>'+esc(fieldLabels[k]||k)+'</b>'+renderValue(v)+'</div>').join("")+'</div>').join("")+'</div>':"";
   detail.hidden=false;
   detail.innerHTML='<div class="tag">'+esc(b.category)+' ・ 登録本</div><h3>'+esc(b.title)+'</h3><p class="small">登録日：'+esc(b.date||"")+(group.items.length>1?' ・ 同名の登録 '+group.items.length+'件を統合表示':'')+'</p>'+(b.summary?'<h4>本全体の要約</h4><div class="practice"><p>'+esc(b.summary)+'</p></div>':"")+(b.note&&b.note!==b.summary?'<p class="small">'+esc(b.note)+'</p>':"")+(b.chapters.length?'<h4>章ごとの要点</h4>'+chapterHtml:"")+points+drills+'<button type="button" class="chip" id="deleteCustomBook" style="margin-top:18px;color:#9b3e32;border-color:#d9aaa2">この本を削除</button>';
   document.getElementById("deleteCustomBook").addEventListener("click",()=>{
