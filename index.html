@@ -269,7 +269,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <div id="scoreChart" style="margin-top:14px"></div>
   <div id="roundInsights" style="margin-top:14px"></div>
   <div id="holeAnalytics" style="margin-top:14px"></div>
-  <div id="roundList" style="margin-top:12px"></div>
+  <div id="roundList" style="margin-top:12px"></div><div class="item" style="padding:12px;margin-top:14px"><b>ラウンド振り返りテンプレート</b><p class="small">ラウンド後に記録を選び、良かった点・課題・次回の行動を保存します。</p><div id="reflectionForm"></div><div id="reflectionHistory"></div></div>
   <p class="small">スコア記録は日付順に表示。平均・ベストは記録済みラウンドから計算します。</p>
 </section>
 <section class="panel" id="progress-panel">
@@ -289,11 +289,11 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
       <label class="small" for="practiceDrills">実施したドリル</label><textarea id="practiceDrills" rows="2" placeholder="ハーフスイング、片手打ちなど"></textarea>
       <label class="small" for="practiceFeel">結果・気づき</label><textarea id="practiceFeel" rows="2" placeholder="良かった感覚、残った課題など"></textarea>
     </details>
-    <button class="chip active" type="submit" style="width:100%;min-height:44px">練習を保存</button></form><p id="practiceSaveStatus" class="small" role="status" aria-live="polite" style="margin:8px 0"></p><div id="practiceInsights" style="margin-top:12px"></div><div id="practiceList"></div>
+    <button class="chip active" type="submit" style="width:100%;min-height:44px">練習を保存</button></form><p id="practiceSaveStatus" class="small" role="status" aria-live="polite" style="margin:8px 0"></p><div id="practiceInsights" style="margin-top:12px"></div><div id="generatedPracticePlan" style="margin-top:12px"></div><div id="practiceList"></div>
 </section>
 <section class="panel" id="club-panel">
   <h2>クラブ別飛距離データベース</h2><p class="small">キャリーとトータルを分けて登録。過去に話した飛距離は実測値として自動登録せず、ここで確認した値を入力します。</p>
-  <form id="clubForm"><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label class="small" for="clubName">クラブ</label><input id="clubName" required placeholder="例：7I"></div><div><label class="small" for="clubCarry">平均キャリー（yd）</label><input id="clubCarry" type="number" min="1" max="400" required placeholder="150"></div><div><label class="small" for="clubTotal">平均トータル（yd）</label><input id="clubTotal" type="number" min="1" max="450" placeholder="160"></div><div><label class="small" for="clubDate">測定日</label><input id="clubDate" type="date"></div></div><label class="small" for="clubConditions">測定条件・メモ</label><input id="clubConditions" placeholder="例：GOLFZON、通常ショット20球平均"><button class="chip active" type="submit" style="width:100%;min-height:44px">飛距離を登録</button></form><div id="distanceInsights" style="margin-top:12px"></div><div id="clubList"></div>
+  <form id="clubForm"><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label class="small" for="clubName">クラブ</label><input id="clubName" required placeholder="例：7I"></div><div><label class="small" for="clubCarry">平均キャリー（yd）</label><input id="clubCarry" type="number" min="1" max="400" required placeholder="150"></div><div><label class="small" for="clubTotal">平均トータル（yd）</label><input id="clubTotal" type="number" min="1" max="450" placeholder="160"></div><div><label class="small" for="clubDate">測定日</label><input id="clubDate" type="date"></div></div><label class="small" for="clubConditions">測定条件・メモ</label><input id="clubConditions" placeholder="例：GOLFZON、通常ショット20球平均"><button class="chip active" type="submit" style="width:100%;min-height:44px">飛距離を登録</button></form><div id="distanceInsights" style="margin-top:12px"></div><div id="clubAnalysis" style="margin-top:12px"></div><div id="clubList"></div>
 </section>
 <section class="panel" id="course-panel">
   <h2>ゴルフ場別攻略ノート</h2><p class="small">コースの特徴、ホールごとの狙いどころ、危険エリア、次回の作戦を保存します。</p>
@@ -306,11 +306,11 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <label class="small" for="courseAim">ティーショットの狙い</label><input id="courseAim" placeholder="例：フェアウェイ左センター狙い">
   <label class="small" for="courseGreen">グリーン周り</label><input id="courseGreen" placeholder="例：奥から速い、右手前に傾斜">
   <div id="courseMapPreview" class="small" aria-live="polite">レイアウトを選ぶと簡易コース図を表示します。</div>
-<label class="small" for="courseStrategy">攻略メモ</label><textarea id="courseStrategy" rows="3" placeholder="ティーショットの狙い、避けたい場所、グリーンの特徴"></textarea><label class="small" for="courseNext">次回の作戦</label><textarea id="courseNext" rows="2" placeholder="例：右バンカーを避けて左サイドから"></textarea><button class="chip active" type="submit" style="width:100%;min-height:44px">攻略ノートを保存</button></form><div id="courseList"></div>
+<label class="small" for="courseStrategy">攻略メモ</label><textarea id="courseStrategy" rows="3" placeholder="ティーショットの狙い、避けたい場所、グリーンの特徴"></textarea><label class="small" for="courseNext">次回の作戦</label><textarea id="courseNext" rows="2" placeholder="例：右バンカーを避けて左サイドから"></textarea><button class="chip active" type="submit" style="width:100%;min-height:44px">攻略ノートを保存</button></form><div class="item" style="padding:12px;margin-top:14px"><b>ラウンド前・攻略チェックリスト</b><p class="small">チェック状態はこの端末に保存されます。</p><div id="courseChecklist"></div></div><div id="courseList"></div>
 </section>
 <section class="panel" id="goal-panel">
   <h2>課題・目標管理</h2><p class="small">数字で追える目標を登録し、達成したらチェック。90切りまでの小さな改善を積み上げます。</p>
-  <form id="goalForm"><label class="small" for="goalTitle">目標</label><input id="goalTitle" required placeholder="例：3パットを1ラウンド2回以内"><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label class="small" for="goalDue">期限</label><input id="goalDue" type="date"></div><div><label class="small" for="goalMetric">目標数値（任意）</label><input id="goalMetric" placeholder="例：2回以内"></div></div><label class="small" for="goalNote">取り組み方</label><textarea id="goalNote" rows="2" placeholder="どの練習で改善するか"></textarea><button class="chip active" type="submit" style="width:100%;min-height:44px">目標を追加</button></form><div id="goalList"></div>
+  <form id="goalForm"><label class="small" for="goalTitle">目標</label><input id="goalTitle" required placeholder="例：3パットを1ラウンド2回以内"><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label class="small" for="goalDue">期限</label><input id="goalDue" type="date"></div><div><label class="small" for="goalMetric">目標数値（任意）</label><input id="goalMetric" placeholder="例：2回以内"></div></div><label class="small" for="goalNote">取り組み方</label><textarea id="goalNote" rows="2" placeholder="どの練習で改善するか"></textarea><button class="chip active" type="submit" style="width:100%;min-height:44px">目標を追加</button></form><div id="goalProgress" style="margin-top:12px"></div><div id="goalList"></div>
 </section>
 <section class="panel" id="advanced-panel">
   <h2>90切り・詳細分析</h2>
@@ -409,7 +409,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
       <div class="stat"><b id="coachPracticeCount">0</b><span>練習メニュー</span></div>
     </div>
   </section>
-  <section class="panel" id="coachImportPanel">
+  <section class="panel" id="smartCoachPanel"><h2>パーソナルAIコーチ</h2><p class="small">ラウンド・ショット・練習・目標データから課題を整理し、ChatGPTに渡せる個別コーチング依頼文を生成します。優先順位づけはデータに基づく自動分析で、生成AIの回答そのものではありません。</p><div id="smartCoachOutput"></div><button class="chip active" id="copySmartCoachPrompt" type="button" style="width:100%;margin-top:8px">コーチング依頼文をコピー</button><p class="small" id="smartCoachStatus" aria-live="polite"></p></section><section class="panel" id="coachImportPanel">
     <h2>ChatGPTの分析を取り込む</h2>
     <p class="small">ChatGPTに「Golf Notesに反映するJSONを作って」と依頼し、出力されたJSONを貼り付けてください。コードブロックごと貼り付けても読み込めます。</p>
     <label class="small" for="coachJson">分析データ（JSON）</label>
@@ -1050,7 +1050,7 @@ function parseCoachInput(raw){
 }
 function coachPreviewHtml(n){return `<div class="tag">${coachEsc(n.category)} ・ 優先度：${n.issue.priority==="high"?"高":n.issue.priority==="low"?"低":"中"}</div><h3>${coachEsc(n.title)}</h3><p>${coachEsc(n.summary||"要約なし")}</p>${n.issue.symptom?`<h4>課題</h4><p>${coachEsc(n.issue.symptom)}${n.issue.clubs?`（対象：${coachEsc(n.issue.clubs)}）`:""}</p>`:""}${n.analysis.length?`<h4>分析・原因候補</h4><ul>${n.analysis.map(x=>`<li>${coachEsc(x)}</li>`).join("")}</ul>`:""}${n.practice.length?`<h4>練習メニュー</h4><ul>${n.practice.map(x=>`<li><b>${coachEsc(x.name)}</b>${x.purpose?`：${coachEsc(x.purpose)}`:""}</li>`).join("")}</ul>`:""}${n.next_action?`<div class="next">次に試すこと：${coachEsc(n.next_action)}</div>`:""}${n.tags.length?`<p class="small">タグ：${n.tags.map(coachEsc).join(" ・ ")}</p>`:""}`;}
 function renderCoach(){
- renderAICoachInsights();
+ renderAICoachInsights();renderSmartCoach();
  const records=coachRecords();
  document.getElementById("coachCount").textContent=records.length;
  document.getElementById("coachPracticeCount").textContent=records.reduce((a,n)=>a+(n.practice||[]).length,0);
@@ -1155,6 +1155,34 @@ document.getElementById("bookSourceForm")?.addEventListener("submit",e=>{
  e.target.reset();renderBookSearch();alert("資料を本棚に追加しました。");
 });
 
+
+function meanNum(values){const a=values.map(Number).filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
+function renderClubAnalysis(){
+ const root=document.getElementById("clubAnalysis");if(!root)return;
+ const shots=typed("shot_data").filter(x=>x.club&&x.carry!==null&&x.carry!==undefined&&x.carry!==""&&Number.isFinite(Number(x.carry))),groups={};shots.forEach(x=>(groups[x.club]??=[]).push(x));
+ const rows=Object.entries(groups).map(([club,a])=>{const carry=a.map(x=>Number(x.carry)),total=a.map(x=>Number(x.total)).filter(Number.isFinite),side=a.map(x=>Number(x.side??x.launchHorizontal)).filter(Number.isFinite),avg=meanNum(carry),sd=Math.sqrt(carry.reduce((z,v)=>z+(v-avg)**2,0)/carry.length);return {club,n:a.length,avg,sd,total:meanNum(total),side:meanNum(side),left:side.filter(v=>v<0).length,right:side.filter(v=>v>0).length};}).sort((a,b)=>b.n-a.n);
+ root.innerHTML='<h3>クラブ別ショット分析</h3>'+(rows.length?rows.map(x=>'<div class="item" style="padding:10px 12px"><b>'+esc(x.club)+'</b><div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:7px"><div class="stat"><b>'+x.avg.toFixed(1)+'</b><span>平均キャリー yd</span></div><div class="stat"><b>'+x.sd.toFixed(1)+'</b><span>距離のばらつき yd</span></div><div class="stat"><b>'+(x.total===null?'—':x.total.toFixed(1))+'</b><span>平均トータル yd</span></div></div><p class="small">計測 '+x.n+'球'+(x.side!==null?' ・ 左右指標平均 '+x.side.toFixed(1)+'（左寄り '+x.left+' / 右寄り '+x.right+'）':' ・ 左右データなし')+'</p></div>').join(''):'<p class="small">クラブ名・キャリーを含むショットCSVを取り込むと分析します。</p>')+'<p class="small">左右の符号・単位は計測器の仕様に依存します。同一計測器・同一指標内で比較してください。</p>';
+}
+function makePracticePlan(){
+ const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score))).slice(0,5),prs=typed("practice_session"),shots=typed("shot_data"),avg=k=>meanNum(rounds.filter(r=>r[k]!==null&&r[k]!==undefined&&r[k]!=="").map(r=>r[k]));
+ const penalty=meanNum(rounds.filter(r=>r.ob!=null||r.penalties!=null).map(r=>Number(r.ob||0)+Number(r.penalties||0))),putts=avg("putts"),gir=avg("gir"),threes=avg("threePutts"),tasks=[];
+ if(penalty!==null&&penalty>1)tasks.push(["ペナルティ削減","10分：安全な着地点を決める。15球：最も曲がり幅の小さいクラブで狙う練習。","高"]);
+ if(putts!==null&&putts>36)tasks.push(["パットの距離感","5m・10m・15mから各5球。カップインより1m以内に止めることを評価。","高"]);
+ if(threes!==null&&threes>1)tasks.push(["3パット削減","10分：ロングパットの距離感。10分：1〜1.5mの連続パットを10球。","高"]);
+ if(gir!==null&&gir<5)tasks.push(["アイアン・UTの方向性","7割スイングで目標幅を設定し、左右のミスを記録。","中"]);
+ const by={};shots.forEach(x=>{if(x.club&&Number.isFinite(Number(x.carry)))(by[x.club]??=[]).push(Number(x.carry));});
+ const unstable=Object.entries(by).filter(([,a])=>a.length>=5).map(([club,a])=>({club,sd:Math.sqrt(a.reduce((z,v)=>z+(v-meanNum(a))**2,0)/a.length)})).sort((a,b)=>b.sd-a.sd)[0];
+ if(unstable)tasks.push([unstable.club+"の距離安定","同じ番手で10球。平均距離より打点・左右・キャリー幅を記録。","中"]);
+ if(!tasks.length)tasks.push(["基礎データを増やす","ウェッジ距離打ち分け10球、アイアン方向性10球、パット距離感10球。","データ収集中"]);
+ return {tasks,rounds:rounds.length,practices:prs.length};
+}
+function renderGeneratedPracticePlan(){const el=document.getElementById("generatedPracticePlan");if(!el)return;const p=makePracticePlan();el.innerHTML='<div class="ai-coach-card"><b>データ連動・次回練習メニュー（約40分）</b><p class="small">直近ラウンド '+p.rounds+'回／練習履歴 '+p.practices+'回から生成</p>'+p.tasks.map((t,i)=>'<div style="padding:8px 0;border-top:1px solid #dfe8dc"><b>'+(i+1)+'. '+esc(t[0])+'</b><div class="small">優先度：'+esc(t[2])+'</div><p class="small">'+esc(t[1])+'</p></div>').join('')+'<p class="small">入力データに基づくルールベース提案です。未入力項目は推測しません。</p></div>';}
+const checklistItems=["コース・スタートホール・使用ティーを確認","攻略ノートでPar・距離・ハザードを確認","各ホールの安全なティーショットの狙いを決める","当日の目標を1つに絞る（例：ペナルティ1回以内）","最初の3ホールはボギーでOK。無理にパーを狙わない","グリーン周り・パターの距離感を確認"];
+function renderCourseChecklist(){const el=document.getElementById("courseChecklist");if(!el)return;const rec=typed("round_checklist")[0],state=rec?.checks||{};el.innerHTML=checklistItems.map((x,i)=>'<label style="display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)"><input type="checkbox" data-course-check="'+i+'" '+(state[i]?"checked":"")+' style="width:18px;height:18px;margin:2px 0"><span>'+esc(x)+'</span></label>').join('')+'<button class="chip" id="resetCourseChecklist" type="button" style="margin-top:8px">チェックをリセット</button>';el.querySelectorAll("[data-course-check]").forEach(b=>b.onchange=()=>{let x=typed("round_checklist")[0];if(!x){addTyped({type:"round_checklist",checks:{}});x=typed("round_checklist")[0];}x.checks=x.checks||{};x.checks[b.dataset.courseCheck]=b.checked;x.updatedAt=new Date().toISOString();persistSaved();});document.getElementById("resetCourseChecklist")?.addEventListener("click",()=>{const x=typed("round_checklist")[0];if(x){x.checks={};persistSaved();}renderCourseChecklist();});}
+function renderGoalProgress(){const el=document.getElementById("goalProgress");if(!el)return;const goals=typed("golf_goal"),done=goals.filter(g=>g.done).length,rate=goals.length?Math.round(done/goals.length*100):0;el.innerHTML='<div class="ai-coach-card"><b>目標達成率</b><div class="stats" style="margin-top:8px"><div class="stat"><b>'+rate+'%</b><span>全目標の達成率</span></div><div class="stat"><b>'+done+'/'+goals.length+'</b><span>達成済み</span></div><div class="stat"><b>'+(goals.length-done)+'</b><span>進行中</span></div></div><div style="height:10px;background:#e5e9e1;border-radius:8px;overflow:hidden;margin-top:10px"><div style="height:100%;width:'+rate+'%;background:var(--green);border-radius:8px"></div></div><p class="small">目標をチェックすると達成率が更新されます。</p></div>';}
+function renderSmartCoach(){const el=document.getElementById("smartCoachOutput");if(!el)return;const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score))).slice(0,5),p=makePracticePlan(),goals=typed("golf_goal").filter(g=>!g.done),avg=meanNum(rounds.map(r=>r.score)),latest=rounds[0],prompt=["Golf Notesの記録に基づき、90切りに向けたコーチングをしてください。","直近スコア："+(rounds.map(r=>r.score).join(", ")||"未登録"),"直近平均："+(avg===null?"未算出":avg.toFixed(1)+"打"),"直近ラウンド："+(latest?latest.course+" / "+latest.date:"未登録"),"練習回数："+typed("practice_session").length,"ショット計測："+typed("shot_data").length+"件","未達成目標："+(goals.map(g=>g.title).join("、")||"なし"),"優先練習："+p.tasks.map(t=>t[0]).join("、"),"記録のない項目は推測せず、次回までの練習とコース戦略を具体化してください。"].join("\n");el.innerHTML='<div class="stats"><div class="stat"><b>'+(avg===null?"—":avg.toFixed(1))+'</b><span>直近平均スコア</span></div><div class="stat"><b>'+rounds.length+'</b><span>対象ラウンド</span></div><div class="stat"><b>'+goals.length+'</b><span>未達成目標</span></div></div><p class="small">最優先テーマ：'+esc(p.tasks[0]?.[0]||"記録を追加してください")+'</p>';const btn=document.getElementById("copySmartCoachPrompt");if(btn)btn.onclick=async()=>{try{await navigator.clipboard.writeText(prompt);document.getElementById("smartCoachStatus").textContent="依頼文をコピーしました。ChatGPTに貼り付けて相談できます。";}catch(e){document.getElementById("smartCoachStatus").textContent="コピーできませんでした。";}};}
+function renderReflection(){const el=document.getElementById("reflectionForm"),history=document.getElementById("reflectionHistory");if(!el||!history)return;const rounds=typed("round").filter(r=>r.date).sort((a,b)=>(b.date||"").localeCompare(a.date||"")),refs=typed("round_reflection");if(!rounds.length){el.innerHTML='<p class="small">ラウンドを登録すると振り返りを作成できます。</p>';history.innerHTML="";return;}el.innerHTML='<label class="small">振り返るラウンド</label><select id="reflectionRound" style="width:100%">'+rounds.map(r=>'<option value="'+esc(r.id)+'">'+esc(r.date)+' ・ '+esc(r.course)+' ・ '+esc(r.score)+'打</option>').join('')+'</select>'+[['Good','良かったこと'],['Issue','課題・もったいなかったこと'],['Keep','次回も続けること'],['Next','次回改善すること（1つ）']].map(([id,label])=>'<label class="small">'+label+'</label><textarea id="reflection'+id+'" rows="2"></textarea>').join('')+'<button class="chip active" id="saveReflection" type="button" style="width:100%">振り返りを保存</button>';const sel=el.querySelector("#reflectionRound"),load=()=>{const x=refs.find(v=>v.roundId===sel.value);["Good","Issue","Keep","Next"].forEach(k=>el.querySelector("#reflection"+k).value=x?.[k.toLowerCase()]||"");};sel.onchange=load;load();el.querySelector("#saveReflection").onclick=()=>{const old=refs.find(x=>x.roundId===sel.value),rec={type:"round_reflection",roundId:sel.value,good:el.querySelector("#reflectionGood").value,issue:el.querySelector("#reflectionIssue").value,keep:el.querySelector("#reflectionKeep").value,next:el.querySelector("#reflectionNext").value,date:todayISO()};if(old){Object.assign(old,rec,{id:old.id});persistSaved();}else addTyped(rec);renderReflection();};history.innerHTML=refs.length?'<h4>保存済みの振り返り</h4>'+refs.map(x=>{const r=rounds.find(z=>z.id===x.roundId);return '<div class="item" style="padding:9px"><b>'+esc(r?.date||x.date)+' ・ '+esc(r?.course||"ラウンド")+'</b><p class="small">良かったこと：'+esc(x.good||"—")+'<br>課題：'+esc(x.issue||"—")+'<br>次回：'+esc(x.next||"—")+'</p></div>';}).join(''):'<p class="small">まだ振り返りはありません。</p>';}
+
 function renderExtra(){
  const prs=typed("practice_session"), rounds=typed("round");
  document.getElementById("dashPractice").textContent=prs.length;
@@ -1167,6 +1195,7 @@ function renderExtra(){
  const pInsight=document.getElementById("practiceInsights");
  if(pInsight){const minutes=prs.map(x=>Number(x.minutes)).filter(Number.isFinite),balls=prs.map(x=>Number(x.balls)).filter(Number.isFinite);const recentDays=prs.slice(0,5).map(x=>`${x.date||"日付未登録"}：${x.focus}`).join(" / ");pInsight.innerHTML=prs.length?`<div class="item" style="padding:10px 12px"><b>練習の集計</b><div class="item-meta">記録 ${prs.length}回 ・ 記録済み時間の平均 ${safeMean(minutes)?.toFixed(0)??"—"}分 ・ 記録済み球数の平均 ${safeMean(balls)?.toFixed(0)??"—"}球</div><p class="small">直近のテーマ：${esc(recentDays||"—")}</p></div>`:'<p class="empty">練習記録が増えると、頻度・時間・球数を集計します。</p>';}
  document.getElementById("practiceList").innerHTML=prs.length?'<h3 class="group-title">練習履歴</h3>'+prs.map(n=>`<div class="item" style="padding:10px 12px"><b>${esc(n.focus)}</b><div class="item-meta">${esc(n.date)} ・ ${esc(n.place||"場所未登録")}${n.minutes?" ・ "+n.minutes+"分":""}${n.balls?" ・ "+n.balls+"球":""}</div>${n.drills?`<p class="small">ドリル：${esc(n.drills)}</p>`:""}${n.feel?`<p class="small">${esc(n.feel)}</p>`:""}<button class="chip" data-extra-delete="${esc(n.id)}">削除</button></div>`).join(""):'<p class="empty">まだ練習記録がありません。</p>';
+ renderClubAnalysis();renderGeneratedPracticePlan();renderCourseChecklist();renderGoalProgress();renderReflection();
  const clubs=typed("club_distance");
  const shotRows=typed("shot_data");const dInsight=document.getElementById("distanceInsights");
  if(dInsight){const byClub={};shotRows.forEach(x=>{(byClub[x.club]??=[]).push(Number(x.carry));});const shotSummary=Object.entries(byClub).map(([club,v])=>`${club}：${safeMean(v)?.toFixed(1)??"—"}yd（${v.length}件）`).join(" / ");dInsight.innerHTML=`<div class="item" style="padding:10px 12px"><b>計測データの集計</b><div class="item-meta">CSVショット記録 ${shotRows.length}件 ・ 登録クラブ ${clubs.length}種類</div><p class="small">${esc(shotSummary||"CSVデータを取り込むとクラブ別平均キャリーを表示します。")}</p></div>`;}
@@ -1208,7 +1237,7 @@ function showPage(which){
  const label=document.getElementById("currentPageLabel");if(label)label.textContent=names[which]||"ホーム";
  document.querySelectorAll("#pageMenu [data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===which));
  const menu=document.getElementById("pageMenu"),toggle=document.getElementById("menuToggle");if(menu)menu.hidden=true;if(toggle)toggle.setAttribute("aria-expanded","false");
- if(which==="coach")renderCoach();if(which==="books")renderBookSearch();if(which==="course")renderCourseMapPreview();if(which==="ninety")renderAdvanced();if(which==="growth")renderExtra();
+ if(which==="coach"){renderCoach();renderSmartCoach();}if(which==="books")renderBookSearch();if(which==="course")renderCourseMapPreview();if(which==="ninety")renderAdvanced();if(which==="growth")renderExtra();if(which==="practice"){renderExtra();renderGeneratedPracticePlan();}
  window.scrollTo({top:0,behavior:"smooth"});
 }
 memoTab.addEventListener("click",()=>showPage("memo"));libraryTab.addEventListener("click",()=>showPage("books"));coachTab.addEventListener("click",()=>showPage("coach"));
