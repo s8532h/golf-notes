@@ -260,6 +260,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <div class="stat"><b id="bestScore">—</b><span>ベスト</span></div>
   </div>
   <div id="scoreChart" style="margin-top:14px"></div>
+  <div id="roundInsights" style="margin-top:14px"></div>
   <div id="holeAnalytics" style="margin-top:14px"></div>
   <div id="roundList" style="margin-top:12px"></div>
   <p class="small">スコア記録は日付順に表示。平均・ベストは記録済みラウンドから計算します。</p>
@@ -651,7 +652,56 @@ function renderRounds(){
  }else chart.innerHTML='<div class="empty">ラウンドを登録すると、スコア推移がここに表示されます。</div>';
  document.getElementById("roundList").innerHTML=rounds.map(r=>{const holes=Array.isArray(r.holes)?r.holes:[];const holeView=holes.length?`<details style="margin-top:9px"><summary class="small" style="cursor:pointer;color:var(--green);font-weight:700">ホール別記録（${holes.length}ホール）</summary><div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:12px;text-align:center"><thead><tr><th style="padding:5px;border-bottom:1px solid var(--line)">Hole</th>${holes.map(h=>`<th style="padding:5px;border-bottom:1px solid var(--line)">${h.number}</th>`).join("")}<th style="padding:5px;border-bottom:1px solid var(--line)">計</th></tr></thead><tbody><tr><th style="padding:5px">Score</th>${holes.map(h=>`<td style="padding:5px">${h.score??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.reduce((a,h)=>a+Number(h.score||0),0)}</td></tr><tr><th style="padding:5px">Putts</th>${holes.map(h=>`<td style="padding:5px">${h.putts??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.every(h=>h.putts!=null)?holes.reduce((a,h)=>a+Number(h.putts||0),0):"—"}</td></tr>${holes.some(h=>h.par!=null)?`<tr><th style="padding:5px">Par</th>${holes.map(h=>`<td style="padding:5px">${h.par??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.every(h=>h.par!=null)?holes.reduce((a,h)=>a+Number(h.par||0),0):"—"}</td></tr>`:""}</tbody></table></div></details>`:"";return `<div class="item" style="padding:10px 12px"><b>${esc(r.course)}</b><div class="item-meta">${esc(r.date)} ・ ${r.score}打${r.putts!=null?" ・ "+r.putts+"パット":""}${r.ob!=null?" ・ OB等 "+r.ob:""}${r.threePutts!=null?" ・ 3パット "+r.threePutts:""}${r.upDown!=null?" ・ 寄せワン "+r.upDown:""}</div>${r.body?`<p class="small">${esc(r.body)}</p>`:""}${holeView}<button class="chip" data-delete-round="${esc(r.id)}" type="button" style="margin-top:8px;color:#a33;border-color:#e7caca">このラウンドを削除</button></div>`}).join("");
  renderHoleAnalytics(rounds);
+ renderRoundInsights(rounds);
  document.querySelectorAll("[data-delete-round]").forEach(b=>b.onclick=()=>deleteRecord(b.dataset.deleteRound));
+}
+function renderRoundInsights(rounds){
+ const el=document.getElementById("roundInsights");if(!el)return;
+ const valid=rounds.filter(r=>Number.isFinite(Number(r.score))&&Number(r.score)>0);
+ const recent=valid.slice(0,5);
+ if(!valid.length){el.innerHTML='<div class="item" style="padding:12px"><b>90切りに向けたラウンド分析</b><p class="small">ラウンドを登録すると、直近5回のスコアと失点要因から改善目標を自動作成します。</p></div>';return;}
+ const mean=arr=>{const a=arr.filter(v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))).map(Number);return a.length?{value:a.reduce((x,y)=>x+y,0)/a.length,count:a.length}:null;};
+ const metrics={
+  putts:mean(recent.map(r=>r.putts)),
+  penalties:mean(recent.map(r=>(r.ob==null&&r.penalties==null)?null:Number(r.ob||0)+Number(r.penalties||0))),
+  threes:mean(recent.map(r=>r.threePutts)),
+  gir:mean(recent.map(r=>r.gir)),
+  fairway:mean(recent.map(r=>r.fairway)),
+  upDown:mean(recent.map(r=>r.upDown))
+ };
+ const avgScore=mean(recent.map(r=>r.score)).value;
+ const gap=Math.max(0,avgScore-89);
+ const fmt=m=>m?m.value.toFixed(1)+"（"+m.count+"回）":"未記録";
+ const goals=[];
+ if(metrics.penalties&&metrics.penalties.value>0.8)goals.push({rank:1,title:"ペナルティを減らす",detail:"OB・池などを直近平均"+metrics.penalties.value.toFixed(1)+"打から1打以内へ。危険側を避けたティーショットの狙い所を決める。"});
+ if(metrics.threes&&metrics.threes.value>1)goals.push({rank:2,title:"3パットを減らす",detail:"直近平均"+metrics.threes.value.toFixed(1)+"回から1回以内へ。ロングパットはカップインより1m以内に止める距離感を優先。"});
+ if(metrics.putts&&metrics.putts.value>36)goals.push({rank:3,title:"パット数を36以下へ",detail:"直近平均"+metrics.putts.value.toFixed(1)+"パット。1〜2mの成功率とロングパットの距離感を分けて練習。"});
+ if(metrics.gir&&metrics.gir.value<5)goals.push({rank:4,title:"パーオン数を増やす",detail:"直近平均"+metrics.gir.value.toFixed(1)+"回。無理なグリーン狙いを減らし、得意なウェッジ距離を残すマネジメントも使う。"});
+ if(metrics.fairway&&metrics.fairway.value<6)goals.push({rank:5,title:"ティーショットの安定",detail:"FWキープ直近平均"+metrics.fairway.value.toFixed(1)+"回。飛距離より次打を打てる場所に置くことを優先。"});
+ if(metrics.upDown&&metrics.upDown.value<4)goals.push({rank:6,title:"寄せワンを増やす",detail:"直近平均"+metrics.upDown.value.toFixed(1)+"回。グリーン周りはまず2パット圏内に乗せることを目標にする。"});
+ goals.sort((a,b)=>a.rank-b.rank);
+ const rows=[
+  ["平均スコア",avgScore.toFixed(1)+"打"],
+  ["パット数",fmt(metrics.putts)],
+  ["OB＋その他ペナルティ",fmt(metrics.penalties)+" 打"],
+  ["3パット以上",fmt(metrics.threes)+" 回"],
+  ["パーオン（GIR）",fmt(metrics.gir)+" 回"],
+  ["FWキープ",fmt(metrics.fairway)+" 回"]
+ ];
+ const target=gap>0?("平均スコアから90切りまで約"+gap.toFixed(1)+"打の改善が目安。まずは直近5回で平均"+Math.max(89,avgScore-2).toFixed(1)+"打を目指そう。"):"直近5回の平均は90未満。再現性を高め、80台を安定させよう。";
+ el.innerHTML=`<div class="item" style="padding:12px;border-color:#d9e3d7">
+  <b>直近5ラウンドの自動分析</b>
+  <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">
+   <div class="stat"><b>${avgScore.toFixed(1)}</b><span>平均スコア</span></div>
+   <div class="stat"><b>${gap>0?gap.toFixed(1)+"打":"達成"}</b><span>90切りまでの差</span></div>
+  </div>
+  <p class="small" style="margin:10px 0 6px">${target}</p>
+  <h3 style="font-size:13px;margin:12px 0 6px">指標一覧（記録済みデータのみ）</h3>
+  <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>${rows.map(([k,v])=>`<tr><td style="padding:6px 4px;border-bottom:1px solid var(--line)">${k}</td><td style="padding:6px 4px;text-align:right;border-bottom:1px solid var(--line);font-weight:700">${v}</td></tr>`).join("")}</tbody></table></div>
+  <h3 style="font-size:13px;margin:13px 0 6px">次回ラウンドの改善優先順位</h3>
+  ${goals.length?`<ol style="padding-left:20px;margin:5px 0">${goals.slice(0,3).map(g=>`<li style="margin:7px 0"><b>${g.title}</b><div class="small">${g.detail}</div></li>`).join("")}</ol>`:'<p class="small">入力済みの指標では大きな弱点を特定できません。ホール別記録や未入力項目を追加すると、さらに具体的に分析できます。</p>'}
+  <p class="small" style="margin-top:9px">※未入力項目は平均から除外。OBとOB以外のペナルティは合算して表示。推定値は使用しません。</p>
+ </div>`;
 }
 function renderHoleAnalytics(rounds){
  const el=document.getElementById("holeAnalytics");if(!el)return;
