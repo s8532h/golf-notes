@@ -714,16 +714,43 @@ function renderRoundInsights(rounds){
 function renderHoleAnalytics(rounds){
  const el=document.getElementById("holeAnalytics");if(!el)return;
  const recorded=rounds.filter(r=>Array.isArray(r.holes)&&r.holes.length);
- if(!recorded.length){el.innerHTML='<div class="empty">ホール別スコアを登録すると、スタート順・前半後半・コース別の傾向を分析できます。</div>';return;}
+ if(!recorded.length){el.innerHTML='<div class="empty">ホール別スコアを登録すると、パー別・大叩き・スタート順・コース別の傾向を分析できます。</div>';return;}
+ const validHoles=recorded.flatMap(r=>r.holes.filter(h=>Number.isFinite(Number(h.score))&&Number(h.score)>0).map(h=>({...h,courseName:r.course||"コース未設定"})));
+ const withPar=validHoles.filter(h=>[3,4,5].includes(Number(h.par))&&Number.isFinite(Number(h.par)));
+ const parStats=[3,4,5].map(par=>{
+  const rows=withPar.filter(h=>Number(h.par)===par);
+  const diffs=rows.map(h=>Number(h.score)-par);
+  const avg=diffs.length?diffs.reduce((a,b)=>a+b,0)/diffs.length:null;
+  const counts={parOrBetter:diffs.filter(x=>x<=0).length,bogey:diffs.filter(x=>x===1).length,double:diffs.filter(x=>x===2).length,triple:diffs.filter(x=>x>=3).length};
+  const pct=n=>rows.length?Math.round(n/rows.length*100):null;
+  return {par,n:rows.length,avg,counts,pct:{parOrBetter:pct(counts.parOrBetter),bogey:pct(counts.bogey),double:pct(counts.double),triple:pct(counts.triple)}};
+ });
  const known=recorded.filter(r=>r.startCourse==="OUT"||r.startCourse==="IN");
  const opening=known.flatMap(r=>r.holes.filter(h=>Number(h.roundOrder)>=1&&Number(h.roundOrder)<=3&&Number.isFinite(Number(h.score))).map(h=>({r,h,diff:h.par!=null?Number(h.score)-Number(h.par):null})));
  const halves=["front","back"].map(half=>{const vals=known.flatMap(r=>r.holes.filter(h=>h.half===half&&h.par!=null&&Number.isFinite(Number(h.score))).map(h=>Number(h.score)-Number(h.par)));return {half,n:vals.length,avg:vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null};});
  const openingDiff=opening.filter(x=>x.diff!==null).map(x=>x.diff);
  const byCourse=new Map();
  recorded.forEach(r=>{if(!r.course)return;r.holes.forEach(h=>{if(!Number.isFinite(Number(h.score)))return;const key=r.course+"|"+h.number;const arr=byCourse.get(key)||[];arr.push({r,h});byCourse.set(key,arr);});});
- const courseRows=[...byCourse.entries()].filter(([,v])=>v.length>=2).map(([key,v])=>{const [course,num]=key.split("|");const pars=v.filter(x=>x.h.par!=null);const avg=pars.length?pars.reduce((a,x)=>a+Number(x.h.score)-Number(x.h.par),0)/pars.length:null;return {course,num,count:v.length,avg};}).sort((a,b)=>a.course.localeCompare(b.course,"ja")||Number(a.num)-Number(b.num));
+ const courseRows=[...byCourse.entries()].filter(([,v])=>v.length>=2).map(([key,v])=>{const [course,num]=key.split("|");const pars=v.filter(x=>[3,4,5].includes(Number(x.h.par)));const avg=pars.length?pars.reduce((a,x)=>a+Number(x.h.score)-Number(x.h.par),0)/pars.length:null;return {course,num,count:v.length,parCount:pars.length,avg};}).sort((a,b)=>(b.avg??-99)-(a.avg??-99));
  const stat=(label,value,n)=>`<div class="stat"><b>${value==null?"—":(value>0?"+":"")+value.toFixed(1)}</b><span>${label}（${n}ホール）</span></div>`;
- el.innerHTML=`<h3 style="font-size:14px;margin:0 0 6px">ホール別・スタート順分析</h3>
+ const pct=n=>n==null?"—":n+"%";
+ const recommendations=parStats.filter(x=>x.n>=5).sort((a,b)=>(b.pct.double+b.pct.triple)-(a.pct.double+a.pct.triple));
+ const weak=recommendations[0];
+ const advice=weak&&weak.pct.double+weak.pct.triple>=25
+  ? `パー${weak.par}でダブルボギー以上が${weak.pct.double+weak.pct.triple}%（${weak.n}ホール）。この距離帯・状況のマネジメントを優先し、無理にグリーンを狙わず得意距離へ刻む練習を。`
+  : withPar.length>=10
+   ? "現時点ではパー別の大きな偏りは明確ではありません。次回はミスの出たホールの状況（ティーショット・残距離・ライ）もメモすると、練習課題を絞れます。"
+   : "パー数の入力がまだ少ないため、練習課題は保留です。まずパー3・4・5を含むホール別パー数を記録してください。";
+ el.innerHTML=`<h3 style="font-size:14px;margin:0 0 6px">ホール別傾向分析</h3>
+ <p class="small">登録済みホールをコース横断で集計。パー数が入力されたホールのみ、対Parや大叩き率を計算します。</p>
+ <h3 style="font-size:13px;margin:12px 0 6px">パー3・4・5別の成績（全コース）</h3>
+ <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px">種類</th><th style="text-align:right;padding:6px">平均対Par</th><th style="text-align:right;padding:6px">Par以下</th><th style="text-align:right;padding:6px">ボギー</th><th style="text-align:right;padding:6px">ダボ以上</th><th style="text-align:right;padding:6px">記録</th></tr></thead><tbody>${parStats.map(x=>`<tr><td style="padding:6px;border-top:1px solid var(--line)">Par ${x.par}</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line);font-weight:700">${x.avg==null?"—":(x.avg>0?"+":"")+x.avg.toFixed(2)}</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line)">${pct(x.pct.parOrBetter)}</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line)">${pct(x.pct.bogey)}</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line)">${pct(x.pct.double+x.pct.triple)}</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line)">${x.n}</td></tr>`).join("")}</tbody></table></div>
+ <p class="small">ダボ以上＝Par+2以上。割合は各Parの記録ホール数を分母に計算します。</p>
+ <h3 style="font-size:13px;margin:13px 0 6px">大叩きしやすいホール TOP 5</h3>
+ ${courseRows.filter(x=>x.parCount>=2&&x.avg!==null).slice(0,5).length?`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px">コース・ホール</th><th style="text-align:right;padding:6px">平均対Par</th><th style="text-align:right;padding:6px">記録</th></tr></thead><tbody>${courseRows.filter(x=>x.parCount>=2&&x.avg!==null).slice(0,5).map((x,i)=>`<tr><td style="padding:6px;border-top:1px solid var(--line)">${i+1}. ${esc(x.course)}・${esc(x.num)}H</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line);font-weight:700">+${x.avg.toFixed(2)}</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line)">${x.parCount}</td></tr>`).join("")}</tbody></table></div>`:'<p class="small">同じコース・同じホールのPar入力済み記録が2回以上揃うと表示します。</p>'}
+ <p class="small">※異なるコースの同じ番号のホールは比較しません。ランキングは同一コース・同一ホールの平均対Parが高い順です。</p>
+ <h3 style="font-size:13px;margin:13px 0 6px">練習課題の提案</h3><div class="item" style="padding:10px 12px"><b>${weak&&weak.n>=5&&weak.pct.double+weak.pct.triple>=25?"優先課題：Par "+weak.par:"現時点の提案"}</b><p class="small" style="margin:5px 0 0">${advice}</p></div>
+ <h3 style="font-size:13px;margin:13px 0 6px">スタート順・前後半の分析</h3>
  <p class="small">OUT/INの違いを考慮し、スタート直後は実際に回った順番で集計します。旧データやスタートコース未設定の記録は、スタート順分析から除外します。</p>
  <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:7px">
  ${stat("スタート直後3ホール・平均対Par",openingDiff.length?openingDiff.reduce((a,b)=>a+b,0)/openingDiff.length:null,openingDiff.length)}
@@ -732,7 +759,7 @@ function renderHoleAnalytics(rounds){
  <p class="small">スタート直後の分析対象：${opening.length}ホール（Par入力済み：${openingDiff.length}ホール）／スタートコース登録済みラウンド：${known.length}回</p>
  <h3 style="font-size:13px;margin:13px 0 6px">同一コース・同一ホールの傾向</h3>
  ${courseRows.length?`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px">コース・Hole</th><th style="text-align:right;padding:6px">平均対Par</th><th style="text-align:right;padding:6px">記録</th></tr></thead><tbody>${courseRows.map(x=>`<tr><td style="padding:6px;border-top:1px solid var(--line)">${esc(x.course)}・${esc(x.num)}H</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line)">${x.avg==null?"Par未入力":(x.avg>0?"+":"")+x.avg.toFixed(1)}</td><td style="padding:6px;text-align:right;border-top:1px solid var(--line)">${x.count}</td></tr>`).join("")}</tbody></table></div>`:'<p class="small">同じコース・同じホールの複数記録が揃うと、ここに表示します。</p>'}
- <p class="small" style="margin-top:8px">※コース別比較は同一コース・同一ホールの記録のみ。旧データのホール番号は変更せず、スタート順を推測しません。</p>`;
+ <p class="small" style="margin-top:8px">※パー別分析は全コース横断。ホール番号別の比較は同一コース内に限定し、旧データのホール番号やスタート順は推測しません。</p>`;
 }
 renderRounds();
 
