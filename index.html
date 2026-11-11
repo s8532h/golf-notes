@@ -464,7 +464,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <div class="kicker">MY GOLF BOOKSHELF</div>
     <h2 style="font-size:20px;margin:5px 0">本棚</h2>
     <p class="small">読んだゴルフ本の要点・理論・ドリルを、本棚からいつでも読み返せるように整理。</p>
-    <div class="small" style="margin-top:8px">登録済み：1冊　・　今後、参考書を追加できます</div>
+    <div class="small" id="bookShelfCount" style="margin-top:8px">登録済み：1冊</div>
   </section>
   <section class="panel">
     <h2>書籍・資料の横断検索</h2>
@@ -493,6 +493,8 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
         <strong>＋ 次のガイド本</strong><small>本を追加するときの棚</small>
       </button>
     </div>
+    <div id="customBookShelf" aria-live="polite" style="display:grid;gap:10px;margin-top:12px"></div>
+    <div id="customBookDetail" class="book-detail" hidden></div>
     <div id="bookDetail" class="book-detail" hidden>
       <div class="tag">登録本 01 ・ 全3冊</div>
       <h3>スイング大全</h3>
@@ -1153,6 +1155,19 @@ function bookSearchCorpus(){
  const custom=typed("book_reference").map(n=>({title:n.title,category:n.category,body:n.body,id:n.id}));
  return [{title:"スイング大全",category:"登録済み書籍",body:builtIn,id:"builtin-swing"},...custom];
 }
+function renderCustomBookShelf(){
+ const shelf=document.getElementById("customBookShelf"),count=document.getElementById("bookShelfCount"),detail=document.getElementById("customBookDetail");
+ if(!shelf)return;
+ const books=typed("book_reference");
+ if(count)count.textContent="登録済み："+(books.length+1)+"冊（追加資料 "+books.length+"件）";
+ shelf.innerHTML=books.length?books.map(b=>'<button type="button" data-custom-book="'+esc(b.id)+'" class="item" style="text-align:left;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);cursor:pointer"><span class="small">'+esc(b.category||"参考資料")+'</span><strong style="display:block;margin:5px 0">'+esc(b.title)+'</strong><span class="small">'+esc(String(b.body||"").slice(0,120))+(String(b.body||"").length>120?"…":"")+'</span></button>').join(""):'<p class="small">追加した書籍・資料はここに表示されます。</p>';
+ shelf.querySelectorAll("[data-custom-book]").forEach(btn=>btn.addEventListener("click",()=>{
+  const book=books.find(b=>b.id===btn.dataset.customBook);if(!book)return;
+  detail.hidden=false;
+  detail.innerHTML='<div class="tag">'+esc(book.category||"参考資料")+'</div><h3>'+esc(book.title)+'</h3><p class="small">登録日：'+esc(book.date||"")+'</p><div style="white-space:pre-wrap;line-height:1.8">'+esc(book.body||"")+'</div>';
+  detail.scrollIntoView({behavior:"smooth",block:"start"});
+ }));
+}
 function renderBookSearch(){
  const input=document.getElementById("bookSearch"),out=document.getElementById("bookSearchResults");if(!input||!out)return;
  const q=input.value.trim().toLowerCase();
@@ -1167,7 +1182,7 @@ document.getElementById("bookSourceForm")?.addEventListener("submit",e=>{
  const title=document.getElementById("bookSourceTitle").value.trim(),body=document.getElementById("bookSourceBody").value.trim();
  if(!title||!body)return;
  addTyped({type:"book_reference",title,category:document.getElementById("bookSourceCategory").value,body,date:todayISO()});
- e.target.reset();renderBookSearch();alert("資料を本棚に追加しました。");
+ e.target.reset();renderBookSearch();renderCustomBookShelf();document.getElementById("customBookDetail").hidden=true;alert("資料を本棚に追加しました。");
 });
 
 
@@ -1310,7 +1325,7 @@ function showPage(which){
  const label=document.getElementById("currentPageLabel");if(label)label.textContent=names[which]||"ホーム";
  document.querySelectorAll("#pageMenu [data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===which));
  const menu=document.getElementById("pageMenu"),toggle=document.getElementById("menuToggle");if(menu)menu.hidden=true;if(toggle)toggle.setAttribute("aria-expanded","false");
- if(which==="coach"){renderCoach();renderSmartCoach();}if(which==="books")renderBookSearch();if(which==="course")renderCourseMapPreview();if(which==="ninety")renderAdvanced();if(which==="growth")renderExtra();if(which==="practice"){renderExtra();renderGeneratedPracticePlan();}
+ if(which==="coach"){renderCoach();renderSmartCoach();}if(which==="books"){renderBookSearch();renderCustomBookShelf();}if(which==="course")renderCourseMapPreview();if(which==="ninety")renderAdvanced();if(which==="growth")renderExtra();if(which==="practice"){renderExtra();renderGeneratedPracticePlan();}
  window.scrollTo({top:0,behavior:"smooth"});
 }
 memoTab.addEventListener("click",()=>showPage("memo"));libraryTab.addEventListener("click",()=>showPage("books"));coachTab.addEventListener("click",()=>showPage("coach"));
