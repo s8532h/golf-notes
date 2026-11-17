@@ -1096,8 +1096,8 @@ function courseMapSvg(shape,hazards){
 }
 function renderCourseMapPreview(){
  const box=document.getElementById("courseMapPreview");if(!box)return;
- const shape=document.getElementById("courseShape")?.value||"straight";
- box.innerHTML=courseMapSvg(shape,document.getElementById("courseHazards")?.value||"");
+ const gc=window.golfCoreSelected||{},url=golfCoreMapUrl(golfCoreCourse,Number(document.getElementById("golfCoreHole")?.value||0)+1);
+ box.innerHTML=url?'<a href="'+esc(url)+'" target="_blank" rel="noopener">GolfCore公式マップで実際のホールレイアウトを開く</a>':'<span class="small">実際のホールレイアウトはGolfCoreの公式マップで確認してください。簡易図は表示しません。</span>';
 }
 document.getElementById("courseShape")?.addEventListener("change",renderCourseMapPreview);
 document.getElementById("courseHazards")?.addEventListener("input",renderCourseMapPreview);
