@@ -1348,23 +1348,33 @@ async function officialCourseSearch(){
  const url=String(document.getElementById("officialCourseQuery")?.value||"").trim(),out=document.getElementById("officialCourseResults"),box=document.getElementById("officialCourseMaps"),status=document.getElementById("officialCourseStatus");
  if(!url){status.textContent="公式サイトURLを入力してください。";return;}
  try{new URL(url);}catch{status.textContent="URLの形式を確認してください。";return;}
- out.innerHTML="";box.innerHTML="";status.textContent="公式サイト内のコース案内を調べています…";
+ out.innerHTML="";box.innerHTML="";status.textContent="公式サイト内のコースデータを調べています…";
  try{
   const r=await fetch("/.netlify/functions/course-search?page="+encodeURIComponent(url)),data=await r.json();if(!r.ok)throw new Error(data.error||"サイトを調査できませんでした");
-  const pages=data.pages||[],images=data.images||[];
-  out.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(data.rootTitle||"公式サイト")+'</b><p class="small">調査したページ数：'+Number(data.scannedPages||1)+'件</p><a href="'+esc(data.root)+'" target="_blank" rel="noopener">入力した公式サイトを開く</a></div>'+
-   (pages.length?pages.map((p,i)=>'<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(p.title||"コース案内")+'</b><p class="small">'+esc(p.url)+'</p><a href="'+esc(p.url)+'" target="_blank" rel="noopener">ページを開く</a>　<button class="chip" type="button" data-course-page="'+i+'">このページの画像を見る</button></div>').join(""):'<p class="small">同じサイト内でコース案内らしいページを検出できませんでした。</p>');
-  out.querySelectorAll("[data-course-page]").forEach(btn=>btn.addEventListener("click",()=>{const p=pages[Number(btn.dataset.coursePage)];const found=images.filter(im=>im.pageUrl===p.url);renderOfficialCourseImages(p,found);}));
-  status.textContent="公式サイト内を調査しました。コース案内ページ："+pages.length+"件、画像候補："+images.length+"件。";
-  if(pages.length){const likely=pages.find(p=>/(course|コース|東|西|east|west)/i.test(p.title+" "+p.url))||pages[0];renderOfficialCourseImages(likely,images.filter(im=>im.pageUrl===likely.url));}
+  const pages=(data.pages||[]).filter(p=>Array.isArray(p.holes)&&p.holes.length>=9);
+  if(!pages.length){out.innerHTML='<p class="small">ホール情報の表を読み取れませんでした。ページ内の表構造を確認する必要があります。</p>';status.textContent="調査ページ："+Number(data.scannedPages||0)+"件。ホール表は未検出です。";return;}
+  out.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(data.rootTitle||"公式サイト")+'</b><p class="small">コース案内を'+pages.length+'件に絞り込みました。</p><a href="'+esc(data.root)+'" target="_blank" rel="noopener">公式サイトを開く</a></div>'+
+   pages.map((p,i)=>{const holes=p.holes,par=holes.reduce((a,h)=>a+(Number(h.par)||0),0),yards=holes.reduce((a,h)=>a+(Number(h.yards)||0),0);return '<div class="item" style="padding:12px;margin:8px 0"><b>'+esc(p.title||"コース")+'</b><div class="item-meta">ホール情報 '+holes.length+'件 ・ Par '+par+' ・ REG合計 '+yards+'yd</div><a href="'+esc(p.url)+'" target="_blank" rel="noopener">公式ページ</a><button class="chip active" type="button" data-import-course="'+i+'" style="margin:8px 0 0;width:100%">この18ホールをGolf Notesに追加</button></div>';}).join("");
+  out.querySelectorAll("[data-import-course]").forEach(btn=>btn.addEventListener("click",()=>importOfficialCourse(pages[Number(btn.dataset.importCourse)])));
+  status.textContent="東・西コースのホール情報を取得しました。追加したいコースを選んでください。";
  }catch(e){status.textContent="調査できませんでした："+e.message;}
 }
-function renderOfficialCourseImages(page,images){
- const box=document.getElementById("officialCourseMaps");
- box.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(page.title||"コース案内")+'</b><p class="small">このページ内で見つかった画像候補です。</p>'+
- (images.length?images.map(im=>'<div style="margin:10px 0"><img src="'+esc(im.url)+'" alt="公式サイト掲載画像候補" loading="lazy" style="width:100%;max-height:360px;object-fit:contain;background:#f2f4f0;border-radius:8px"><p class="small">'+esc(im.alt||"画像")+'</p><a href="'+esc(im.url)+'" target="_blank" rel="noopener">画像を開く</a></div>').join(""):'<p class="small">このページから画像候補を検出できませんでした。</p>')+'</div>';
+function importOfficialCourse(page){
+ const holes=page.holes||[];
+ if(holes.length<9){alert("ホール情報が不足しているため追加できません。");return;}
+ const isWest=/west/i.test(page.url),courseName="取手国際ゴルフ倶楽部 "+(isWest?"西コース":"東コース"),tee=holes[0].tee||"REG";
+ const existing=typed("course_note").filter(x=>x.course===courseName&&x.golfCoreTee===tee);
+ if(existing.length&&!confirm(courseName+"（"+tee+"）の既存データを更新しますか？個人の攻略メモは引き継ぎます。"))return;
+ const oldByHole=new Map(existing.map(x=>[Number(String(x.hole).replace(/\D/g,"")),x]));
+ holes.forEach(h=>{
+  const old=oldByHole.get(Number(h.hole));
+  const rec={type:"course_note",course:courseName,golfCoreSlug:isWest?"tkg36-west":"tkg36-east",golfCoreTee:tee,hole:String(h.hole),par:h.par,strokeIndex:h.strokeIndex,golfCoreYards:h.yards,targetStrokes:h.par+1,officialCourseUrl:page.url,officialImageUrl:h.imageUrl||"",officialDescription:h.description||"",strategy:h.description||"",teeClub:old?.teeClub||"",teeAim:old?.teeAim||"",secondAim:old?.secondAim||"",approachAim:old?.approachAim||"",greenAim:old?.greenAim||"",personalMemo:old?.personalMemo||"",date:todayISO(),source:"official-site"};
+  if(old){Object.assign(old,rec,{id:old.id,updatedAt:new Date().toISOString()});}
+  else saved.unshift({id:makeId(),updatedAt:new Date().toISOString(),...rec});
+ });
+ persistSaved();renderExtra();
+ const status=document.getElementById("officialCourseStatus");if(status)status.textContent=courseName+"の"+holes.length+"ホールをコースブックに追加しました。個人の攻略メモは保持しています。";
 }
-document.getElementById("officialCourseSearch")?.addEventListener("click",officialCourseSearch);
 function deleteSavedCourseBook(key){
  const records=saved.filter(x=>(x.type==="course_note"&&(x.golfCoreSlug||x.course)===key)||(x.type==="course_book_memo"&&(x.golfCoreSlug||x.course)===key));
  if(!records.length)return;
