@@ -108,6 +108,16 @@ function parseLabeledHoles(html,pageUrl,courseName){
  for(let i=0;i<heads.length;i++){
   const hole=Number(heads[i][1]);if(hole<1||hole>18)continue;
   const block=text.slice(heads[i].index,heads[i+1]?.index??Math.min(text.length,heads[i].index+1800));
+  // Generic labeled horizontal tee table used by many Japanese course detail pages:
+  // BACK TEE | REG TEE | LADIES TEE | PAR | HDCP, followed by the numeric row.
+  const labeled=block.match(/BACK\s*TEE\s*\|\s*REG\s*TEE\s*\|\s*LADIES\s*TEE\s*\|\s*PAR\s*\|\s*HDCP\s*(?:\|\s*)?(\d{2,4})\s*\|\s*(\d{2,4})\s*\|\s*(\d{2,4})\s*\|\s*(\d)\s*\|\s*(\d{1,2})/i);
+  if(labeled){
+   const back=Number(labeled[1]),reg=Number(labeled[2]),ladies=Number(labeled[3]),par=Number(labeled[4]),hdcp=Number(labeled[5]);
+   const imgs=extractImages(html,pageUrl);
+   const description=block.slice(0,block.search(/BACK\s*TEE/i)).trim().slice(0,900);
+   rows.push({hole,par,strokeIndex:hdcp,yards:reg,tee:"REG TEE",teeDistances:{BACK:back,REGULAR:reg,LADIES:ladies},description,imageUrl:imgs[0]?.url||"",sourceUrl:pageUrl,course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":""});
+   continue;
+  }
   const par=Number((block.match(/\bPAR\s*:?\s*(\d)\b/i)||[])[1]),hdcp=Number((block.match(/\bHDCP\s*:?\s*(\d{1,2})\b/i)||[])[1]);
   if(!par||par<3||par>5)continue;
   const get=(label)=>{const m=block.match(new RegExp(label+"[^0-9]{0,40}(\\d{2,4})","i"));return Number(m?.[1])||null;};
