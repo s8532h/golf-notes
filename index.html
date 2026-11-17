@@ -317,8 +317,12 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <div><label class="small" for="courseShape">レイアウト</label><select id="courseShape"><option value="straight">ストレート</option><option value="dogleg-left">左ドッグレッグ</option><option value="dogleg-right">右ドッグレッグ</option><option value="water-left">左に池・水辺</option><option value="water-right">右に池・水辺</option><option value="bunkers">バンカー注意</option></select></div>
   </div>
   <label class="small" for="courseHazards">ハザード・注意点</label><input id="courseHazards" placeholder="例：右OB、左サイドに池、グリーン手前バンカー">
-  <label class="small" for="courseAim">ティーショットの狙い</label><input id="courseAim" placeholder="例：フェアウェイ左センター狙い">
-  <label class="small" for="courseGreen">グリーン周り</label><input id="courseGreen" placeholder="例：奥から速い、右手前に傾斜">
+  <h3 style="margin:14px 0 6px">ホール攻略・狙いどころ</h3>
+  <label class="small" for="courseTeeClub">ティーショット｜おすすめクラブ</label><input id="courseTeeClub" placeholder="例：ドライバー／4U">
+  <label class="small" for="courseTeeAim">ティーショット｜狙い場所・Tips</label><textarea id="courseTeeAim" rows="2" placeholder="例：左バンカー右端。右OBを避けてセンター狙い"></textarea>
+  <label class="small" for="courseSecondAim">2打目｜狙い場所・Tips</label><textarea id="courseSecondAim" rows="2" placeholder="例：グリーン手前まで刻み、左サイドから攻める"></textarea>
+  <label class="small" for="courseApproachAim">アプローチ｜狙い場所・Tips</label><textarea id="courseApproachAim" rows="2" placeholder="例：花道から転がし。ピン奥には外さない"></textarea>
+  <label class="small" for="courseGreenAim">グリーン・パター｜狙い場所・Tips</label><textarea id="courseGreenAim" rows="2" placeholder="例：上りを残す。下りのパットはカップ手前で止める"></textarea>
   <div id="courseMapPreview" class="small" aria-live="polite">レイアウトを選ぶと簡易コース図を表示します。</div>
   <div class="item" id="golfCorePanel" style="padding:12px;margin:12px 0">
     <b>GolfCore 実コースデータ</b>
@@ -1207,11 +1211,27 @@ document.getElementById("bookSourceForm")?.addEventListener("submit",e=>{
 
 
 function meanNum(values){const a=values.map(Number).filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
+function clubSortInfo(name){
+ const n=String(name||"").normalize("NFKC").toLowerCase().replace(/\s+/g,"");
+ let type=5,number=99,label=String(name||"クラブ");
+ if(/driver|ドライバー|^1w/.test(n)){type=0;number=1;label="ドライバー";}
+ else if(/wood|ウッド|^[2357]w/.test(n)){type=1;const m=n.match(/[1-9]w/);number=m?Number(m[0][0]):99;label=(number===99?name:number+"W");}
+ else if(/utility|ユーティリティ|hybrid|ハイブリッド|^[2-7]u|^[2-7]h/.test(n)){type=2;const m=n.match(/[1-9][uh]/);number=m?Number(m[0][0]):99;label=number===99?name:number+"U";}
+ else if(/wedge|ウェッジ|\baw\b|\bsw\b|\blw\b|\d{2}(?:°|度)/.test(n)){type=4;const m=n.match(/(\d{2})(?:°|度)?/);number=m?Number(m[1]):99;label=number!==99?number+"°":name;}
+ else if(/iron|アイアン|^[3-9]i|^pw$/.test(n)){type=3;const m=n.match(/[3-9]i/);number=m?Number(m[0][0]):(n==="pw"?10:99);label=number===10?"PW":number===99?name:number+"I";}
+ return {type,number,label};
+}
+function recentShotsByClub(){
+ const groups={};
+ typed("shot_data").filter(x=>x.club&&x.carry!==null&&x.carry!==undefined&&x.carry!==""&&Number.isFinite(Number(x.carry))).forEach(x=>(groups[x.club]??=[]).push(x));
+ Object.keys(groups).forEach(k=>groups[k]=groups[k].sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||String(b.updatedAt||"").localeCompare(String(a.updatedAt||""))).slice(0,50));
+ return groups;
+}
 function renderClubAnalysis(){
  const root=document.getElementById("clubAnalysis");if(!root)return;
- const shots=typed("shot_data").filter(x=>x.club&&x.carry!==null&&x.carry!==undefined&&x.carry!==""&&Number.isFinite(Number(x.carry))),groups={};shots.forEach(x=>(groups[x.club]??=[]).push(x));
- const rows=Object.entries(groups).map(([club,a])=>{const carry=a.map(x=>Number(x.carry)),total=a.filter(x=>x.total!==null&&x.total!==undefined&&x.total!=="").map(x=>Number(x.total)).filter(Number.isFinite),side=a.filter(x=>(x.side??x.launchHorizontal)!==null&&(x.side??x.launchHorizontal)!==undefined&&(x.side??x.launchHorizontal)!=="").map(x=>Number(x.side??x.launchHorizontal)).filter(Number.isFinite),avg=meanNum(carry),sd=Math.sqrt(carry.reduce((z,v)=>z+(v-avg)**2,0)/carry.length);return {club,n:a.length,avg,sd,total:meanNum(total),side:meanNum(side),left:side.filter(v=>v<0).length,right:side.filter(v=>v>0).length};}).sort((a,b)=>b.n-a.n);
- root.innerHTML='<h3>クラブ別ショット分析</h3>'+(rows.length?rows.map(x=>'<div class="item" style="padding:10px 12px"><b>'+esc(x.club)+'</b><div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:7px"><div class="stat"><b>'+x.avg.toFixed(1)+'</b><span>平均キャリー yd</span></div><div class="stat"><b>'+x.sd.toFixed(1)+'</b><span>距離のばらつき yd</span></div><div class="stat"><b>'+(x.total===null?'—':x.total.toFixed(1))+'</b><span>平均トータル yd</span></div></div><p class="small">計測 '+x.n+'球'+(x.side!==null?' ・ 左右指標平均 '+x.side.toFixed(1)+'（左寄り '+x.left+' / 右寄り '+x.right+'）':' ・ 左右データなし')+'</p></div>').join(''):'<p class="small">クラブ名・キャリーを含むショットCSVを取り込むと分析します。</p>')+'<p class="small">左右の符号・単位は計測器の仕様に依存します。同一計測器・同一指標内で比較してください。</p>';
+ const groups=recentShotsByClub();
+ const rows=Object.entries(groups).map(([club,a])=>{const info=clubSortInfo(club),carry=a.map(x=>Number(x.carry)),total=a.filter(x=>x.total!==null&&x.total!==undefined&&x.total!=="").map(x=>Number(x.total)).filter(Number.isFinite),side=a.filter(x=>(x.side??x.launchHorizontal)!==null&&(x.side??x.launchHorizontal)!==undefined&&(x.side??x.launchHorizontal)!=="").map(x=>Number(x.side??x.launchHorizontal)).filter(Number.isFinite),avg=meanNum(carry),sd=Math.sqrt(carry.reduce((z,v)=>z+(v-avg)**2,0)/carry.length);return {club,label:info.label,type:info.type,number:info.number,n:a.length,avg,sd,total:meanNum(total),side:meanNum(side),left:side.filter(v=>v<0).length,right:side.filter(v=>v>0).length};}).sort((a,b)=>a.type-b.type||a.number-b.number||a.label.localeCompare(b.label,"ja"));
+ root.innerHTML='<h3>クラブ別ショット分析</h3><p class="small">各クラブの直近50球（50球未満は全件）の平均キャリーを表示。並び順：ドライバー → ウッド → ユーティリティ → アイアン → ウェッジ。</p>'+(rows.length?rows.map(x=>'<div class="item" style="padding:10px 12px"><b>'+esc(x.label)+'</b><div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:7px"><div class="stat"><b>'+x.avg.toFixed(1)+'</b><span>平均キャリー yd</span></div><div class="stat"><b>'+x.sd.toFixed(1)+'</b><span>距離のばらつき yd</span></div><div class="stat"><b>'+(x.total===null?'—':x.total.toFixed(1))+'</b><span>平均トータル yd</span></div></div><p class="small">対象 '+x.n+'球'+(x.side!==null?' ・ 左右指標平均 '+x.side.toFixed(1)+'（左寄り '+x.left+' / 右寄り '+x.right+'）':' ・ 左右データなし')+'</p></div>').join(''):'<p class="small">クラブ名・キャリーを含むショットCSVを取り込むと分析します。</p>')+'<p class="small">左右の符号・単位は計測器の仕様に依存します。同一計測器・同一指標内で比較してください。</p>';
 }
 function makePracticePlan(){
  const rounds=typed("round").filter(r=>Number.isFinite(Number(r.score))).slice(0,5),prs=typed("practice_session"),shots=typed("shot_data"),avg=k=>meanNum(rounds.filter(r=>r[k]!==null&&r[k]!==undefined&&r[k]!=="").map(r=>r[k]));
@@ -1248,9 +1268,9 @@ function renderExtra(){
  renderClubAnalysis();renderGeneratedPracticePlan();renderCourseChecklist();renderGoalProgress();renderReflection();
  const clubs=typed("club_distance");
  const shotRows=typed("shot_data");const dInsight=document.getElementById("distanceInsights");
- if(dInsight){const byClub={};shotRows.forEach(x=>{(byClub[x.club]??=[]).push(Number(x.carry));});const shotSummary=Object.entries(byClub).map(([club,v])=>`${club}：${safeMean(v)?.toFixed(1)??"—"}yd（${v.length}件）`).join(" / ");dInsight.innerHTML=`<div class="item" style="padding:10px 12px"><b>計測データの集計</b><div class="item-meta">CSVショット記録 ${shotRows.length}件 ・ 登録クラブ ${clubs.length}種類</div><p class="small">${esc(shotSummary||"CSVデータを取り込むとクラブ別平均キャリーを表示します。")}</p></div>`;}
+ if(dInsight){const byClub=recentShotsByClub();const shotSummary=Object.entries(byClub).map(([club,v])=>`${clubSortInfo(club).label}：${safeMean(v.map(x=>Number(x.carry)))?.toFixed(1)??"—"}yd（直近${v.length}球）`).join(" / ");dInsight.innerHTML=`<div class="item" style="padding:10px 12px"><b>計測データの集計</b><div class="item-meta">CSVショット記録 ${shotRows.length}件 ・ 登録クラブ ${clubs.length}種類</div><p class="small">${esc(shotSummary||"CSVデータを取り込むとクラブ別平均キャリーを表示します。")}</p></div>`;}
  document.getElementById("clubList").innerHTML=clubs.length?'<h3 class="group-title">登録済みクラブ</h3>'+clubs.map(n=>`<div class="item" style="padding:10px 12px"><b>${esc(n.club)}</b>　<strong>${esc(n.carry)} yd</strong><span class="small"> キャリー${n.total?" / "+esc(n.total)+" yd トータル":""}</span><div class="item-meta">${esc(n.date||"測定日未登録")} ${esc(n.conditions||"")}</div><button class="chip" data-extra-delete="${esc(n.id)}">削除</button></div>`).join(""):'<p class="empty">飛距離データはまだありません。</p>';
- const courses=typed("course_note");document.getElementById("courseList").innerHTML=courses.length?courses.map(n=>'<div class="item" style="padding:10px 12px"><b>'+esc(n.course)+' '+(n.hole?'・'+esc(n.hole):'')+'</b><div class="item-meta">'+esc(n.date||"訪問日未登録")+(n.par?' ・ Par '+n.par:'')+'</div>'+courseMapSvg(n.shape||"straight",n.hazards||"")+(n.aim?'<p class="small"><b>狙い：</b>'+esc(n.aim)+'</p>':'')+(n.hazards?'<p class="small"><b>注意：</b>'+esc(n.hazards)+'</p>':'')+(n.green?'<p class="small"><b>グリーン：</b>'+esc(n.green)+'</p>':'')+(n.strategy?'<p class="small">'+esc(n.strategy)+'</p>':'')+(n.next?'<div class="next">次回：'+esc(n.next)+'</div>':'')+'<button class="chip" data-extra-delete="'+esc(n.id)+'">削除</button></div>').join(""):'<p class="empty">攻略ノートはまだありません。</p>';
+ const courses=typed("course_note");document.getElementById("courseList").innerHTML=courses.length?courses.map(n=>'<div class="item" style="padding:12px;margin:9px 0"><b>'+esc(n.course)+' '+(n.hole?'・'+esc(n.hole):'')+'</b><div class="item-meta">'+esc(n.date||"訪問日未登録")+(n.par?' ・ Par '+n.par:'')+(n.golfCoreYards?' ・ '+n.golfCoreYards+' yd':'')+'</div>'+courseMapSvg(n.shape||"straight",n.hazards||"")+(n.hazards?'<p class="small"><b>ハザード：</b>'+esc(n.hazards)+'</p>':'')+[['ティーショット｜おすすめクラブ',n.teeClub],['ティーショット｜狙い場所・Tips',n.teeAim||n.aim],['2打目｜狙い場所・Tips',n.secondAim],['アプローチ｜狙い場所・Tips',n.approachAim],['グリーン・パター｜狙い場所・Tips',n.greenAim||n.green],['攻略メモ',n.strategy],['次回の作戦',n.next]].filter(x=>x[1]).map(x=>'<div style="padding:8px 0;border-top:1px solid var(--line)"><b class="small">'+x[0]+'</b><p class="small" style="margin:4px 0;white-space:pre-wrap">'+esc(x[1])+'</p></div>').join('')+(n.golfCoreSlug?'<p class="small">GolfCoreデータ：'+esc(n.golfCoreLayout||'')+' / '+esc(n.golfCoreTee||'')+'</p>':'')+'<button class="chip" data-extra-delete="'+esc(n.id)+'">削除</button></div>').join(""):'<p class="empty">攻略ノートはまだありません。</p>';
 
  const goals=typed("golf_goal");document.getElementById("goalList").innerHTML=goals.length?goals.map(n=>`<div class="item" style="padding:10px 12px"><label style="display:flex;gap:9px;align-items:flex-start"><input type="checkbox" data-goal-done="${esc(n.id)}" ${n.done?"checked":""} style="width:18px;height:18px;margin:2px 0"><span><b style="${n.done?"text-decoration:line-through;opacity:.6":""}">${esc(n.title)}</b><span class="small">${n.due?" ・期限 "+esc(n.due):""}${n.metric?" ・目標 "+esc(n.metric):""}</span>${n.note?`<br><span class="small">${esc(n.note)}</span>`:""}</span></label><button class="chip" data-extra-delete="${esc(n.id)}">削除</button></div>`).join(""):'<p class="empty">目標を登録して進捗を管理しましょう。</p>';
  document.querySelectorAll("[data-extra-delete]").forEach(b=>b.onclick=()=>removeTyped(b.dataset.extraDelete));
@@ -1274,46 +1294,58 @@ document.getElementById("practiceForm").addEventListener("submit",e=>{
  }
 });
 document.getElementById("clubForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"club_distance",date:clubDate.value,club:clubName.value.trim(),carry:Number(clubCarry.value),total:Number(clubTotal.value)||null,conditions:clubConditions.value.trim()});e.target.reset();clubDate.value=todayISO();});
-document.getElementById("courseForm").addEventListener("submit",e=>{e.preventDefault();const gc=window.golfCoreSelected||{};addTyped({type:"course_note",date:courseNoteDate.value,course:courseNoteName.value.trim(),hole:courseHole.value.trim(),par:Number(document.getElementById("coursePar").value)||null,shape:document.getElementById("courseShape").value,hazards:document.getElementById("courseHazards").value.trim(),aim:document.getElementById("courseAim").value.trim(),green:document.getElementById("courseGreen").value.trim(),strategy:courseStrategy.value.trim(),next:courseNext.value.trim(),golfCoreSlug:gc.slug||null,golfCoreCourse:gc.name||null,golfCoreLayout:gc.layout||null,golfCoreTee:gc.tee||null,golfCoreYards:gc.yards??null,source:gc.slug?"GolfCore":null});e.target.reset();window.golfCoreSelected=null;document.getElementById("golfCoreSelection").hidden=true;courseNoteDate.value=todayISO();renderCourseMapPreview();});
+document.getElementById("courseForm").addEventListener("submit",e=>{e.preventDefault();const gc=window.golfCoreSelected||{};addTyped({type:"course_note",date:courseNoteDate.value,course:courseNoteName.value.trim(),hole:courseHole.value.trim(),par:Number(document.getElementById("coursePar").value)||null,shape:document.getElementById("courseShape").value,hazards:document.getElementById("courseHazards").value.trim(),teeClub:document.getElementById("courseTeeClub").value.trim(),teeAim:document.getElementById("courseTeeAim").value.trim(),secondAim:document.getElementById("courseSecondAim").value.trim(),approachAim:document.getElementById("courseApproachAim").value.trim(),greenAim:document.getElementById("courseGreenAim").value.trim(),aim:document.getElementById("courseTeeAim").value.trim(),green:document.getElementById("courseGreenAim").value.trim(),strategy:courseStrategy.value.trim(),next:courseNext.value.trim(),golfCoreSlug:gc.slug||null,golfCoreCourse:gc.name||null,golfCoreLayout:gc.layout||null,golfCoreTee:gc.tee||null,golfCoreTeeGender:gc.gender||null,golfCoreYards:gc.yards??null,source:gc.slug?"GolfCore":null});e.target.reset();window.golfCoreSelected=null;document.getElementById("golfCoreSelection").hidden=true;courseNoteDate.value=todayISO();renderCourseMapPreview();});
 document.getElementById("goalForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"golf_goal",title:goalTitle.value.trim(),due:goalDue.value,metric:goalMetric.value.trim(),note:goalNote.value.trim(),done:false,date:todayISO()});e.target.reset();});
-/* GolfCore course lookup. Credentials remain server-side in Netlify. */
+/* GolfCore REST API integration. The preview can use keyless public API until 2026-12-04; Netlify proxy is used when available. */
 const GOLFCORE_ENDPOINT="/.netlify/functions/golfcore";
+const GOLFCORE_PUBLIC_API="https://api.golfcore.org/v1";
 let golfCoreCourse=null;
 const golfCoreCache={};
 function gcSetStatus(message){const el=document.getElementById("golfCoreStatus");if(el)el.textContent=message;}
+async function golfCoreRequest(path){
+ try{
+  const proxied=await fetch(GOLFCORE_ENDPOINT+path,{headers:{Accept:"application/json"}});
+  if(proxied.ok)return await proxied.json();
+  if(proxied.status!==404&&proxied.status!==405&&proxied.status!==503)throw new Error("GolfCore APIエラー "+proxied.status);
+ }catch(error){if(error?.message?.includes("GolfCore APIエラー"))throw error;}
+ const publicResponse=await fetch(GOLFCORE_PUBLIC_API+path,{headers:{Accept:"application/json"}});
+ if(!publicResponse.ok)throw new Error("GolfCore APIエラー "+publicResponse.status+"（APIキー設定後はNetlifyプロキシを利用してください）");
+ return await publicResponse.json();
+}
 async function golfCoreSearch(){
  const q=String(document.getElementById("golfCoreQuery")?.value||"").trim(),results=document.getElementById("golfCoreResults");
  if(!q){gcSetStatus("ゴルフ場名を入力してください。");return;}
  results.innerHTML="";gcSetStatus("GolfCoreを検索しています…");
  try{
-  const response=await fetch(GOLFCORE_ENDPOINT+"/courses?q="+encodeURIComponent(q),{headers:{Accept:"application/json"}});
-  if(!response.ok)throw new Error("APIエラー "+response.status);
-  const data=await response.json(),items=Array.isArray(data)?data:(data.courses||data.results||data.data||[]);
+  const data=await golfCoreRequest("/courses?q="+encodeURIComponent(q)+"&country=jp&limit=10");
+  const items=Array.isArray(data)?data:(data.courses||data.results||data.data||[]);
   if(!items.length){gcSetStatus("該当するコースが見つかりませんでした。手入力は引き続き利用できます。");return;}
-  results.innerHTML=items.slice(0,10).map((x,i)=>'<div class="item" style="padding:9px;margin:7px 0"><b>'+esc(x.name||x.course_name||"名称未登録")+'</b><div class="small">'+esc(x.address||x.prefecture||"")+'</div><button class="chip" type="button" data-gc-index="'+i+'">このゴルフ場を選択</button></div>').join("");
+  results.innerHTML=items.slice(0,10).map((x,i)=>'<div class="item" style="padding:9px;margin:7px 0"><b>'+esc(x.name||x.course_name||"名称未登録")+'</b><div class="small">'+esc(x.address||x.city||x.region||"")+' ・ '+esc(x.coverage||"")+'</div><button class="chip" type="button" data-gc-index="'+i+'">このゴルフ場を選択</button></div>').join("");
   results.querySelectorAll("[data-gc-index]").forEach(btn=>btn.addEventListener("click",()=>golfCoreLoad(items[Number(btn.dataset.gcIndex)])));
   gcSetStatus(items.length+"件の候補が見つかりました。");
- }catch(error){gcSetStatus("検索できませんでした："+error.message+"。GolfCore APIの設定・接続が必要です。");}
+ }catch(error){gcSetStatus("検索できませんでした："+error.message);}
 }
 async function golfCoreLoad(item){
- const slug=String(item.slug||item.id||"").trim();
- if(!slug){gcSetStatus("この候補にはGolfCoreのコースIDがありません。");return;}
- gcSetStatus("コース詳細を取得しています…");
+ const slug=String(item.slug||"").trim();
+ if(!slug){gcSetStatus("検索結果にGolfCoreのslugがありません。別の候補を選んでください。");return;}
+ gcSetStatus("コース詳細・スコアカードを取得しています…");
  try{
   let course=golfCoreCache[slug];
-  if(!course){const response=await fetch(GOLFCORE_ENDPOINT+"/courses/"+encodeURIComponent(slug),{headers:{Accept:"application/json"}});if(!response.ok)throw new Error("APIエラー "+response.status);course=await response.json();golfCoreCache[slug]=course;}
+  if(!course){course=await golfCoreRequest("/courses/"+encodeURIComponent(slug));golfCoreCache[slug]=course;}
   course.name=course.name||item.name||item.course_name||"";course.slug=slug;golfCoreCourse=course;
-  window.golfCoreSelected={slug,name:course.name};document.getElementById("courseNoteName").value=course.name;
+  window.golfCoreSelected={slug,name:course.name};
+  document.getElementById("courseNoteName").value=course.name;
   document.getElementById("golfCoreSelection").hidden=false;
   const layouts=Array.isArray(course.layouts)?course.layouts:[];
   document.getElementById("golfCoreLayout").innerHTML=layouts.map((x,i)=>'<option value="'+i+'">'+esc(x.name||("コース "+(i+1)))+'</option>').join("");
-  if(!layouts.length){document.getElementById("golfCoreHoleInfo").textContent="このコースにはホール別データが登録されていません。";gcSetStatus("コースを選択しました。ホールデータは未登録です。");return;}
-  golfCoreRenderTees();gcSetStatus("コース情報を取得しました。コース・ティー・ホールを選択してください。");
+  if(!layouts.length){document.getElementById("golfCoreHoleInfo").textContent="このコースにはレイアウト情報がありません。";gcSetStatus("コースは選択できましたが、スコアカード情報は未登録です。");return;}
+  golfCoreRenderTees();
+  gcSetStatus("コース情報を取得しました。コース・ティー・ホールを選択してください。");
  }catch(error){gcSetStatus("詳細取得に失敗しました："+error.message);}
 }
 function golfCoreRenderTees(){
  const layout=golfCoreCourse?.layouts?.[Number(document.getElementById("golfCoreLayout").value)]||{},tees=Array.isArray(layout.tees)?layout.tees:[];
- document.getElementById("golfCoreTee").innerHTML=tees.map((t,i)=>'<option value="'+i+'">'+esc(t.name||("ティー "+(i+1)))+" ・ "+esc(t.yards??"—")+" yd</option>").join("");
+ document.getElementById("golfCoreTee").innerHTML=tees.map((t,i)=>'<option value="'+i+'">'+esc(t.name||("ティー "+(i+1)))+(t.gender?" ・ "+esc(t.gender):"")+" ・ "+esc(t.yards??"—")+" yd</option>").join("");
  golfCoreRenderHoles();
 }
 function golfCoreRenderHoles(){
@@ -1328,7 +1360,7 @@ function golfCoreApplyHole(){
  document.getElementById("courseHole").value=(n<=9?"OUT "+n:"IN "+(n-9))+"番";
  document.getElementById("coursePar").value=String(hole.par??"");
  document.getElementById("golfCoreHoleInfo").textContent="Par "+(hole.par??"—")+" ／ "+(hole.yards??"—")+" yd ／ HDCP "+(hole.stroke_index??"—");
- window.golfCoreSelected={slug:golfCoreCourse.slug,name:golfCoreCourse.name,layout:layout.name||"",tee:tee.name||"",yards:hole.yards??null};
+ window.golfCoreSelected={slug:golfCoreCourse.slug,name:golfCoreCourse.name,layout:layout.name||"",tee:tee.name||"",gender:tee.gender||"",yards:hole.yards??null};
 }
 document.getElementById("golfCoreSearch")?.addEventListener("click",golfCoreSearch);
 document.getElementById("golfCoreLayout")?.addEventListener("change",golfCoreRenderTees);
