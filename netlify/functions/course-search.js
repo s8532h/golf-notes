@@ -38,12 +38,12 @@ function parseHoleData(html, pageUrl, courseName) {
     rows.push({ hole, par, strokeIndex: hdcp, yards: regDistance, tee: isWest ? "REG（BENT）" : "REG" });
   }
   // Reader-proxy fallback often returns Markdown tables instead of HTML.
-  for (const line of html.split(/\\r?\\n/)) {
+  for (const line of html.split(/\r?\n/)) {
     if (!line.includes("|")) continue;
     const cells=line.split("|").map(x=>clean(x));
     const hole=Number(cells[1]||cells[0]),hdcp=Number(cells[2]||cells[1]),par=Number(cells[3]||cells[2]);
     if (!Number.isInteger(hole)||hole<1||hole>18||!Number.isFinite(hdcp)||!Number.isFinite(par)) continue;
-    const nums=cells.slice(cells[1]&&/^\\d+$/.test(cells[1])?4:3).map(x=>Number((x.match(/\\d{2,4}/)||[])[0])).filter(Number.isFinite);
+    const nums=cells.slice(cells[1]&&/^\d+$/.test(cells[1])?4:3).map(x=>Number((x.match(/\d{2,4}/)||[])[0])).filter(Number.isFinite);
     if(!nums.length)continue;
     const isWest=/west/i.test(new URL(pageUrl).pathname),yards=isWest?(nums[5]||nums[1]):(nums[1]||nums[0]);
     if(!rows.some(x=>x.hole===hole))rows.push({hole,par,strokeIndex:hdcp,yards,tee:isWest?"REG（BENT）":"REG"});
