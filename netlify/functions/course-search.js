@@ -126,7 +126,7 @@ function parsePage(html, pageUrl, via) {
   for (const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
     const href = (m[1].match(/\bhref=["']([^"']+)["']/i) || [])[1]; if (!href) continue;
     const u = safeUrl(href, page.href); if (!u || u.hostname !== page.hostname) continue;
-    const label = clean(m[2]);
+    const label = clean(m[2]) + " " + clean((m[2].match(/<img\\b[^>]*alt=["]([^"]*)/i)||[])[1]||"");
     if (/(コース|レイアウト|ホール|course|layout|hole|east|west|東|西)/i.test(label + " " + u.pathname) && !links.some(x=>x.url===u.href)) links.push({ title: label || u.pathname, url: u.href });
   }
   return { title, url: page.href, links, images: extractImages(html, page.href), holes: [...parseHoleData(html,page.href,title),...parseMatrixTables(html,page.href,title),...parseLabeledHoles(html,page.href,title)].filter((x,i,a)=>a.findIndex(y=>y.hole===x.hole)===i), via };
@@ -164,8 +164,8 @@ exports.handler = async (event) => {
     for(const p of rawPages){
       for(const h of (p.holes||[])){
         const label=(p.title+" "+p.url+" "+(h.course||""));
-        const match=label.match(/(東|西|East|West)/i);
-        const key=match?(match[1].toLowerCase()==="east"||match[1]==="東"?"東コース":"西コース"):"コース情報";
+        const match=label.match(/(東|西|南|East|West|South)/i);
+        const key=match?(match[1].toLowerCase()==="east"||match[1]==="東"?"東コース":match[1].toLowerCase()==="south"||match[1]==="南"?"南コース":"西コース"):"コース情報";
         if(!grouped.has(key))grouped.set(key,{title:key,url:p.url,links:[],images:[],holes:[],via:p.via});
         const g=grouped.get(key);
         if(!g.holes.some(x=>Number(x.hole)===Number(h.hole)))g.holes.push(h);
