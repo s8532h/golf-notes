@@ -323,7 +323,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <label class="small" for="courseSecondAim">2打目｜狙い場所・Tips</label><textarea id="courseSecondAim" rows="2" placeholder="例：グリーン手前まで刻み、左サイドから攻める"></textarea>
   <label class="small" for="courseApproachAim">アプローチ｜狙い場所・Tips</label><textarea id="courseApproachAim" rows="2" placeholder="例：花道から転がし。ピン奥には外さない"></textarea>
   <label class="small" for="courseGreenAim">グリーン・パター｜狙い場所・Tips</label><textarea id="courseGreenAim" rows="2" placeholder="例：上りを残す。下りのパットはカップ手前で止める"></textarea>
-  <div id="courseMapPreview" class="small" aria-live="polite">レイアウトを選ぶと簡易コース図を表示します。</div>
+  <div id="courseMapPreview" class="small" aria-live="polite">GolfCoreのマップは下の「公式マップを開く」から表示できます。</div>
   <div class="item" id="golfCorePanel" style="padding:12px;margin:12px 0">
     <b>GolfCore 実コースデータ</b>
     <p class="small">ゴルフ場を検索して選択すると、登録されているコース・ティー・ホールのパーと距離を自動入力します。</p>
@@ -336,6 +336,13 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
       <label class="small" for="golfCoreTee">ティー</label><select id="golfCoreTee"></select>
       <label class="small" for="golfCoreHole">ホール</label><select id="golfCoreHole"></select>
       <div id="golfCoreHoleInfo" class="small" style="margin-top:8px"></div>
+      <p id="golfCoreCoverage" class="small" style="margin:6px 0"></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a id="golfCoreMapLink" class="chip" href="#" target="_blank" rel="noopener" hidden>GolfCore公式マップを開く</a>
+        <button class="chip" id="golfCoreGenerate" type="button">このホールの攻略案を生成</button>
+        <button class="chip" id="golfCoreGenerateAll" type="button">選択ティーの全ホールを生成</button>
+      </div>
+      <p id="golfCoreGenerateStatus" class="small" aria-live="polite"></p>
     </div>
     <p class="small">データ提供：<a href="https://www.golfcore.org/developers/" target="_blank" rel="noopener">GolfCore</a>。データがないコースは手入力できます。</p>
   </div>
@@ -1302,6 +1309,17 @@ const GOLFCORE_PUBLIC_API="https://api.golfcore.org/v1";
 let golfCoreCourse=null;
 const golfCoreCache={};
 function gcSetStatus(message){const el=document.getElementById("golfCoreStatus");if(el)el.textContent=message;}
+function golfCoreCoverageLabel(value){
+ if(!value)return "マップ情報なし";
+ const flags=typeof value==="string"?value.split(/[;, ]+/).filter(Boolean):Object.entries(value).filter(([,v])=>!!v).map(([k])=>k);
+ const labels={contours:"グリーン傾斜図",traced:"コース図",scorecard:"ホール別スコアカード",rated:"コースレート",wind:"風データ"};
+ return flags.length?flags.map(x=>labels[x]||x).join("・"):"マップ情報なし";
+}
+function golfCoreMapUrl(course,hole){
+ const base=course?.app_url||course?.map_url||course?.url||"";
+ if(!base)return "";
+ try{const u=new URL(base);if(hole)u.searchParams.set("hole",String(hole));return u.toString();}catch{return "";}
+}
 async function golfCoreRequest(path){
  try{
   const proxied=await fetch(GOLFCORE_ENDPOINT+path,{headers:{Accept:"application/json"}});
@@ -1320,7 +1338,7 @@ async function golfCoreSearch(){
   const data=await golfCoreRequest("/courses?q="+encodeURIComponent(q)+"&country=jp&limit=10");
   const items=Array.isArray(data)?data:(data.courses||data.results||data.data||[]);
   if(!items.length){gcSetStatus("該当するコースが見つかりませんでした。手入力は引き続き利用できます。");return;}
-  results.innerHTML=items.slice(0,10).map((x,i)=>'<div class="item" style="padding:9px;margin:7px 0"><b>'+esc(x.name||x.course_name||"名称未登録")+'</b><div class="small">'+esc(x.address||x.city||x.region||"")+' ・ '+esc(x.coverage||"")+'</div><button class="chip" type="button" data-gc-index="'+i+'">このゴルフ場を選択</button></div>').join("");
+  results.innerHTML=items.slice(0,10).map((x,i)=>'<div class="item" style="padding:9px;margin:7px 0"><b>'+esc(x.name||x.course_name||"名称未登録")+'</b><div class="small">'+esc(x.address||x.city||x.region||"")+' ・ '+esc(golfCoreCoverageLabel(x.coverage))+'</div><button class="chip" type="button" data-gc-index="'+i+'">このゴルフ場を選択</button></div>').join("");
   results.querySelectorAll("[data-gc-index]").forEach(btn=>btn.addEventListener("click",()=>golfCoreLoad(items[Number(btn.dataset.gcIndex)])));
   gcSetStatus(items.length+"件の候補が見つかりました。");
  }catch(error){gcSetStatus("検索できませんでした："+error.message);}
@@ -1333,8 +1351,10 @@ async function golfCoreLoad(item){
   let course=golfCoreCache[slug];
   if(!course){course=await golfCoreRequest("/courses/"+encodeURIComponent(slug));golfCoreCache[slug]=course;}
   course.name=course.name||item.name||item.course_name||"";course.slug=slug;golfCoreCourse=course;
-  window.golfCoreSelected={slug,name:course.name};
+  window.golfCoreSelected={slug,name:course.name,courseUrl:course.url||item.url||"",appUrl:course.app_url||item.app_url||"",coverage:course.coverage||item.coverage||null};
   document.getElementById("courseNoteName").value=course.name;
+  const coverageEl=document.getElementById("golfCoreCoverage");if(coverageEl)coverageEl.textContent="GolfCore収録データ："+golfCoreCoverageLabel(window.golfCoreSelected.coverage);
+  const mapLink=document.getElementById("golfCoreMapLink");if(mapLink){const url=golfCoreMapUrl({...course,app_url:course.app_url||item.app_url,url:course.url||item.url},null);mapLink.href=url||"#";mapLink.hidden=!url;}
   document.getElementById("golfCoreSelection").hidden=false;
   const layouts=Array.isArray(course.layouts)?course.layouts:[];
   document.getElementById("golfCoreLayout").innerHTML=layouts.map((x,i)=>'<option value="'+i+'">'+esc(x.name||("コース "+(i+1)))+'</option>').join("");
@@ -1360,9 +1380,44 @@ function golfCoreApplyHole(){
  document.getElementById("courseHole").value=(n<=9?"OUT "+n:"IN "+(n-9))+"番";
  document.getElementById("coursePar").value=String(hole.par??"");
  document.getElementById("golfCoreHoleInfo").textContent="Par "+(hole.par??"—")+" ／ "+(hole.yards??"—")+" yd ／ HDCP "+(hole.stroke_index??"—");
- window.golfCoreSelected={slug:golfCoreCourse.slug,name:golfCoreCourse.name,layout:layout.name||"",tee:tee.name||"",gender:tee.gender||"",yards:hole.yards??null};
+ window.golfCoreSelected={...window.golfCoreSelected,slug:golfCoreCourse.slug,name:golfCoreCourse.name,layout:layout.name||"",tee:tee.name||"",gender:tee.gender||"",yards:hole.yards??null,hole:n};
+ const mapLink=document.getElementById("golfCoreMapLink");if(mapLink){const url=golfCoreMapUrl(golfCoreCourse,n);mapLink.href=url||"#";mapLink.hidden=!url;}
+}
+function golfCoreStrategyForHole(hole,tee){
+ const par=Number(hole.par)||4,yards=Number(hole.yards)||0,stroke=hole.stroke_index;
+ const byClub=recentShotsByClub(),clubRows=Object.entries(byClub).map(([name,shots])=>({name,carry:safeMean(shots.map(x=>Number(x.carry)).filter(Number.isFinite)),n:shots.length})).filter(x=>x.carry>0).sort((a,b)=>a.carry-b.carry);
+ const teeChoice=par===3?(clubRows.filter(x=>x.carry>=yards*.88).sort((a,b)=>Math.abs(a.carry-yards)-Math.abs(b.carry-yards))[0]?.name||"距離に合うアイアン／UTを選択"):(clubRows.find(x=>/driver|1w|ドライバー/i.test(x.name))?.name||"最も安定する長いクラブ");
+ const longest=clubRows.slice().sort((a,b)=>b.carry-a.carry)[0];
+ const approach=clubRows.filter(x=>x.carry<=110).sort((a,b)=>Math.abs(a.carry-Math.max(40,Math.min(100,yards-teeChoice.length*0)))-Math.abs(b.carry-Math.max(40,Math.min(100,yards-teeChoice.length*0))))[0];
+ const scoreRows=typed("round").slice(0,5),penalty=scoreRows.filter(x=>x.penalties!=null||x.ob!=null).map(x=>Number(x.penalties||0)+Number(x.ob||0)).filter(Number.isFinite);
+ const cautious=penalty.length&&penalty.reduce((a,b)=>a+b,0)/penalty.length>1;
+ const teeText=par===3?("Par 3・"+yards+"yd。実測キャリーを基準に"+teeChoice+"を候補にし、ピン位置よりグリーン中央を優先。"):("Par "+par+"・"+yards+"yd。暫定候補は"+teeChoice+"。"+(cautious?"ペナルティ傾向を踏まえ、飛距離より左右の安全幅を優先。":"まずは普段の成功率が高いクラブでフェアウェイキープを優先。"));
+ const secondText=par===5?"2打目は残り距離とライを確認。無理に2オンを狙わず、得意なウェッジ距離を残す選択も検討。":par===4?"2打目は残距離・ライ・障害物を確認し、グリーン周辺まで安全に運ぶ。":"ティーショット後の残距離に合わせ、無理なピン狙いを避ける。";
+ const approachText=approach?("登録済みショットでは"+approach.name+"の平均キャリーが約"+Math.round(approach.carry)+"yd。実測値を目安に手前から安全に乗せる。"):"ウェッジの実測距離が未登録。ピンを直接狙わず、グリーン中央・広い側を狙う。";
+ const greenText="傾斜・芝目・ピン位置はGolfCoreマップで確認。情報未取得のため、まずは上りのパットを残す安全策。";
+ const note="Par "+par+" / "+yards+" yd"+(stroke?" / HDCP "+stroke:"")+"。"+(longest?"登録最長キャリー："+longest.name+" 約"+Math.round(longest.carry)+"yd。":"")+"実測のクラブ距離とスコア傾向を使った暫定案。ハザード配置・グリーン形状は未確認のため要現地確認。";
+ return {teeClub:teeChoice,teeAim:teeText,secondAim:secondText,approachAim:approachText,greenAim:greenText,strategy:note};
+}
+function golfCoreFillStrategy(){
+ const hole=golfCoreCourse?.layouts?.[Number(golfCoreLayout.value)]?.tees?.[Number(golfCoreTee.value)]?.holes?.[Number(golfCoreHole.value)];
+ if(!hole)return;
+ const draft=golfCoreStrategyForHole(hole,golfCoreCourse.layouts[Number(golfCoreLayout.value)].tees[Number(golfCoreTee.value)]);
+ courseTeeClub.value=draft.teeClub;courseTeeAim.value=draft.teeAim;courseSecondAim.value=draft.secondAim;courseApproachAim.value=draft.approachAim;courseGreenAim.value=draft.greenAim;courseStrategy.value=draft.strategy;
+ document.getElementById("golfCoreGenerateStatus").textContent="攻略案を入力欄に作成しました。コース図・ハザード情報は未確認のため、内容を確認してから保存してください。";
+}
+function golfCoreGenerateAll(){
+ const layout=golfCoreCourse?.layouts?.[Number(golfCoreLayout.value)],tee=layout?.tees?.[Number(golfCoreTee.value)],holes=tee?.holes||[];
+ if(!holes.length){document.getElementById("golfCoreGenerateStatus").textContent="このティーにはホール別データがありません。";return;}
+ const gc=window.golfCoreSelected||{},date=todayISO();
+ const records=holes.filter(h=>h&&h.position!=null).map(h=>{const d=golfCoreStrategyForHole(h,tee);return {type:"course_note",date,course:golfCoreCourse.name,hole:"H"+h.position,par:Number(h.par)||null,golfCoreYards:h.yards??null,teeClub:d.teeClub,teeAim:d.teeAim,secondAim:d.secondAim,approachAim:d.approachAim,greenAim:d.greenAim,aim:d.teeAim,green:d.greenAim,strategy:d.strategy,next:"当日の風・ピン位置・実際のライを確認して最終判断",golfCoreSlug:gc.slug,golfCoreCourse:golfCoreCourse.name,golfCoreLayout:layout.name||"",golfCoreTee:tee.name||"",golfCoreTeeGender:tee.gender||"",source:"GolfCore + Golf Notes draft"};});
+ if(!records.length)return;
+ if(!confirm(tee.name+" の"+records.length+"ホール分の攻略案を保存します。既存ノートは削除されません。"))return;
+ records.forEach(addTyped);
+ document.getElementById("golfCoreGenerateStatus").textContent=records.length+"ホール分の暫定攻略案を保存しました。ハザード・グリーン形状は未確認です。";
 }
 document.getElementById("golfCoreSearch")?.addEventListener("click",golfCoreSearch);
+document.getElementById("golfCoreGenerate")?.addEventListener("click",golfCoreFillStrategy);
+document.getElementById("golfCoreGenerateAll")?.addEventListener("click",golfCoreGenerateAll);
 document.getElementById("golfCoreLayout")?.addEventListener("change",golfCoreRenderTees);
 document.getElementById("golfCoreTee")?.addEventListener("change",golfCoreRenderHoles);
 document.getElementById("golfCoreHole")?.addEventListener("change",golfCoreApplyHole);
