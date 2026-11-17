@@ -312,7 +312,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
 <section class="panel" id="course-panel">
   <h2>ゴルフ場別攻略ノート</h2><p class="small">コースの特徴、ホールごとの狙いどころ、危険エリア、次回の作戦を保存します。</p>
   <div id="courseMapPreview" class="small" aria-live="polite">公式サイトのコースレイアウトを検索できます。</div>
-<div class="item" id="officialCoursePanel" style="padding:12px;margin:12px 0"><b>公式サイトからコースレイアウトを探す</b><p class="small">ゴルフ場名で公式サイトを検索し、掲載されているレイアウト図を探します。</p><label class="small" for="officialCourseQuery">ゴルフ場名</label><input id="officialCourseQuery" placeholder="例：鶴舞カントリー倶楽部"><button class="chip active" id="officialCourseSearch" type="button" style="width:100%;margin-top:8px">公式サイトを検索</button><p class="small" id="officialCourseStatus" aria-live="polite"></p><div id="officialCourseResults"></div><div id="officialCourseMaps"></div><p class="small">公式ページへのリンクと掲載画像を参照表示します。転載・再配布や自動トレースは行いません。継続利用には運営者の許諾が必要な場合があります。</p></div>
+<div class="item" id="officialCoursePanel" style="padding:12px;margin:12px 0"><b>公式サイトからコースレイアウトを探す</b><p class="small">ゴルフ場の公式サイトURLを入力すると、同じサイト内のコース案内・ホール詳細を調べます。</p><label class="small" for="officialCourseQuery">公式サイトURL</label><input id="officialCourseQuery" type="url" value="https://www.tkg36.com/" placeholder="https://www.example-golf.jp/"><button class="chip active" id="officialCourseSearch" type="button" style="width:100%;margin-top:8px">この公式サイト内を調べる</button><p class="small" id="officialCourseStatus" aria-live="polite"></p><div id="officialCourseResults"></div><div id="officialCourseMaps"></div><p class="small">入力URLと同じドメイン内のページを調べます。公式ページへのリンクと画像を参照表示し、転載・再配布や自動トレースは行いません。</p></div>
 <div class="item" style="padding:12px;margin-top:14px"><b>ラウンド前・攻略チェックリスト</b><p class="small">チェック状態はこの端末に保存されます。</p><div id="courseChecklist"></div></div><div id="courseList"></div>
 </section>
 <section class="panel" id="goal-panel">
@@ -1345,26 +1345,24 @@ document.getElementById("clubForm").addEventListener("submit",e=>{e.preventDefau
 document.getElementById("goalForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"golf_goal",title:goalTitle.value.trim(),due:goalDue.value,metric:goalMetric.value.trim(),note:goalNote.value.trim(),done:false,date:todayISO()});e.target.reset();});
 /* Official golf course website lookup prototype. */
 async function officialCourseSearch(){
- const q=String(document.getElementById("officialCourseQuery")?.value||"").trim(),out=document.getElementById("officialCourseResults"),status=document.getElementById("officialCourseStatus");
- if(!q){status.textContent="ゴルフ場名を入力してください。";return;}
- out.innerHTML="";document.getElementById("officialCourseMaps").innerHTML="";status.textContent="公式サイトを検索しています…";
+ const url=String(document.getElementById("officialCourseQuery")?.value||"").trim(),out=document.getElementById("officialCourseResults"),box=document.getElementById("officialCourseMaps"),status=document.getElementById("officialCourseStatus");
+ if(!url){status.textContent="公式サイトURLを入力してください。";return;}
+ try{new URL(url);}catch{status.textContent="URLの形式を確認してください。";return;}
+ out.innerHTML="";box.innerHTML="";status.textContent="公式サイト内のコース案内を調べています…";
  try{
-  const r=await fetch("/.netlify/functions/course-search?q="+encodeURIComponent(q)),data=await r.json();if(!r.ok)throw new Error(data.error||"検索に失敗しました");
-  if(!data.results?.length){status.textContent="候補が見つかりませんでした。";return;}
-  out.innerHTML=data.results.map((x,i)=>'<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(x.title)+'</b><p class="small">'+esc(x.snippet||x.domain||"")+'</p><a href="'+esc(x.url)+'" target="_blank" rel="noopener">公式ページを開く</a>　<button class="chip" type="button" data-official-page="'+i+'">レイアウト図を探す</button></div>').join("");
-  out.querySelectorAll("[data-official-page]").forEach(btn=>btn.addEventListener("click",()=>officialCourseFindMaps(data.results[Number(btn.dataset.officialPage)])));
-  status.textContent="検索結果："+data.results.length+"件。公式サイトと思われる候補を選んでください。";
- }catch(e){status.textContent="検索できませんでした："+e.message;}
+  const r=await fetch("/.netlify/functions/course-search?page="+encodeURIComponent(url)),data=await r.json();if(!r.ok)throw new Error(data.error||"サイトを調査できませんでした");
+  const pages=data.pages||[],images=data.images||[];
+  out.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(data.rootTitle||"公式サイト")+'</b><p class="small">調査したページ数：'+Number(data.scannedPages||1)+'件</p><a href="'+esc(data.root)+'" target="_blank" rel="noopener">入力した公式サイトを開く</a></div>'+
+   (pages.length?pages.map((p,i)=>'<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(p.title||"コース案内")+'</b><p class="small">'+esc(p.url)+'</p><a href="'+esc(p.url)+'" target="_blank" rel="noopener">ページを開く</a>　<button class="chip" type="button" data-course-page="'+i+'">このページの画像を見る</button></div>').join(""):'<p class="small">同じサイト内でコース案内らしいページを検出できませんでした。</p>');
+  out.querySelectorAll("[data-course-page]").forEach(btn=>btn.addEventListener("click",()=>{const p=pages[Number(btn.dataset.coursePage)];const found=images.filter(im=>im.pageUrl===p.url);renderOfficialCourseImages(p,found);}));
+  status.textContent="公式サイト内を調査しました。コース案内ページ："+pages.length+"件、画像候補："+images.length+"件。";
+  if(pages.length){const likely=pages.find(p=>/(course|コース|東|西|east|west)/i.test(p.title+" "+p.url))||pages[0];renderOfficialCourseImages(likely,images.filter(im=>im.pageUrl===likely.url));}
+ }catch(e){status.textContent="調査できませんでした："+e.message;}
 }
-async function officialCourseFindMaps(item){
- const box=document.getElementById("officialCourseMaps"),status=document.getElementById("officialCourseStatus");box.innerHTML="";status.textContent="公式ページからレイアウト図を探しています…";
- try{
-  const r=await fetch("/.netlify/functions/course-search?page="+encodeURIComponent(item.url)),data=await r.json();if(!r.ok)throw new Error(data.error||"ページを確認できませんでした");
-  const images=data.images||[];
-  box.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(item.title)+'</b><p class="small">ページ内で見つかった画像候補です。実際のコース図か確認してください。</p>'+images.map(im=>'<div style="margin:10px 0"><img src="'+esc(im.url)+'" alt="公式サイト掲載画像候補" loading="lazy" style="width:100%;max-height:360px;object-fit:contain;background:#f2f4f0;border-radius:8px"><p class="small">'+esc(im.alt||"画像")+'</p><a href="'+esc(im.url)+'" target="_blank" rel="noopener">画像を公式サイト側で開く</a></div>').join("")+'</div>';
-  if(!images.length)box.innerHTML='<p class="small">ページ内からレイアウト図らしい画像を見つけられませんでした。公式ページを直接確認してください。</p>';
-  status.textContent=images.length+"件の画像候補を確認しました。";
- }catch(e){status.textContent="画像を取得できませんでした："+e.message;}
+function renderOfficialCourseImages(page,images){
+ const box=document.getElementById("officialCourseMaps");
+ box.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(page.title||"コース案内")+'</b><p class="small">このページ内で見つかった画像候補です。</p>'+
+ (images.length?images.map(im=>'<div style="margin:10px 0"><img src="'+esc(im.url)+'" alt="公式サイト掲載画像候補" loading="lazy" style="width:100%;max-height:360px;object-fit:contain;background:#f2f4f0;border-radius:8px"><p class="small">'+esc(im.alt||"画像")+'</p><a href="'+esc(im.url)+'" target="_blank" rel="noopener">画像を開く</a></div>').join(""):'<p class="small">このページから画像候補を検出できませんでした。</p>')+'</div>';
 }
 document.getElementById("officialCourseSearch")?.addEventListener("click",officialCourseSearch);
 function deleteSavedCourseBook(key){
