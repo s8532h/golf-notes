@@ -110,7 +110,7 @@ function parseLabeledHoles(html,pageUrl,courseName){
   const block=text.slice(heads[i].index,heads[i+1]?.index??Math.min(text.length,heads[i].index+1800));
   // Column-oriented scorecard used by many Japanese course pages:
   // BACK TEE | REG TEE | LADIES TEE | PAR | HDCP, followed by numeric row.
-  const columnMatch=block.match(/BACK\s+TEE\s*\|?\s*REG\s+TEE\s*\|?\s*LADIES\s+TEE\s*\|?\s*PAR\s*\|?\s*HDCP[\s\S]{0,160}?(\d{2,4})\s*\|\s*(\d{2,4})\s*\|\s*(\d{2,4})\s*\|\s*([3-5])\s*\|\s*(\d{1,2})/i);
+  const columnMatch=block.match(/BACK\s+TEE[\s|｜]+\s*REG\s+TEE[\s|｜]+\s*LADIES\s+TEE[\s|｜]+\s*PAR[\s|｜]+\s*HDCP[\s|｜]+(\d{2,4})[\s|｜]+(\d{2,4})[\s|｜]+(\d{2,4})[\s|｜]+([3-5])[\s|｜]+(\d{1,2})/i);
   let back=null,reg=null,ladies=null,par=null,hdcp=null;
   if(columnMatch){back=Number(columnMatch[1]);reg=Number(columnMatch[2]);ladies=Number(columnMatch[3]);par=Number(columnMatch[4]);hdcp=Number(columnMatch[5]);}
   else{
