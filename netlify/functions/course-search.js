@@ -104,24 +104,35 @@ function parseMatrixTables(html,pageUrl,courseName){
  return rows;
 }
 function parseLabeledHoles(html,pageUrl,courseName){
- const text=clean(html),rows=[],re=/(?:HOLE\s*No\.?\s*|HOLE\s*|ホール\s*)(\d{1,2})/gi,heads=[...text.matchAll(re)];
- for(let i=0;i<heads.length;i++){
-  const hole=Number(heads[i][1]);if(hole<1||hole>18)continue;
-  const block=text.slice(heads[i].index,heads[i+1]?.index??Math.min(text.length,heads[i].index+1800));
-  // Column-oriented scorecard used by many Japanese course pages:
-  // BACK TEE | REG TEE | LADIES TEE | PAR | HDCP, followed by numeric row.
-  const columnMatch=block.match(/BACK\s+TEE[\s|｜]+\s*REG\s+TEE[\s|｜]+\s*LADIES\s+TEE[\s|｜]+\s*PAR[\s|｜]+\s*HDCP[\s|｜]+(\d{2,4})[\s|｜]+(\d{2,4})[\s|｜]+(\d{2,4})[\s|｜]+([3-5])[\s|｜]+(\d{1,2})/i);
-  let back=null,reg=null,ladies=null,par=null,hdcp=null;
-  if(columnMatch){back=Number(columnMatch[1]);reg=Number(columnMatch[2]);ladies=Number(columnMatch[3]);par=Number(columnMatch[4]);hdcp=Number(columnMatch[5]);}
-  else{
-   par=Number((block.match(/\bPAR\s*:?\s*([3-5])\b/i)||[])[1]);
-   hdcp=Number((block.match(/\bHDCP\s*:?\s*(\d{1,2})\b/i)||[])[1]);
-   const get=(label)=>{const m=block.match(new RegExp(label+"[^0-9]{0,20}(\\d{2,4})","i"));return Number(m?.[1])||null;};
-   back=get("BACK(?:\\s+TEE)?");reg=get("REG(?:ULAR)?(?:\\s+TEE)?");ladies=get("LADIES(?:\\s+TEE)?");
+ const text=clean(html),rows=[];
+ // Most official hole-detail pages contain exactly one hole and a labeled tee row.
+ // Read the values after the complete header instead of assuming HTML table markup.
+ const header=/BACK\s+TEE[\s|｜]*REG\s+TEE[\s|｜]*LADIES\s+TEE[\s|｜]*PAR[\s|｜]*HDCP/i;
+ const hm=header.exec(text);
+ let holeMatch=text.match(/\bHOLE\s*(?:No\.?\s*)?(\d{1,2})\b/i);
+ if(!holeMatch)holeMatch=pageUrl.match(/\/(?:course|hole)\/(\d{1,2})\.html?/i);
+ if(hm&&holeMatch){
+  const tail=text.slice(hm.index+hm[0].length,hm.index+hm[0].length+260);
+  const nums=[...tail.matchAll(/\b\d{1,4}\b/g)].map(x=>Number(x[0]));
+  // First three are tee yardages, followed by PAR and HDCP.
+  const valid=nums.findIndex((n,i)=>n>=100&&n<=800&&nums[i+1]>=100&&nums[i+1]<=800&&nums[i+2]>=100&&nums[i+2]<=800&&nums[i+3]>=3&&nums[i+3]<=5&&nums[i+4]>=1&&nums[i+4]<=18);
+  if(valid>=0){
+   const [back,reg,ladies,par,hdcp]=nums.slice(valid,valid+5);
+   rows.push({hole:Number(holeMatch[1]),par,strokeIndex:hdcp,yards:reg,tee:"REG",teeDistances:{BACK:back,REG:reg,LADIES:ladies},description:text.slice(0,900),course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});
   }
-  if(!par||par<3||par>5)continue;
-  const yards=reg||back||ladies;
-  if(!rows.some(x=>x.hole===hole))rows.push({hole,par,strokeIndex:Number.isFinite(hdcp)?hdcp:null,yards,tee:reg?"REG":back?"BACK":ladies?"LADIES":"未取得",teeDistances:{BACK:back,REG:reg,LADIES:ladies},description:block.slice(0,700),course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});
+ }
+ // Generic fallback for pages whose labels are presented vertically rather than in a row.
+ if(!rows.length){
+  const re=/(?:HOLE\s*No\.?\s*|HOLE\s*|ホール\s*)(\d{1,2})/gi,heads=[...text.matchAll(re)];
+  for(let i=0;i<heads.length;i++){
+   const hole=Number(heads[i][1]);if(hole<1||hole>18)continue;
+   const block=text.slice(heads[i].index,heads[i+1]?.index??Math.min(text.length,heads[i].index+1800));
+   const par=Number((block.match(/\bPAR\s*:?\s*([3-5])\b/i)||[])[1]),hdcp=Number((block.match(/\bHDCP\s*:?\s*(\d{1,2})\b/i)||[])[1]);
+   if(!par)continue;
+   const get=label=>Number((block.match(new RegExp(label+"[^0-9]{0,20}(\\d{2,4})","i"))||[])[1])||null;
+   const back=get("BACK(?:\\s+TEE)?"),reg=get("REG(?:ULAR)?(?:\\s+TEE)?"),ladies=get("LADIES(?:\\s+TEE)?");
+   if(back||reg||ladies)rows.push({hole,par,strokeIndex:hdcp||null,yards:reg||back||ladies,tee:reg?"REG":back?"BACK":"LADIES",teeDistances:{BACK:back,REG:reg,LADIES:ladies},description:block.slice(0,700),sourceUrl:pageUrl});
+  }
  }
  return rows;
 }
