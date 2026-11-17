@@ -29,7 +29,10 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
 
   const apiKey = process.env.GOLFCORE_API_KEY;
-  if (!apiKey) return json(503, { error: "GolfCore API is not configured on this deploy." });
+  const keyRequiredFrom = Date.UTC(2026, 11, 4);
+  if (!apiKey && Date.now() >= keyRequiredFrom) {
+    return json(503, { error: "GolfCore API key is required. Set GOLFCORE_API_KEY in the Netlify environment." });
+  }
 
   const ip = event.headers?.["x-nf-client-connection-ip"] ||
     event.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
@@ -56,9 +59,11 @@ exports.handler = async (event) => {
   }
 
   try {
+    const headers = { "Accept": "application/json", "User-Agent": "Golf Notes/1.0" };
+    if (apiKey) headers.Authorization = "Bearer " + apiKey;
     const upstream = await fetch(upstreamUrl, {
       method: "GET",
-      headers: { "Accept": "application/json", "Authorization": "Bearer " + apiKey },
+      headers,
       signal: AbortSignal.timeout(12_000)
     });
     const body = await upstream.text();
