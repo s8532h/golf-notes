@@ -322,8 +322,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <div id="golfCoreSelection" hidden>
       <label class="small" for="golfCoreLayout">コース</label><select id="golfCoreLayout"></select>
       <label class="small" for="golfCoreTee">ティー</label><select id="golfCoreTee"></select>
-      <label class="small" for="golfCoreHole">ホール</label><select id="golfCoreHole"></select>
-      <div id="golfCoreHoleInfo" class="small" style="margin-top:8px"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px"><button class="chip" id="golfCoreHolePrev" type="button">‹</button><div id="golfCoreHoleInfo" class="small" style="flex:1;text-align:center;font-weight:700"></div><button class="chip" id="golfCoreHoleNext" type="button">›</button></div>
       <p id="golfCoreCoverage" class="small" style="margin:6px 0"></p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a id="golfCoreMapLink" class="chip" href="#" target="_blank" rel="noopener" hidden>GolfCore公式マップを開く</a>
@@ -1385,20 +1384,20 @@ function golfCoreRenderTees(){
  if(tees[Number(previous)])sel.value=previous;
  golfCoreRenderHoles();
 }
-function golfCoreRenderHoles(){
- const layout=golfCoreCourse?.layouts?.[Number(document.getElementById("golfCoreLayout").value)]||{},tee=layout.tees?.[Number(document.getElementById("golfCoreTee").value)]||{},holes=[...(Array.isArray(tee.holes)?tee.holes:[])].sort((a,b)=>Number(a.position||999)-Number(b.position||999));
- const seen=new Set(),unique=holes.filter((h,i)=>{const n=Number(h.position)||i+1;if(seen.has(n))return false;seen.add(n);return true;});
- document.getElementById("golfCoreHole").innerHTML=unique.map((h,i)=>'<option value="'+i+'">'+esc(h.position??i+1)+'H ・ Par '+esc(h.par??"—")+' ・ '+esc(h.yards??"—")+' yd</option>').join("");
- golfCoreApplyHole();
+let golfCoreCurrentHoleIndex=0;
+function golfCoreCurrentHoleRows(){
+ const layout=golfCoreCourse?.layouts?.[Number(document.getElementById("golfCoreLayout").value)]||{},tee=layout.tees?.[Number(document.getElementById("golfCoreTee").value)]||{},holes=[...(Array.isArray(tee.holes)?tee.holes:[])].sort((a,b)=>Number(a.position||999)-Number(b.position||999)),seen=new Set();
+ return holes.filter((h,i)=>{const n=Number(h.position)||i+1;if(seen.has(n))return false;seen.add(n);return true;});
 }
+function golfCoreRenderHoles(){golfCoreCurrentHoleIndex=0;golfCoreApplyHole();}
+function golfCoreMoveHole(delta){const holes=golfCoreCurrentHoleRows();if(!holes.length)return;golfCoreCurrentHoleIndex=(golfCoreCurrentHoleIndex+delta+holes.length)%holes.length;golfCoreApplyHole();}
 function golfCoreApplyHole(){
- const layout=golfCoreCourse?.layouts?.[Number(document.getElementById("golfCoreLayout").value)]||{},tee=layout.tees?.[Number(document.getElementById("golfCoreTee").value)]||{},holes=[...(tee.holes||[])].sort((a,b)=>Number(a.position||999)-Number(b.position||999)),seen=new Set(),unique=holes.filter((h,i)=>{const n=Number(h.position)||i+1;if(seen.has(n))return false;seen.add(n);return true;}),hole=unique[Number(document.getElementById("golfCoreHole").value)];
- if(!hole)return;
- const n=Number(hole.position)||Number(document.getElementById("golfCoreHole").value)+1;
+ const unique=golfCoreCurrentHoleRows(),hole=unique[golfCoreCurrentHoleIndex];if(!hole)return;
+ const n=Number(hole.position)||golfCoreCurrentHoleIndex+1;
  document.getElementById("courseHole").value=(n<=9?"OUT "+n:"IN "+(n-9))+"番";
  document.getElementById("coursePar").value=String(hole.par??"");
- document.getElementById("golfCoreHoleInfo").textContent="Par "+(hole.par??"—")+" ／ "+(hole.yards??"—")+" yd ／ HDCP "+(hole.stroke_index??"—");
- window.golfCoreSelected={...window.golfCoreSelected,slug:golfCoreCourse.slug,name:golfCoreCourse.name,layout:layout.name||"",tee:tee.name||"",gender:tee.gender||"",yards:hole.yards??null,hole:n};
+ document.getElementById("golfCoreHoleInfo").textContent="H"+n+" ／ Par "+(hole.par??"—")+" ／ "+(hole.yards??"—")+" yd ／ HDCP "+(hole.stroke_index??"—");
+ window.golfCoreSelected={...window.golfCoreSelected,slug:golfCoreCourse.slug,name:golfCoreCourse.name,layout:golfCoreCourse.layouts[Number(document.getElementById("golfCoreLayout").value)]?.name||"",tee:golfCoreCourse.layouts[Number(document.getElementById("golfCoreLayout").value)]?.tees?.[Number(document.getElementById("golfCoreTee").value)]?.name||"",yards:hole.yards??null,hole:n};
  const mapLink=document.getElementById("golfCoreMapLink");if(mapLink){const url=golfCoreMapUrl(golfCoreCourse,n);mapLink.href=url||"#";mapLink.hidden=!url;}
 }
 function golfCoreStrategyForHole(hole,tee,course){
@@ -1450,7 +1449,8 @@ document.getElementById("golfCoreSearch")?.addEventListener("click",golfCoreSear
 document.getElementById("golfCoreGenerateAll")?.addEventListener("click",golfCoreGenerateAll);
 document.getElementById("golfCoreLayout")?.addEventListener("change",golfCoreRenderTees);
 document.getElementById("golfCoreTee")?.addEventListener("change",golfCoreRenderHoles);
-document.getElementById("golfCoreHole")?.addEventListener("change",golfCoreApplyHole);
+document.getElementById("golfCoreHolePrev")?.addEventListener("click",()=>golfCoreMoveHole(-1));
+document.getElementById("golfCoreHoleNext")?.addEventListener("click",()=>golfCoreMoveHole(1));
 renderExtra();
 
 // ---- Guide-book bookshelf ----
