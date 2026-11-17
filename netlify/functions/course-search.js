@@ -94,17 +94,17 @@ function parseTokyuHoles(html,pageUrl,courseName){
  return rows.sort((a,b)=>a.hole-b.hole);
 }
 function parseGenericHole(html,pageUrl,title){
- const text=clean(html),m=(title+" "+pageUrl).match(/(east|west|東|西)[^/]*?(?:no\\.?\\s*|_|-)(\\d{1,2})/i)||text.match(/(east|west|東|西)\\s*no\\.?\\s*(\\d{1,2})/i);
+ const text=clean(html),m=(title+" "+pageUrl).match(/(east|west|東|西)[^/]*?(?:no\\.?\s*|_|-)(\d{1,2})/i)||text.match(/(east|west|東|西)\s*no\\.?\s*(\d{1,2})/i);
  if(!m)return [];
  const hole=Number(m[2]);if(hole<1||hole>18)return [];
- const par=Number((text.match(/PAR\\s*:?\\s*(\\d)/i)||[])[1]);
- const hdcp=Number((text.match(/HDCP\\s*:?\\s*(\\d{1,2})/i)||[])[1]);
- const getReg=(green)=>{const re=new RegExp(green+"\\\\s*GREEN[\\\\s\\\\S]{0,100}?REGULAR\\\\s*:?\\\\s*(\\\\d{2,4})","i");return Number((text.match(re)||[])[1])||null;};
+ const par=Number((text.match(/PAR\s*:?\s*(\d)/i)||[])[1]);
+ const hdcp=Number((text.match(/HDCP\s*:?\s*(\d{1,2})/i)||[])[1]);
+ const getReg=(green)=>{const re=new RegExp(green+"\\\s*GREEN[\\\s\\\S]{0,100}?REGULAR\\\s*:?\\\s*(\\\d{2,4})","i");return Number((text.match(re)||[])[1])||null;};
  const a=getReg("A"),b=getReg("B");
  const dist=a||b;
  if(!Number.isFinite(par)||!dist)return [];
  const image=extractImages(html,pageUrl).find(x=>/(hole|course|layout|コース|ホール)/i.test(x.url+" "+x.alt))||extractImages(html,pageUrl)[0];
- const feature=(text.match(/特徴\\s*:?\\s*([\\s\\S]{0,700}?)(?:PAR\\s*:?|HDCP\\s*:?|A\\s*GREEN|$)/i)||[])[1]||"";
+ const feature=(text.match(/特徴\s*:?\s*([\s\S]{0,700}?)(?:PAR\s*:?|HDCP\s*:?|A\s*GREEN|$)/i)||[])[1]||"";
  return [{hole,par,strokeIndex:Number.isFinite(hdcp)?hdcp:null,yards:dist,tee:a?"REG（Aグリーン）":"REG（Bグリーン）",description:feature.trim(),imageUrl:image?.url||"",course:/west|西/i.test(m[1])?"西コース":"東コース",sourceUrl:pageUrl,greenDistances:{A:a,B:b}}];
 }
 function parsePage(html, pageUrl, via) {
