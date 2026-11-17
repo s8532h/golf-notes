@@ -127,7 +127,7 @@ function parsePage(html, pageUrl, via) {
     const href = (m[1].match(/\bhref=["']([^"']+)["']/i) || [])[1]; if (!href) continue;
     const u = safeUrl(href, page.href); if (!u || u.hostname !== page.hostname) continue;
     const label = clean(m[2]) + " " + clean((m[2].match(/<img\b[^>]*alt=["]([^"]*)/i)||[])[1]||"");
-    if (/(コース|レイアウト|ホール|course|layout|hole|east|west|south|north|東|西|南|北|no[._-]?\\d+|\\/\\d+\\.html|course_[a-z0-9]+)/i.test(label + " " + u.pathname) && !links.some(x=>x.url===u.href)) links.push({ title: label || u.pathname, url: u.href });
+    if (/(コース|レイアウト|ホール|course|layout|hole|east|west|south|north|東|西|南|北|no[._-]?[0-9]+|\/[0-9]+\.html|course_[a-z0-9]+)/i.test(label + " " + u.pathname) && !links.some(x=>x.url===u.href)) links.push({ title: label || u.pathname, url: u.href });
   }
   return { title, url: page.href, links, images: extractImages(html, page.href), holes: [...parseHoleData(html,page.href,title),...parseMatrixTables(html,page.href,title),...parseLabeledHoles(html,page.href,title)].filter((x,i,a)=>a.findIndex(y=>y.hole===x.hole)===i), via };
 }
