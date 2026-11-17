@@ -85,6 +85,41 @@ function parseHoleData(html, pageUrl, courseName) {
   }
   return rows.map(r => ({ ...r, ...details.get(r.hole), course: courseName, sourceUrl: pageUrl }));
 }
+function parseMatrixTables(html,pageUrl,courseName){
+ const rows=[];
+ for(const mt of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
+  const trs=[...mt[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>clean(x[1])));
+  let header=-1,holes=[];
+  for(let i=0;i<trs.length;i++){const ns=trs[i].map(x=>Number(x.trim())).filter(n=>Number.isInteger(n)&&n>=1&&n<=18);if(ns.length>=6){header=i;holes=ns;break;}}
+  if(header<0)continue;
+  const v={};
+  for(const row of trs.slice(header+1)){
+   const label=(row[0]||"").toLowerCase().replace(/\s/g,"");
+   const key=/^par/.test(label)?"par":/hdcp|ハンディ/.test(label)?"hdcp":/black|back|champion|bt/.test(label)?"back":/blue|regular|reg|white|rgt/.test(label)?"regular":/gold|senior/.test(label)?"gold":/red|ladies|lady/.test(label)?"red":null;
+   if(key)v[key]=row.slice(1).map(x=>Number((x.match(/\d{1,4}/)||[])[0])||null);
+  }
+  if(!v.par)continue;
+  holes.forEach((hole,i)=>{const par=v.par[i];if(!par||par<3||par>5)return;const reg=v.regular?.[i]||null,back=v.back?.[i]||null,gold=v.gold?.[i]||null,red=v.red?.[i]||null;rows.push({hole,par,strokeIndex:v.hdcp?.[i]||null,yards:reg||back||gold||red,tee:reg?"REGULAR":back?"BACK":"未取得",teeDistances:{BACK:back,REGULAR:reg,GOLD:gold,RED:red},course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});});
+ }
+ return rows;
+}
+function parseLabeledHoles(html,pageUrl,courseName){
+ const text=clean(html),rows=[],re=/(?:HOLE\s*No\.?\s*|HOLE\s*|ホール\s*)(\d{1,2})/gi,heads=[...text.matchAll(re)];
+ for(let i=0;i<heads.length;i++){
+  const hole=Number(heads[i][1]);if(hole<1||hole>18)continue;
+  const block=text.slice(heads[i].index,heads[i+1]?.index??Math.min(text.length,heads[i].index+1800));
+  const par=Number((block.match(/\bPAR\s*:?\s*(\d)\b/i)||[])[1]),hdcp=Number((block.match(/\bHDCP\s*:?\s*(\d{1,2})\b/i)||[])[1]);
+  if(!par||par<3||par>5)continue;
+  const get=(label)=>{const m=block.match(new RegExp(label+"[^0-9]{0,40}(\\d{2,4})","i"));return Number(m?.[1])||null;};
+  const reg=get("REG(?:ULAR)?(?:\\s+TEE)?"),back=get("BACK(?:\\s+TEE)?"),ladies=get("LADIES(?:\\s+TEE)?");
+  const km=block.match(/Kグリーン\s*(\d{2,4})\s*(\d{2,4})\s*(\d{2,4})\s*(\d{2,4})/i),bm=block.match(/Bグリーン\s*(\d{2,4})\s*(\d{2,4})\s*(\d{2,4})\s*(\d{2,4})/i);
+  const k=km?km.slice(1).map(Number):[],b=bm?bm.slice(1).map(Number):[];
+  const distances={BACK:back||k[0]||b[0]||null,REGULAR:reg||k[1]||b[1]||null,LADIES:ladies||k[3]||b[3]||null};
+  const yards=distances.REGULAR||distances.BACK||distances.LADIES;
+  if(!rows.some(x=>x.hole===hole))rows.push({hole,par,strokeIndex:Number.isFinite(hdcp)?hdcp:null,yards,tee:distances.REGULAR?"REGULAR":distances.BACK?"BACK":"未取得",teeDistances:distances,greenDistances:k.length||b.length?{K:k,B:b}:undefined,description:block.slice(0,700),course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});
+ }
+ return rows;
+}
 function parsePage(html, pageUrl, via) {
   const page = new URL(pageUrl), title = clean((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || page.hostname);
   const links = [];
@@ -94,7 +129,7 @@ function parsePage(html, pageUrl, via) {
     const label = clean(m[2]);
     if (/(コース|レイアウト|ホール|course|layout|hole|east|west|東|西)/i.test(label + " " + u.pathname) && !links.some(x=>x.url===u.href)) links.push({ title: label || u.pathname, url: u.href });
   }
-  return { title, url: page.href, links, images: extractImages(html, page.href), holes: parseHoleData(html,page.href,title), via };
+  return { title, url: page.href, links, images: extractImages(html, page.href), holes: [...parseHoleData(html,page.href,title),...parseMatrixTables(html,page.href,title),...parseLabeledHoles(html,page.href,title)].filter((x,i,a)=>a.findIndex(y=>y.hole===x.hole)===i), via };
 }
 exports.handler = async (event) => {
   try {
@@ -107,7 +142,7 @@ exports.handler = async (event) => {
     const sameHostLinks=(links)=>links.filter(x=>{const u=safeUrl(x.url,root.href);return u&&u.hostname.replace(/^www\./,"")===rootHost;});
     const seen=new Set([root.href]), rawPages=[];
     // Fetch first-level course pages concurrently. A single slow page must not block the others.
-    const firstLinks=sameHostLinks(rootData.links).slice(0,18);
+    const firstLinks=sameHostLinks(rootData.links).sort((a,b)=>Number(/course|layout|コース|レイアウト|guide/i.test(b.title+" "+b.url))-Number(/course|layout|コース|レイアウト|guide/i.test(a.title+" "+a.url))).slice(0,24);
     const fetchBatch=async(items)=>Promise.all(items.map(async item=>{
       if(seen.has(item.url))return null;seen.add(item.url);
       try{
@@ -119,8 +154,8 @@ exports.handler = async (event) => {
     rawPages.push(...levelOne);
     // Discover likely hole detail links one level deeper, still bounded and concurrent.
     const secondLinks=sameHostLinks(levelOne.flatMap(p=>p.links||[]))
-      .filter(x=>/(hole|no[._-]?\d+|ホール|東|西|east|west)/i.test(x.title+" "+x.url))
-      .filter(x=>!seen.has(x.url)).slice(0,24);
+      .filter(x=>/(hole|no[._-]?\d+|ホール|東|西|east|west|\/\d+\.html|course_[a-z0-9]+)/i.test(x.title+" "+x.url)||/^(?:1[0-8]?|[1-9])(?:h|番|番ホール)?$/i.test(x.title.trim()))
+      .filter(x=>!seen.has(x.url)).slice(0,36);
     const levelTwo=(await fetchBatch(secondLinks)).filter(Boolean);
     rawPages.push(...levelTwo);
     const pages=[];
