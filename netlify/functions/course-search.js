@@ -2,7 +2,7 @@ const { URL } = require("url");
 const headers = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const clean = (s = "") => s.replace(/<script\b[\s\S]*?<\/script>/gi, " ").replace(/<style\b[\s\S]*?<\/style>/gi, " ").replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 async function request(url, accept = "text/html,*/*;q=0.8") {
-  const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36", accept }, redirect: "follow", signal: AbortSignal.timeout(12000) });
+  const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36", accept }, redirect: "follow", signal: AbortSignal.timeout(1800) });
   if (!res.ok) throw new Error("HTTP " + res.status);
   return (await res.text()).slice(0, 2200000);
 }
@@ -87,40 +87,43 @@ exports.handler = async (event) => {
     const root = new URL(raw);
     if (!["http:", "https:"].includes(root.protocol) || root.hostname === "localhost" || root.hostname.endsWith(".local") || /^\d{1,3}(\.\d{1,3}){3}$/.test(root.hostname)) throw new Error("このURLは確認できません");
     const first = await getPage(root.href), rootData = parsePage(first.html, root.href, first.via);
-    const pages = [], visited = new Set([root.href]);
-    const rootHost=root.hostname.replace(/^www\\./,"");
-    const queue=rootData.links.map(x=>({...x,depth:1}));
-    const rawPages=[];
-    while(queue.length&&visited.size<55){
-      const item=queue.shift();if(visited.has(item.url))continue;
-      const u=safeUrl(item.url,root.href);if(!u||u.hostname.replace(/^www\\./,"")!==rootHost)continue;
-      visited.add(u.href);
+    const rootHost=root.hostname.replace(/^www\./,"");
+    const sameHostLinks=(links)=>links.filter(x=>{const u=safeUrl(x.url,root.href);return u&&u.hostname.replace(/^www\./,"")===rootHost;});
+    const seen=new Set([root.href]), rawPages=[];
+    // Fetch first-level course pages concurrently. A single slow page must not block the others.
+    const firstLinks=sameHostLinks(rootData.links).slice(0,18);
+    const fetchBatch=async(items)=>Promise.all(items.map(async item=>{
+      if(seen.has(item.url))return null;seen.add(item.url);
       try{
-        const fetched=await getPage(u.href),data=parsePage(fetched.html,u.href,fetched.via);
-        rawPages.push(data);
-        if(item.depth<3){
-          const children=data.links
-            .filter(x=>/(course|layout|hole|コース|レイアウト|ホール|east|west|東|西|no[._-]?\\d)/i.test(x.title+" "+x.url))
-            .sort((a,b)=>Number(/no[._-]?\\d+/i.test(b.url))-Number(/no[._-]?\\d+/i.test(a.url)));
-          for(const child of children)if(!visited.has(child.url)&&queue.length<80)queue.push({...child,depth:item.depth+1});
-        }
-      }catch(e){rawPages.push({title:item.title,url:item.url,links:[],images:[],holes:[],error:e.message});}
-    }
-    // Group single-hole detail pages into course books. Keep existing 9/18-hole UI contract.
+        const html=await request(item.url);
+        return parsePage(html,item.url,"direct");
+      }catch(e){return {title:item.title,url:item.url,links:[],images:[],holes:[],error:e.message};}
+    }));
+    const levelOne=(await fetchBatch(firstLinks)).filter(Boolean);
+    rawPages.push(...levelOne);
+    // Discover likely hole detail links one level deeper, still bounded and concurrent.
+    const secondLinks=sameHostLinks(levelOne.flatMap(p=>p.links||[]))
+      .filter(x=>/(hole|no[._-]?\d+|ホール|東|西|east|west)/i.test(x.title+" "+x.url))
+      .filter(x=>!seen.has(x.url)).slice(0,24);
+    const levelTwo=(await fetchBatch(secondLinks)).filter(Boolean);
+    rawPages.push(...levelTwo);
+    const pages=[];
+    // Aggregate single-hole detail pages into course buckets using semantic page labels.
     const grouped=new Map();
     for(const p of rawPages){
       for(const h of (p.holes||[])){
-        const key=h.course||((p.title.match(/(東|西|East|West)/i)||[])[1]||"コース")+"コース";
+        const label=(p.title+" "+p.url+" "+(h.course||""));
+        const match=label.match(/(東|西|East|West)/i);
+        const key=match?(match[1].toLowerCase()==="east"||match[1]==="東"?"東コース":"西コース"):"コース情報";
         if(!grouped.has(key))grouped.set(key,{title:key,url:p.url,links:[],images:[],holes:[],via:p.via});
         const g=grouped.get(key);
         if(!g.holes.some(x=>Number(x.hole)===Number(h.hole)))g.holes.push(h);
-        g.images.push(...p.images);
+        g.images.push(...(p.images||[]));
       }
     }
     for(const g of grouped.values()){g.holes.sort((a,b)=>a.hole-b.hole);pages.push(g);}
-    // Retain full course guide pages that expose a valid 9+ hole table.
     for(const p of rawPages)if((p.holes||[]).length>=9&&!pages.some(g=>g.url===p.url))pages.push(p);
     const allImages = rawPages.flatMap(p => p.images.map(im => ({ ...im, pageTitle: p.title, pageUrl: p.url })));
-    return { statusCode: 200, headers, body: JSON.stringify({ root: root.href, rootTitle: rootData.title, pages, images: allImages, scannedPages: visited.size, sourceMode: [...new Set([first.via,...pages.map(p=>p.via).filter(Boolean)])] }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ root: root.href, rootTitle: rootData.title, pages, images: allImages, scannedPages: rawPages.length + 1, sourceMode: [...new Set([first.via,...pages.map(p=>p.via).filter(Boolean)])] }) };
   } catch (e) { return { statusCode: 502, headers, body: JSON.stringify({ error: e.message || "サイトを調査できませんでした" }) }; }
 };
