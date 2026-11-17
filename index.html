@@ -1374,9 +1374,9 @@ async function officialCourseSearch(){
 }
 function officialCourseIdentity(page){
  const rootUrl=page.rootUrl||document.getElementById("officialCourseQuery")?.value||page.url;
- let host="unknown";try{host=new URL(rootUrl).hostname.toLowerCase().replace(/^www\\./,"");}catch{}
+ let host="unknown";try{host=new URL(rootUrl).hostname.toLowerCase().replace(/^www\./,"");}catch{}
  const raw=String(page.rootTitle||page.siteTitle||"").replace(/<[^>]*>/g," ").trim();
- const parts=raw.split(/[|｜]/).map(x=>x.replace(/【公式】|\\[公式\\]/g,"").trim()).filter(Boolean);
+ const parts=raw.split(/[|｜]/).map(x=>x.replace(/【公式】|\[公式\]/g,"").trim()).filter(Boolean);
  const siteName=parts.find(x=>/倶楽部|カントリー|ゴルフクラブ|ゴルフ場/.test(x))||parts.sort((a,b)=>b.length-a.length)[0]||host;
  const section=String(page.title||"").trim();
  const generic=/^(コース情報|コース|コースガイド|course|course guide)$/i.test(section);
@@ -1390,7 +1390,7 @@ function importOfficialCourse(page){
  const identity=officialCourseIdentity(page),tee=holes[0].tee||"未分類";
  const existing=typed("course_note").filter(x=>x.golfCoreSlug===identity.slug&&(x.golfCoreTee||"未分類")===tee);
  if(existing.length&&!confirm(identity.courseName+"（"+tee+"）の既存データを更新しますか？個人の攻略メモは引き継ぎます。"))return;
- const oldByHole=new Map(existing.map(x=>[Number(String(x.hole).replace(/\\D/g,"")),x]));
+ const oldByHole=new Map(existing.map(x=>[Number(String(x.hole).replace(/\D/g,"")),x]));
  const now=new Date().toISOString();
  holes.forEach(h=>{
   const old=oldByHole.get(Number(h.hole));
