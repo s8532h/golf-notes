@@ -1273,7 +1273,13 @@ function renderReflection(){const el=document.getElementById("reflectionForm"),h
 function courseHoleNumber(record){const m=String(record.hole||"").match(/\d+/);return m?Number(m[0]):999;}
 function uniqueCourseRows(rows){
  const map=new Map();
- rows.forEach(r=>{const key=[r.golfCoreSlug||r.course,r.golfCoreLayout||"",r.golfCoreTee||"ティー未登録",r.golfCoreTeeGender||"",courseHoleNumber(r)].join("|");const old=map.get(key);if(!old||String(r.updatedAt||"")>=String(old.updatedAt||""))map.set(key,r);});
+ rows.forEach(r=>{
+  // A displayed course book is grouped by course + tee name. Gender/layout metadata
+  // must not create a second visible copy of the same numbered hole.
+  const key=[r.golfCoreSlug||r.course,r.golfCoreTee||"ティー未登録",courseHoleNumber(r)].join("|");
+  const old=map.get(key);
+  if(!old||String(r.updatedAt||"")>=String(old.updatedAt||""))map.set(key,r);
+ });
  return [...map.values()].sort((a,b)=>courseHoleNumber(a)-courseHoleNumber(b));
 }
 function renderCourseBookTee(bookIndex,tee){
@@ -1453,21 +1459,21 @@ function golfCoreStrategyForHole(hole,tee,course){
  const teeDistance=teeClub?.carry||0,remaining=Math.max(0,yards-teeDistance);
  const second=par===3?null:byDistance(remaining);
  const secondRemain=second?Math.max(0,remaining-second.carry):remaining;
- const traced=course?.coverage?.traced===true||(Array.isArray(course?.coverage)&&course.coverage.includes("traced"))||(typeof course?.coverage==="string"&&course.coverage.includes("traced"));
+ 
  const target=par+(stroke&&stroke<=17?1:0);
  const teeText=teeClub?"直近"+teeClub.n+"球の平均キャリー"+Math.round(teeClub.carry)+"yd（平均トータル"+Math.round(teeClub.total||teeClub.carry)+"yd）。"+(par===3?"この距離に対して"+teeClub.name+"を第一候補。":"ティーショットは"+teeClub.name+"。"):"クラブ別の実測ショットがないため、番手を指定できない。";
  const secondText=par===3?"Par 3のため2打目想定なし。外した場合はライとピン位置を確認して寄せる。":teeClub?("ティーショットのキャリー後、残り約"+Math.round(remaining)+"yd。"+(second?"実測平均キャリー"+Math.round(second.carry)+"ydの"+second.name+"が届く距離候補。ショット後の残りは約"+Math.round(secondRemain)+"yd。":"残り約"+Math.round(remaining)+"ydに合う実測クラブがないため、無理にグリーンを狙わず刻む。")):"ティーショットの実測値がないため残距離・2打目クラブを算出できない。";
  const approachText=second&&secondRemain>0?("2打目後は約"+Math.round(secondRemain)+"yd残る計算。登録済みウェッジのキャリーを照合し、届く番手がなければ花道側へ刻む。"):("アプローチの実測キャリーが未登録。ピン直狙いではなくグリーン中央を基本にする。");
- const hazardText=traced?"GolfCoreでtracedデータあり。ただしこのAPI応答から左右別ハザード座標は確認できないため、公式マップを開いて池・OB・バンカーの位置を照合してから狙い方向を確定する。":"ハザード形状データなし。左右どちらが危険かは推測しない。公式マップまたは現地表示で確認する。";
+ const hazardText="左右の安全幅を優先し、飛距離より次打を打ちやすい位置を狙う。";
  const scoring=stroke?("HDCP "+stroke+"。90切り配分は"+target+"打（Par "+par+"に対し"+(target-par>=0?"+":"")+(target-par)+"）。"):"HDCP未登録のため目標打数は暫定でPar "+par+"。";
- return {teeClub:teeClub?.name||"実測データ不足",teeAim:teeText+" "+hazardText,secondAim:secondText,approachAim:approachText,greenAim:"パット数の個人データと傾斜情報が不足。GolfCoreマップで傾斜・ピン位置を確認し、上りを残す。",strategy:"コースデータ："+par+" / "+yards+"yd。"+scoring+" "+(teeClub?"ティーショット後の概算残距離 "+Math.round(remaining)+"yd。":"")+"ハザード情報の有無："+(traced?"tracedフラグあり（座標未確認）":"形状データなし")+".",targetStrokes:target,strokeIndex:stroke};
+ return {teeClub:teeClub?.name||"実測データ不足",teeAim:teeText+" "+hazardText,secondAim:secondText,approachAim:approachText,greenAim:"ピン位置にこだわらずグリーン中央を基本に。次のパットで上りを残せる位置を狙う。",strategy:"コースデータ："+par+" / "+yards+"yd。"+scoring+" "+(teeClub?"ティーショット後の概算残距離 "+Math.round(remaining)+"yd。":"")+".",targetStrokes:target,strokeIndex:stroke};
 }
 function golfCoreFillStrategy(){
  const hole=golfCoreCourse?.layouts?.[Number(golfCoreLayout.value)]?.tees?.[Number(golfCoreTee.value)]?.holes?.[Number(golfCoreHole.value)];
  if(!hole)return;
  const draft=golfCoreStrategyForHole(hole,golfCoreCourse.layouts[Number(golfCoreLayout.value)].tees[Number(golfCoreTee.value)]);
  courseTeeClub.value=draft.teeClub;courseTeeAim.value=draft.teeAim;courseSecondAim.value=draft.secondAim;courseApproachAim.value=draft.approachAim;courseGreenAim.value=draft.greenAim;courseStrategy.value=draft.strategy;
- document.getElementById("golfCoreGenerateStatus").textContent="攻略案を入力欄に作成しました。コース図・ハザード情報は未確認のため、内容を確認してから保存してください。";
+ document.getElementById("golfCoreGenerateStatus").textContent="このホールの距離と登録済みショットデータから、クラブと狙い方を作成しました。";
 }
 function golfCoreBuildCourseRecords(course){
  const records=[];
