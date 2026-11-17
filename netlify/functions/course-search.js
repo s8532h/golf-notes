@@ -71,6 +71,28 @@ function parseHoleData(html, pageUrl, courseName) {
   }
   return rows.map(r => ({ ...r, ...details.get(r.hole), course: courseName, sourceUrl: pageUrl }));
 }
+function parseTokyuHoles(html,pageUrl,courseName){
+ const rows=[],isWest=/course_w|west/i.test(pageUrl);
+ const headingRe=/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi,heads=[...html.matchAll(headingRe)];
+ for(let i=0;i<heads.length;i++){
+  const label=clean(heads[i][2]),hm=label.match(/(?:OUT|IN\s*)?(\d{1,2})\s*Hole\s*Par\s*(\d)/i);
+  if(!hm)continue;
+  const hole=Number(hm[1]),par=Number(hm[2]),end=heads[i+1]?.index??html.length,block=html.slice(heads[i].index,end);
+  const distanceRows=[...block.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>clean(x[1])));
+  let reg=null,old=null;
+  for(const cells of distanceRows){
+   if(!/^(OLD|NEW)$/i.test(cells[0]||""))continue;
+   const ds=cells.slice(1).map(x=>Number((x.match(/\d{2,4}/)||[])[0])).filter(Number.isFinite);
+   if(ds.length>=2){if(/^NEW$/i.test(cells[0]))reg=ds[1];else old=ds[1];}
+  }
+  if(!reg&&old)reg=old;
+  if(!reg)continue;
+  const text=clean(block).replace(/.*?Hole\s*Par\s*\d/i,"").slice(0,900);
+  const imgs=extractImages(block,pageUrl);
+  rows.push({hole,par,strokeIndex:null,yards:reg,tee:"REG（NEWグリーン）",description:text,imageUrl:imgs[0]?.url||"",course:courseName,sourceUrl:pageUrl});
+ }
+ return rows.sort((a,b)=>a.hole-b.hole);
+}
 function parsePage(html, pageUrl, via) {
   const page = new URL(pageUrl), title = clean((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || page.hostname);
   const links = [];
@@ -90,10 +112,15 @@ exports.handler = async (event) => {
     if (!["http:", "https:"].includes(root.protocol) || root.hostname === "localhost" || root.hostname.endsWith(".local") || /^\d{1,3}(\.\d{1,3}){3}$/.test(root.hostname)) throw new Error("このURLは確認できません");
     const first = await getPage(root.href), rootData = parsePage(first.html, root.href, first.via);
     const isToride = /(^|\.)tkg36\.com$/i.test(root.hostname);
+    const isTsurumai = /(^|\.)tokyu-golf-resort\.com$/i.test(root.hostname) && /tsurumai/i.test(root.pathname);
     let queue = rootData.links.filter(x => /(course|layout|hole|コース|レイアウト|ホール|east|west|東|西)/i.test(x.title + " " + x.url));
     if (isToride) queue = [
       { title: "コース案内 東コース", url: new URL("/east.html", root).href },
       { title: "コース案内 西コース", url: new URL("/west.html", root).href }
+    ];
+    else if (isTsurumai) queue = [
+      { title: "鶴舞カントリー倶楽部 東コース", url: new URL("/tsurumai/course/", root).href },
+      { title: "鶴舞カントリー倶楽部 西コース", url: new URL("/tsurumai/course_w/", root).href }
     ];
     else queue = queue.slice(0, 8);
     const pages = [], visited = new Set([root.href]);
