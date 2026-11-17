@@ -1354,6 +1354,9 @@ document.getElementById("clubForm").addEventListener("submit",e=>{e.preventDefau
 
 document.getElementById("goalForm").addEventListener("submit",e=>{e.preventDefault();addTyped({type:"golf_goal",title:goalTitle.value.trim(),due:goalDue.value,metric:goalMetric.value.trim(),note:goalNote.value.trim(),done:false,date:todayISO()});e.target.reset();});
 /* Official golf course website lookup prototype. */
+document.getElementById("officialCourseSearch")?.addEventListener("click",officialCourseSearch);
+document.getElementById("officialCourseQuery")?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();officialCourseSearch();}});
+
 async function officialCourseSearch(){
  const url=String(document.getElementById("officialCourseQuery")?.value||"").trim(),out=document.getElementById("officialCourseResults"),box=document.getElementById("officialCourseMaps"),status=document.getElementById("officialCourseStatus");
  if(!url){status.textContent="公式サイトURLを入力してください。";return;}
