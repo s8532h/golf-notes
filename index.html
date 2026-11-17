@@ -1316,7 +1316,7 @@ function golfCoreCoverageLabel(value){
  return flags.length?flags.map(x=>labels[x]||x).join("・"):"マップ情報なし";
 }
 function golfCoreMapUrl(course,hole){
- const base=course?.app_url||course?.map_url||course?.url||"";
+ const base=course?.app_url||course?.map_url||"";
  if(!base)return "";
  try{const u=new URL(base);if(hole)u.searchParams.set("hole",String(hole));return u.toString();}catch{return "";}
 }
