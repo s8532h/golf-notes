@@ -1212,14 +1212,17 @@ function clubSortInfo(name){
  else if(/iron|アイアン|^[3-9]i|^pw$/.test(n)){type=3;const m=n.match(/[3-9]i/);number=m?Number(m[0][0]):(n==="pw"?10:99);label=number===10?"PW":number===99?name:number+"I";}
  return {type,number,label};
 }
+function sortClubNames(names){
+ return [...names].sort((a,b)=>{const x=clubSortInfo(a),y=clubSortInfo(b);return x.type-y.type||x.number-y.number||String(x.label).localeCompare(String(y.label),"ja");});
+}
 function recentShotsByClub(){
  const groups={};
  typed("shot_data").filter(x=>x.club&&x.carry!==null&&x.carry!==undefined&&x.carry!==""&&Number.isFinite(Number(x.carry))).forEach(x=>(groups[x.club]??=[]).push(x));
  Object.keys(groups).forEach(k=>groups[k]=groups[k].sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||String(b.updatedAt||"").localeCompare(String(a.updatedAt||""))).slice(0,50));
- return groups;
+ return Object.fromEntries(sortClubNames(Object.keys(groups)).map(k=>[k,groups[k]]));
 }
 function clubShotMapHtml(groups){
- const names=Object.keys(groups);if(!names.length)return "";
+ const names=sortClubNames(Object.keys(groups));if(!names.length)return "";
  const selected=names.includes(window.clubShotMapClub)?window.clubShotMapClub:names[0];window.clubShotMapClub=selected;
  const shots=groups[selected]||[],zoom=Math.max(1,Math.min(3,Number(window.clubShotMapZoom)||1));
  const withSide=shots.map((x,i)=>({...x,_idx:i,_side:Number.parseFloat(String(x.side??x.launchHorizontal??"").replace(/[^0-9+.-]/g,""))})).filter(x=>Number.isFinite(x._side));
@@ -1235,7 +1238,8 @@ function clubShotMapHtml(groups){
 function renderClubShotMapDetail(shot){
  const el=document.getElementById("clubShotPointDetail");if(!el)return;
  const fields=[["carry","キャリー","yd"],["total","トータル","yd"],["side","左右ブレ",""],["launchHorizontal","左右打ち出し角","°"],["headSpeed","ヘッドスピード",""],["clubSpeed","クラブスピード",""],["ballSpeed","ボールスピード",""],["faceAngle","フェース角","°"],["clubPath","クラブパス角","°"],["faceToPath","フェーストゥパス","°"],["attackAngle","アタックアングル","°"],["launchVertical","上下打ち出し角","°"],["smashFactor","スマッシュファクター",""],["backspin","バックスピン","rpm"],["sideSpin","サイドスピン","rpm"],["apex","最高到達点","ft"]];
- el.innerHTML='<div class="item" style="padding:10px"><b>'+esc(shot.club||"クラブ")+' ・ '+esc(shot.date||"日付未登録")+'</b><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px">'+fields.filter(([k])=>shot[k]!==null&&shot[k]!==undefined&&shot[k]!=="").map(([k,label,unit])=>'<div><b>'+esc(label)+'</b><div>'+esc(shot[k])+unit+'</div></div>').join("")+'</div>'+(shot.note?'<p>'+esc(shot.note)+'</p>':"")+'</div>';
+ const formatShotValue=(v)=>{if(v===null||v===undefined||v==="")return "—";const n=typeof v==="number"?v:Number(String(v).replace(/,/g,""));return Number.isFinite(n)?n.toFixed(1):String(v);};
+ el.innerHTML='<div class="item" style="padding:10px"><b>'+esc(shot.club||"クラブ")+' ・ '+esc(shot.date||"日付未登録")+'</b><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px">'+fields.filter(([k])=>shot[k]!==null&&shot[k]!==undefined&&shot[k]!=="").map(([k,label,unit])=>'<div><b>'+esc(label)+'</b><div>'+esc(formatShotValue(shot[k]))+unit+'</div></div>').join("")+'</div>'+(shot.note?'<p>'+esc(shot.note)+'</p>':"")+'</div>';
 }
 function renderClubAnalysis(){
  const root=document.getElementById("clubAnalysis");if(!root)return;
