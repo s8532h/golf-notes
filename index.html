@@ -1372,21 +1372,34 @@ async function officialCourseSearch(){
   status.textContent="東・西コースのホール情報を取得しました。追加したいコースを選んでください。";
  }catch(e){status.textContent="調査できませんでした："+e.message;}
 }
+function officialCourseIdentity(page){
+ const rootUrl=page.rootUrl||document.getElementById("officialCourseQuery")?.value||page.url;
+ let host="unknown";try{host=new URL(rootUrl).hostname.toLowerCase().replace(/^www\\./,"");}catch{}
+ const raw=String(page.rootTitle||page.siteTitle||"").replace(/<[^>]*>/g," ").trim();
+ const parts=raw.split(/[|｜]/).map(x=>x.replace(/【公式】|\\[公式\\]/g,"").trim()).filter(Boolean);
+ const siteName=parts.find(x=>/倶楽部|カントリー|ゴルフクラブ|ゴルフ場/.test(x))||parts.sort((a,b)=>b.length-a.length)[0]||host;
+ const section=String(page.title||"").trim();
+ const generic=/^(コース情報|コース|コースガイド|course|course guide)$/i.test(section);
+ const courseName=siteName+(generic?"":" "+section);
+ const slug="official-"+host+"-"+(generic?"main":section.toLowerCase().replace(/[^a-z0-9一-龯ぁ-んァ-ヶ]+/g,"-").replace(/^-|-$/g,"")||"course");
+ return {rootUrl,host,siteName,section,courseName,slug};
+}
 function importOfficialCourse(page){
  const holes=page.holes||[];
  if(holes.length<9){alert("ホール情報が不足しているため追加できません。");return;}
- const isWest=/west/i.test(page.url),courseName="取手国際ゴルフ倶楽部 "+(isWest?"西コース":"東コース"),tee=holes[0].tee||"REG";
- const existing=typed("course_note").filter(x=>x.course===courseName&&x.golfCoreTee===tee);
- if(existing.length&&!confirm(courseName+"（"+tee+"）の既存データを更新しますか？個人の攻略メモは引き継ぎます。"))return;
- const oldByHole=new Map(existing.map(x=>[Number(String(x.hole).replace(/\D/g,"")),x]));
+ const identity=officialCourseIdentity(page),tee=holes[0].tee||"未分類";
+ const existing=typed("course_note").filter(x=>x.golfCoreSlug===identity.slug&&(x.golfCoreTee||"未分類")===tee);
+ if(existing.length&&!confirm(identity.courseName+"（"+tee+"）の既存データを更新しますか？個人の攻略メモは引き継ぎます。"))return;
+ const oldByHole=new Map(existing.map(x=>[Number(String(x.hole).replace(/\\D/g,"")),x]));
+ const now=new Date().toISOString();
  holes.forEach(h=>{
   const old=oldByHole.get(Number(h.hole));
-  const rec={type:"course_note",course:courseName,golfCoreSlug:isWest?"tkg36-west":"tkg36-east",golfCoreTee:tee,hole:String(h.hole),par:h.par,strokeIndex:h.strokeIndex,golfCoreYards:h.yards,targetStrokes:h.par+1,officialCourseUrl:page.url,officialImageUrl:h.imageUrl||"",officialDescription:h.description||"",strategy:h.description||"",teeClub:old?.teeClub||"",teeAim:old?.teeAim||"",secondAim:old?.secondAim||"",approachAim:old?.approachAim||"",greenAim:old?.greenAim||"",personalMemo:old?.personalMemo||"",date:todayISO(),source:"official-site"};
-  if(old){Object.assign(old,rec,{id:old.id,updatedAt:new Date().toISOString()});}
-  else saved.unshift({id:makeId(),updatedAt:new Date().toISOString(),...rec});
+  const rec={type:"course_note",course:identity.courseName,golfCoreSlug:identity.slug,golfCoreTee:tee,hole:String(h.hole),par:h.par??null,strokeIndex:h.strokeIndex??null,golfCoreYards:h.yards??null,targetStrokes:h.par?Number(h.par)+1:null,officialCourseUrl:page.url,officialSiteUrl:identity.rootUrl,officialCourseMapUrl:page.layoutImageUrl||old?.officialCourseMapUrl||"",officialImageUrl:h.imageUrl||old?.officialImageUrl||"",officialDescription:h.description||"",strategy:h.description||old?.strategy||"",teeClub:old?.teeClub||"",teeAim:old?.teeAim||"",secondAim:old?.secondAim||"",approachAim:old?.approachAim||"",greenAim:old?.greenAim||"",personalMemo:old?.personalMemo||"",date:todayISO(),source:"official-site"};
+  if(old)Object.assign(old,rec,{id:old.id,updatedAt:now});
+  else saved.unshift({id:makeId(),updatedAt:now,...rec});
  });
  persistSaved();renderExtra();
- const status=document.getElementById("officialCourseStatus");if(status)status.textContent=courseName+"の"+holes.length+"ホールをコースブックに追加しました。個人の攻略メモは保持しています。";
+ const status=document.getElementById("officialCourseStatus");if(status)status.textContent=identity.courseName+"の"+holes.length+"ホールをコースブックに追加しました。既存コースとは別IDで保存し、個人の攻略メモは保持しています。";
 }
 function deleteSavedCourseBook(key){
  const records=saved.filter(x=>(x.type==="course_note"&&(x.golfCoreSlug||x.course)===key)||(x.type==="course_book_memo"&&(x.golfCoreSlug||x.course)===key));
