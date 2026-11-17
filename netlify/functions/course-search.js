@@ -93,6 +93,20 @@ function parseTokyuHoles(html,pageUrl,courseName){
  }
  return rows.sort((a,b)=>a.hole-b.hole);
 }
+function parseGenericHole(html,pageUrl,title){
+ const text=clean(html),m=(title+" "+pageUrl).match(/(east|west|東|西)[^/]*?(?:no\\.?\\s*|_|-)(\\d{1,2})/i)||text.match(/(east|west|東|西)\\s*no\\.?\\s*(\\d{1,2})/i);
+ if(!m)return [];
+ const hole=Number(m[2]);if(hole<1||hole>18)return [];
+ const par=Number((text.match(/PAR\\s*:?\\s*(\\d)/i)||[])[1]);
+ const hdcp=Number((text.match(/HDCP\\s*:?\\s*(\\d{1,2})/i)||[])[1]);
+ const getReg=(green)=>{const re=new RegExp(green+"\\\\s*GREEN[\\\\s\\\\S]{0,100}?REGULAR\\\\s*:?\\\\s*(\\\\d{2,4})","i");return Number((text.match(re)||[])[1])||null;};
+ const a=getReg("A"),b=getReg("B");
+ const dist=a||b;
+ if(!Number.isFinite(par)||!dist)return [];
+ const image=extractImages(html,pageUrl).find(x=>/(hole|course|layout|コース|ホール)/i.test(x.url+" "+x.alt))||extractImages(html,pageUrl)[0];
+ const feature=(text.match(/特徴\\s*:?\\s*([\\s\\S]{0,700}?)(?:PAR\\s*:?|HDCP\\s*:?|A\\s*GREEN|$)/i)||[])[1]||"";
+ return [{hole,par,strokeIndex:Number.isFinite(hdcp)?hdcp:null,yards:dist,tee:a?"REG（Aグリーン）":"REG（Bグリーン）",description:feature.trim(),imageUrl:image?.url||"",course:/west|西/i.test(m[1])?"西コース":"東コース",sourceUrl:pageUrl,greenDistances:{A:a,B:b}}];
+}
 function parsePage(html, pageUrl, via) {
   const page = new URL(pageUrl), title = clean((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || page.hostname);
   const links = [];
@@ -102,7 +116,7 @@ function parsePage(html, pageUrl, via) {
     const label = clean(m[2]);
     if (/(コース|レイアウト|ホール|course|layout|hole|east|west|東|西)/i.test(label + " " + u.pathname) && !links.some(x=>x.url===u.href)) links.push({ title: label || u.pathname, url: u.href });
   }
-  return { title, url: page.href, links, images: extractImages(html, page.href), holes: parseHoleData(html,page.href,title), via };
+  return { title, url: page.href, links, images: extractImages(html, page.href), holes: [...parseHoleData(html,page.href,title), ...parseGenericHole(html,page.href,title)], via };
 }
 exports.handler = async (event) => {
   try {
@@ -111,28 +125,40 @@ exports.handler = async (event) => {
     const root = new URL(raw);
     if (!["http:", "https:"].includes(root.protocol) || root.hostname === "localhost" || root.hostname.endsWith(".local") || /^\d{1,3}(\.\d{1,3}){3}$/.test(root.hostname)) throw new Error("このURLは確認できません");
     const first = await getPage(root.href), rootData = parsePage(first.html, root.href, first.via);
-    const isToride = /(^|\.)tkg36\.com$/i.test(root.hostname);
-    const isTsurumai = /(^|\.)tokyu-golf-resort\.com$/i.test(root.hostname) && /tsurumai/i.test(root.pathname);
-    let queue = rootData.links.filter(x => /(course|layout|hole|コース|レイアウト|ホール|east|west|東|西)/i.test(x.title + " " + x.url));
-    if (isToride) queue = [
-      { title: "コース案内 東コース", url: new URL("/east.html", root).href },
-      { title: "コース案内 西コース", url: new URL("/west.html", root).href }
-    ];
-    else if (isTsurumai) queue = [
-      { title: "鶴舞カントリー倶楽部 東コース", url: new URL("/tsurumai/course/", root).href },
-      { title: "鶴舞カントリー倶楽部 西コース", url: new URL("/tsurumai/course_w/", root).href }
-    ];
-    else queue = queue.slice(0, 8);
     const pages = [], visited = new Set([root.href]);
-    for (const item of queue) {
-      if (visited.has(item.url)) continue;
-      visited.add(item.url);
-      try {
-        const fetched = await getPage(item.url), data = parsePage(fetched.html, item.url, fetched.via);
-        pages.push(data);
-      } catch (e) { pages.push({ title: item.title, url: item.url, links: [], images: [], holes: [], error: e.message }); }
+    const rootHost=root.hostname.replace(/^www\\./,"");
+    const queue=rootData.links.map(x=>({...x,depth:1}));
+    const rawPages=[];
+    while(queue.length&&visited.size<55){
+      const item=queue.shift();if(visited.has(item.url))continue;
+      const u=safeUrl(item.url,root.href);if(!u||u.hostname.replace(/^www\\./,"")!==rootHost)continue;
+      visited.add(u.href);
+      try{
+        const fetched=await getPage(u.href),data=parsePage(fetched.html,u.href,fetched.via);
+        rawPages.push(data);
+        if(item.depth<3){
+          const children=data.links
+            .filter(x=>/(course|layout|hole|コース|レイアウト|ホール|east|west|東|西|no[._-]?\\d)/i.test(x.title+" "+x.url))
+            .sort((a,b)=>Number(/no[._-]?\\d+/i.test(b.url))-Number(/no[._-]?\\d+/i.test(a.url)));
+          for(const child of children)if(!visited.has(child.url)&&queue.length<80)queue.push({...child,depth:item.depth+1});
+        }
+      }catch(e){rawPages.push({title:item.title,url:item.url,links:[],images:[],holes:[],error:e.message});}
     }
-    const allImages = pages.flatMap(p => p.images.map(im => ({ ...im, pageTitle: p.title, pageUrl: p.url })));
-    return { statusCode: 200, headers, body: JSON.stringify({ root: root.href, rootTitle: rootData.title, pages, images: allImages, scannedPages: pages.length + 1, sourceMode: [...new Set([first.via,...pages.map(p=>p.via).filter(Boolean)])] }) };
+    // Group single-hole detail pages into course books. Keep existing 9/18-hole UI contract.
+    const grouped=new Map();
+    for(const p of rawPages){
+      for(const h of (p.holes||[])){
+        const key=h.course||((p.title.match(/(東|西|East|West)/i)||[])[1]||"コース")+"コース";
+        if(!grouped.has(key))grouped.set(key,{title:key,url:p.url,links:[],images:[],holes:[],via:p.via});
+        const g=grouped.get(key);
+        if(!g.holes.some(x=>Number(x.hole)===Number(h.hole)))g.holes.push(h);
+        g.images.push(...p.images);
+      }
+    }
+    for(const g of grouped.values()){g.holes.sort((a,b)=>a.hole-b.hole);pages.push(g);}
+    // Retain full course guide pages that expose a valid 9+ hole table.
+    for(const p of rawPages)if((p.holes||[]).length>=9&&!pages.some(g=>g.url===p.url))pages.push(p);
+    const allImages = rawPages.flatMap(p => p.images.map(im => ({ ...im, pageTitle: p.title, pageUrl: p.url })));
+    return { statusCode: 200, headers, body: JSON.stringify({ root: root.href, rootTitle: rootData.title, pages, images: allImages, scannedPages: visited.size, sourceMode: [...new Set([first.via,...pages.map(p=>p.via).filter(Boolean)])] }) };
   } catch (e) { return { statusCode: 502, headers, body: JSON.stringify({ error: e.message || "サイトを調査できませんでした" }) }; }
 };
