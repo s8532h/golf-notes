@@ -61,6 +61,14 @@ function parseHoleData(html, pageUrl, courseName) {
     const imgs = extractImages(block, pageUrl);
     details.set(hole, { description: desc, imageUrl: imgs[0]?.url || "" });
   }
+  const mdHeads=[...html.matchAll(/^#{2,6}\s*HOLE\s*(\d+)\s*$/gim)];
+  for(let i=0;i<mdHeads.length;i++){
+    const hole=Number(mdHeads[i][1]),start=mdHeads[i].index+mdHeads[i][0].length,end=mdHeads[i+1]?.index??html.length;
+    const block=html.slice(start,end);
+    const desc=block.split(/\r?\n/).map(x=>x.replace(/^\s*[-*]\s*/,"").trim()).filter(x=>x&&!x.startsWith("|")&&!/^PAR\s*:|^HDCP\s*:/i.test(x)&&!/^!\[/.test(x)).join(" ").slice(0,900);
+    const im=(block.match(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)/)||[])[1]||"";
+    if(!details.has(hole))details.set(hole,{description:desc,imageUrl:im});
+  }
   return rows.map(r => ({ ...r, ...details.get(r.hole), course: courseName, sourceUrl: pageUrl }));
 }
 function parsePage(html, pageUrl, via) {
