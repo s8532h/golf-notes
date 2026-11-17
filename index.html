@@ -1406,8 +1406,8 @@ function golfCoreStrategyForHole(hole,tee,course){
  const groups=recentShotsByClub(),clubs=Object.entries(groups).map(([name,shots])=>({name,carry:safeMean(shots.map(x=>Number(x.carry)).filter(Number.isFinite)),total:safeMean(shots.map(x=>Number(x.total)).filter(Number.isFinite)),n:shots.length})).filter(x=>x.carry>0);
  const byDistance=(distance)=>clubs.filter(x=>x.carry<=distance+5).sort((a,b)=>b.carry-a.carry)[0]||null;
  const driver=clubs.filter(x=>/driver|1w|ドライバー/i.test(x.name)).sort((a,b)=>b.carry-a.carry)[0];
- const tee=par===3?(byDistance(yards)||clubs.filter(x=>x.carry>=yards*.85).sort((a,b)=>Math.abs(a.carry-yards)-Math.abs(b.carry-yards))[0]):driver;
- const teeClub=tee||clubs.slice().sort((a,b)=>b.carry-a.carry)[0]||null;
+ const chosenTee=par===3?(byDistance(yards)||clubs.filter(x=>x.carry>=yards*.85).sort((a,b)=>Math.abs(a.carry-yards)-Math.abs(b.carry-yards))[0]):driver;
+ const teeClub=chosenTee||clubs.slice().sort((a,b)=>b.carry-a.carry)[0]||null;
  const teeDistance=teeClub?.carry||0,remaining=Math.max(0,yards-teeDistance);
  const second=par===3?null:byDistance(remaining);
  const secondRemain=second?Math.max(0,remaining-second.carry):remaining;
