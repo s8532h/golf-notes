@@ -67,6 +67,22 @@ function parseHoleData(html, pageUrl, courseName) {
     const im=(block.match(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)/)||[])[1]||"";
     if(!details.has(hole))details.set(hole,{description:desc,imageUrl:im});
   }
+  // Generic detail-page parser: common Japanese course pages expose
+  // "East No.1 / PAR / HDCP / A GREEN / B GREEN" as labeled content, not a table.
+  const pageText=clean(html);
+  const titleMatch=(courseName+" "+pageUrl).match(/\b(East|West)\s*No\.?\s*(\d{1,2})\b/i)||pageText.match(/\b(East|West)\s*No\.?\s*(\d{1,2})\b/i);
+  if(titleMatch){
+    const hole=Number(titleMatch[2]);
+    const parMatch=pageText.match(/\bPAR\s*:?\s*(\d{1,2})\b/i);
+    const hdcpMatch=pageText.match(/\bHDCP\s*:?\s*(\d{1,2})\b/i);
+    const green=(name)=>{const re=new RegExp(name+"\\\\s*GREEN[\\\\s\\\\S]{0,160}?REGULAR\\\\s*:?\\\\s*(\\\\d{2,4})","i");return Number((pageText.match(re)||[])[1])||null;};
+    const a=green("A"),b=green("B");
+    if(hole>=1&&hole<=18&&parMatch&&(a||b)&&!rows.some(x=>x.hole===hole)){
+      const featureMatch=pageText.match(/特徴\\s*([\\s\\S]{0,700}?)(?:PAR\\s*:?\\s*\\d|HDCP\\s*:?\\s*\\d)/i);
+      const imgs=extractImages(html,pageUrl);
+      rows.push({hole,par:Number(parMatch[1]),strokeIndex:hdcpMatch?Number(hdcpMatch[1]):null,yards:a||b,tee:a?"REG（Aグリーン）":"REG（Bグリーン）",description:featureMatch?featureMatch[1].trim():"",imageUrl:imgs[0]?.url||"",greenDistances:{A:a,B:b},course:titleMatch[1].toLowerCase()==="east"?"東コース":"西コース"});
+    }
+  }
   return rows.map(r => ({ ...r, ...details.get(r.hole), course: courseName, sourceUrl: pageUrl }));
 }
 function parsePage(html, pageUrl, via) {
