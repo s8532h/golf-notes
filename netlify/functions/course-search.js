@@ -90,6 +90,40 @@ function parseHoleData(html, pageUrl, courseName) {
   }
   return rows.map(r => ({ ...r, ...details.get(r.hole), course: courseName, sourceUrl: pageUrl }));
 }
+function parseAnegasakiTables(html,pageUrl,courseName){
+ const rows=[];
+ const lines=html.split(/\r?\n/).map(line=>line.trim()).filter(line=>line.includes("|"));
+ for(let i=0;i<lines.length;i++){
+  if(!/^\|?\s*HOLE\s*\|\s*PAR\s*\|\s*GREEN\s*\|/i.test(lines[i]))continue;
+  const block=lines.slice(i,Math.min(lines.length,i+12)).map(line=>line.split("|").map(x=>clean(x).replace(/^【\d+†|】$/g,"").trim()));
+  const holeRow=block.find(r=>/^HOLE$/i.test(r[0]||"")&&r.slice(1).some(x=>/No\.?\s*\d+/i.test(x)));
+  const parRow=block.find(r=>/^PAR$/i.test(r[0]||""));
+  const greenRow=block.find(r=>/^GREEN$/i.test(r[0]||""));
+  if(!holeRow||!parRow||!greenRow)continue;
+  const holes=holeRow.slice(1).map(x=>Number((x.match(/\d+/)||[])[0])).filter(n=>n>=1&&n<=18);
+  if(holes.length<6)continue;
+  const greenByHole=holes.map((_,j)=>String(greenRow[1+j*2]||"A").toUpperCase().includes("B")?"B":"A");
+  const parByHole=holes.map((_,j)=>Number(parRow[j+1])||null);
+  const teeRows=block.filter(r=>/^(BACK TEE|REGULAR TEE|FRONT TEE 1|FRONT TEE 2)$/i.test(r[0]||""));
+  const teeMap={};
+  for(const r of teeRows){
+   const label=r[0].toUpperCase().replace(/\s+/g," ").trim();
+   const key=label==="BACK TEE"?"BACK":label==="REGULAR TEE"?"REGULAR":label==="FRONT TEE 1"?"FRONT1":"FRONT2";
+   holes.forEach((hole,j)=>{
+    const a=Number((r[1+j*2]||"").replace(/,/g,""))||null,b=Number((r[2+j*2]||"").replace(/,/g,""))||null;
+    if(a)teeMap[key+"_A"]??=[]; if(b)teeMap[key+"_B"]??=[];
+    if(a)teeMap[key+"_A"][j]=a;if(b)teeMap[key+"_B"][j]=b;
+   });
+  }
+  holes.forEach((hole,j)=>{
+   const teeDistances={};
+   Object.entries(teeMap).forEach(([key,vals])=>{if(vals[j])teeDistances[key]=vals[j];});
+   if(!parByHole[j]||!Object.keys(teeDistances).length)return;
+   rows.push({hole,par:parByHole[j],strokeIndex:null,yards:teeDistances.REGULAR_A||teeDistances.REGULAR_B||teeDistances.BACK_A||null,tee:"REGULAR_A",teeDistances,green:greenByHole[j],course:/west|西/i.test(courseName+" "+pageUrl)?"西コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":"",sourceUrl:pageUrl});
+  });
+ }
+ return rows;
+}
 function parseMatrixTables(html,pageUrl,courseName){
  const rows=[];
  for(const mt of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
@@ -195,7 +229,7 @@ function parsePage(html, pageUrl, via) {
     const label = clean(m[2]) + " " + clean((m[2].match(/<img\b[^>]*alt=["]([^"]*)/i)||[])[1]||"");
     if (/(コース|レイアウト|ホール|course|layout|hole|east|west|south|north|東|西|南|北|no[._-]?[0-9]+|\/[0-9]+\.html|course_[a-z0-9]+)/i.test(label + " " + u.pathname) && !links.some(x=>x.url===u.href)) links.push({ title: label || u.pathname, url: u.href });
   }
-  return { title, url: page.href, links, images: extractImages(html, page.href), holes: [...parseMatrixTables(html,page.href,title),...parseLabeledHoles(html,page.href,title),...parseHoleData(html,page.href,title)].filter((x,i,a)=>a.findIndex(y=>y.hole===x.hole)===i), via };
+  return { title, url: page.href, links, images: extractImages(html, page.href), holes: [...parseAnegasakiTables(html,page.href,title),...parseMatrixTables(html,page.href,title),...parseLabeledHoles(html,page.href,title),...parseHoleData(html,page.href,title)].filter((x,i,a)=>a.findIndex(y=>y.hole===x.hole)===i), via };
 }
 exports.handler = async (event) => {
   try {
