@@ -1274,7 +1274,8 @@ function uniqueCourseRows(rows){
 function bindCourseBookHoleControls(book,bookIndex){
  if(!book)return;
  const select=book.querySelector("[data-tee]");
- const rows=uniqueCourseRows(typed("course_note").filter(x=>(x.golfCoreSlug||x.course)===book.dataset.courseKey&&canonicalCourseTee(x)===select?.value));
+ const allCourseRows=typed("course_note").filter(x=>(x.golfCoreSlug||x.course)===book.dataset.courseKey);
+ const rows=uniqueCourseRows(allCourseRows.filter(x=>canonicalCourseTee(x)===select?.value));
  book.querySelectorAll("[data-hole-step]").forEach(btn=>btn.onclick=()=>{
   if(!rows.length)return;
   const current=courseHoleNumber({hole:book.dataset.currentHole||rows[0].hole},0);
@@ -1290,9 +1291,12 @@ function bindCourseBookHoleControls(book,bookIndex){
  book.querySelectorAll("[data-save-hole-plan]").forEach(btn=>btn.onclick=()=>{
   const id=btn.dataset.saveHolePlan,record=saved.find(x=>x.id===id);
   if(!record)return;
-  book.querySelectorAll('[data-hole-record="'+id+'"]').forEach(field=>{record[field.dataset.holeField]=field.value;});
-  record.updatedAt=new Date().toISOString();persistSaved();
-  const status=book.querySelector('[data-hole-plan-status="'+id+'"]');if(status)status.textContent=" 保存しました";
+  const hole=courseHoleNumber(record),siblings=allCourseRows.filter(x=>courseHoleNumber(x)===hole);
+  book.querySelectorAll('[data-hole-record="'+id+'"]').forEach(field=>{
+   siblings.forEach(target=>{target[field.dataset.holeField]=field.value;target.updatedAt=new Date().toISOString();});
+  });
+  persistSaved();
+  const status=book.querySelector('[data-hole-plan-status="'+id+'"]');if(status)status.textContent=" 保存しました（全ティー共通）";
  });
 }
 function renderCourseBookTee(bookIndex,tee){
@@ -1300,7 +1304,13 @@ function renderCourseBookTee(bookIndex,tee){
  const courseKey=book.dataset.courseKey,rows=uniqueCourseRows(typed("course_note").filter(x=>(x.golfCoreSlug||x.course)===courseKey&&canonicalCourseTee(x)===tee));
  const total=key=>rows.reduce((a,x)=>a+(Number(x[key])||0),0);
  book.querySelector('[data-card="'+bookIndex+'"]').innerHTML=courseTable(rows);
- book.querySelector('[data-holes="'+bookIndex+'"]').innerHTML=courseDetails(rows,book.dataset.currentHole||rows[0]?.hole);
+ const allRows=uniqueCourseRows(typed("course_note").filter(x=>(x.golfCoreSlug||x.course)===courseKey));
+ const sharedRows=rows.map(row=>{
+  const siblings=allRows.filter(x=>courseHoleNumber(x)===courseHoleNumber(row));
+  const shared=siblings.find(x=>x.officialImageUrl||x.officialDescription||x.officialCourseMapUrl||x.teeAim||x.secondAim||x.approachAim||x.greenAim||x.personalMemo)||siblings[0]||row;
+  return {...shared,...row,officialImageUrl:shared.officialImageUrl||row.officialImageUrl,officialDescription:shared.officialDescription||row.officialDescription,officialCourseMapUrl:shared.officialCourseMapUrl||row.officialCourseMapUrl,teeAim:shared.teeAim||row.teeAim,secondAim:shared.secondAim||row.secondAim,approachAim:shared.approachAim||row.approachAim,greenAim:shared.greenAim||row.greenAim,personalMemo:shared.personalMemo||row.personalMemo};
+ });
+ book.querySelector('[data-holes="'+bookIndex+'"]').innerHTML=courseDetails(sharedRows,book.dataset.currentHole||sharedRows[0]?.hole);
  bindCourseBookHoleControls(book,bookIndex);
  book.querySelectorAll("[data-extra-delete]").forEach(b=>b.onclick=()=>removeTyped(b.dataset.extraDelete));
 }
