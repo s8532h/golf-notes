@@ -33,7 +33,7 @@ function parseHoleData(html, pageUrl, courseName) {
     const distances = cells.slice(3).map(x => Number((x.match(/\d{2,4}/) || [])[0])).filter(Number.isFinite);
     if (!distances.length) continue;
     // Generic fallback: do not infer tee labels from a course-specific URL.
-    rows.push({ hole, par, strokeIndex: hdcp, yards: distances[0], tee: "掲載順1番目" });
+    rows.push({ hole, par, strokeIndex: hdcp, yards: distances[0], tee: "未分類", teeDistances: {} });
   }
   // Reader-proxy fallback often returns Markdown tables instead of HTML.
   for (const line of html.split(/\r?\n/)) {
@@ -44,7 +44,7 @@ function parseHoleData(html, pageUrl, courseName) {
     const nums=cells.slice(cells[1]&&/^\d+$/.test(cells[1])?4:3).map(x=>Number((x.match(/\d{2,4}/)||[])[0])).filter(Number.isFinite);
     if(!nums.length)continue;
     const yards=nums[0];
-    if(!rows.some(x=>x.hole===hole))rows.push({hole,par,strokeIndex:hdcp,yards,tee:"掲載順1番目"});
+    if(!rows.some(x=>x.hole===hole))rows.push({hole,par,strokeIndex:hdcp,yards,tee:"未分類",teeDistances:{}});
   }
   const details = new Map();
   const headingRe = /<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi;
@@ -89,17 +89,44 @@ function parseMatrixTables(html,pageUrl,courseName){
  const rows=[];
  for(const mt of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
   const trs=[...mt[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>clean(x[1])));
+  if(!trs.length)continue;
+  // Horizontal official scorecards: HOLE | 1..9, then PAR / HDCP / BACK / REG / FRONT / LADY.
+  const hrow=trs.find(r=>/^HOLE$/i.test((r[0]||"").trim())&&r.slice(1).filter(x=>/^(?:[1-9]|1[0-8])$/.test(x.trim())).length>=6);
+  if(hrow){
+   const holeNums=hrow.slice(1).map(x=>Number(x.trim()));
+   const vals={};
+   for(const row of trs){
+    const label=(row[0]||"").toUpperCase().replace(/\s+/g," ").trim();
+    const key=/^PAR\b/.test(label)?"par":/^(?:HDCP|H[.]?D[.]?C[.]?P)\b/.test(label)?"hdcp":/^BACK\b/.test(label)?"BACK":/^REG(?:ULAR)?\b/.test(label)?"REGULAR":/^FRONT\b/.test(label)?"FRONT":/^(?:LADY|LADIES)\b/.test(label)?"LADY":null;
+    if(key)vals[key]=row.slice(1).map(x=>Number((x.match(/\d{1,4}/)||[])[0])||null);
+   }
+   if(vals.par){
+    holeNums.forEach((hole,i)=>{
+     const par=vals.par[i];if(!hole||!par||par<3||par>5)return;
+     const teeDistances={BACK:vals.BACK?.[i]||null,REGULAR:vals.REGULAR?.[i]||null,FRONT:vals.FRONT?.[i]||null,LADY:vals.LADY?.[i]||null};
+     const primary=teeDistances.REGULAR||teeDistances.FRONT||teeDistances.BACK||teeDistances.LADY;
+     rows.push({hole,par,strokeIndex:vals.hdcp?.[i]||null,yards:primary,tee:"REGULAR",teeDistances,course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});
+    });
+   }
+   continue;
+  }
+  // Vertical tables: one hole per row with tee columns.
   let header=-1,holes=[];
   for(let i=0;i<trs.length;i++){const ns=trs[i].map(x=>Number(x.trim())).filter(n=>Number.isInteger(n)&&n>=1&&n<=18);if(ns.length>=6){header=i;holes=ns;break;}}
   if(header<0)continue;
   const v={};
   for(const row of trs.slice(header+1)){
    const label=(row[0]||"").toLowerCase().replace(/\s/g,"");
-   const key=/^par/.test(label)?"par":/hdcp|ハンディ/.test(label)?"hdcp":/black|back|champion|bt/.test(label)?"back":/blue|regular|reg|white|rgt/.test(label)?"regular":/gold|senior/.test(label)?"gold":/red|ladies|lady/.test(label)?"red":null;
+   const key=/^par/.test(label)?"par":/hdcp|ハンディ/.test(label)?"hdcp":/black|back|champion|bt/.test(label)?"BACK":/front/.test(label)?"FRONT":/blue|regular|reg|white|rgt/.test(label)?"REGULAR":/gold|senior/.test(label)?"GOLD":/red|ladies|lady/.test(label)?"LADY":null;
    if(key)v[key]=row.slice(1).map(x=>Number((x.match(/\d{1,4}/)||[])[0])||null);
   }
   if(!v.par)continue;
-  holes.forEach((hole,i)=>{const par=v.par[i];if(!par||par<3||par>5)return;const reg=v.regular?.[i]||null,back=v.back?.[i]||null,gold=v.gold?.[i]||null,red=v.red?.[i]||null;rows.push({hole,par,strokeIndex:v.hdcp?.[i]||null,yards:reg||back||gold||red,tee:reg?"REGULAR":back?"BACK":"未取得",teeDistances:{BACK:back,REGULAR:reg,GOLD:gold,RED:red},course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});});
+  holes.forEach((hole,i)=>{
+   const par=v.par[i];if(!par||par<3||par>5)return;
+   const teeDistances={BACK:v.BACK?.[i]||null,REGULAR:v.REGULAR?.[i]||null,FRONT:v.FRONT?.[i]||null,GOLD:v.GOLD?.[i]||null,LADY:v.LADY?.[i]||null};
+   const primary=teeDistances.REGULAR||teeDistances.FRONT||teeDistances.BACK||teeDistances.GOLD||teeDistances.LADY;
+   rows.push({hole,par,strokeIndex:v.hdcp?.[i]||null,yards:primary,tee:"REGULAR",teeDistances,course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});
+  });
  }
  return rows;
 }
