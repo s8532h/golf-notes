@@ -1260,12 +1260,37 @@ function uniqueCourseRows(rows){
  });
  return [...map.values()].sort((a,b)=>courseHoleNumber(a)-courseHoleNumber(b));
 }
+function bindCourseBookHoleControls(book,bookIndex){
+ if(!book)return;
+ const select=book.querySelector("[data-tee]");
+ const rows=uniqueCourseRows(typed("course_note").filter(x=>(x.golfCoreSlug||x.course)===book.dataset.courseKey&&(x.golfCoreTee||"ティー未登録")===select?.value));
+ book.querySelectorAll("[data-hole-step]").forEach(btn=>btn.onclick=()=>{
+  if(!rows.length)return;
+  const current=courseHoleNumber({hole:book.dataset.currentHole||rows[0].hole},0);
+  const idx=rows.findIndex((x,i)=>courseHoleNumber(x,i)===current);
+  const next=(Math.max(0,idx)+Number(btn.dataset.holeStep)+rows.length)%rows.length;
+  book.dataset.currentHole=String(rows[next].hole);
+  renderCourseBookTee(bookIndex,select.value);
+ });
+ book.querySelectorAll("[data-pick-hole]").forEach(btn=>btn.onclick=()=>{
+  book.dataset.currentHole=String(btn.dataset.pickHole);
+  renderCourseBookTee(bookIndex,select.value);
+ });
+ book.querySelectorAll("[data-save-hole-plan]").forEach(btn=>btn.onclick=()=>{
+  const id=btn.dataset.saveHolePlan,record=saved.find(x=>x.id===id);
+  if(!record)return;
+  book.querySelectorAll('[data-hole-record="'+id+'"]').forEach(field=>{record[field.dataset.holeField]=field.value;});
+  record.updatedAt=new Date().toISOString();persistSaved();
+  const status=book.querySelector('[data-hole-plan-status="'+id+'"]');if(status)status.textContent=" 保存しました";
+ });
+}
 function renderCourseBookTee(bookIndex,tee){
  const book=document.querySelectorAll(".course-book")[bookIndex];if(!book)return;
  const courseKey=book.dataset.courseKey,rows=uniqueCourseRows(typed("course_note").filter(x=>(x.golfCoreSlug||x.course)===courseKey&&(x.golfCoreTee||"ティー未登録")===tee));
  const total=key=>rows.reduce((a,x)=>a+(Number(x[key])||0),0);
  book.querySelector('[data-card="'+bookIndex+'"]').innerHTML=courseTable(rows);
  book.querySelector('[data-holes="'+bookIndex+'"]').innerHTML=courseDetails(rows,book.dataset.currentHole||rows[0]?.hole);
+ bindCourseBookHoleControls(book,bookIndex);
  book.querySelectorAll("[data-extra-delete]").forEach(b=>b.onclick=()=>removeTyped(b.dataset.extraDelete));
 }
 function courseHoleNumber(x,i){const m=String(x.hole||"").match(/\d+/);return Number(m?.[0]||i+1);}
@@ -1283,7 +1308,7 @@ function courseTable(arr){
  return '<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Hole</th><th>Par</th><th>距離</th><th>HDCP</th><th>目標</th></tr></thead><tbody>'+body+'</tbody></table></div>';
 }
 function courseDetails(arr,selected){
- const n=arr.find(x=>x.hole===selected)||arr[0];if(!n)return '<p class="empty">ホールデータがありません。</p>';
+ const n=arr.find((x,i)=>courseHoleNumber(x,i)===courseHoleNumber({hole:selected},0))||arr[0];if(!n)return '<p class="empty">ホールデータがありません。</p>';
  const field=(key,label,placeholder,rows=2)=>'<label class="small" style="display:block;margin-top:9px">'+label+'</label><textarea rows="'+rows+'" data-hole-field="'+key+'" data-hole-record="'+esc(n.id)+'" placeholder="'+placeholder+'">'+esc(n[key]||"")+'</textarea>';
  return '<div style="border-top:1px solid var(--line);padding:12px 0"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><button class="chip" type="button" data-hole-step="-1">‹ 前</button><b>'+courseHoleLabel(n,0)+'　Par '+(n.par??"—")+' ・ '+(n.golfCoreYards??"—")+'yd ・ HDCP '+(n.strokeIndex??"—")+' / 目標'+(n.targetStrokes??"—")+'打</b><button class="chip" type="button" data-hole-step="1">次 ›</button></div>'+
  (n.officialImageUrl?'<img src="'+esc(n.officialImageUrl)+'" alt="'+courseHoleLabel(n,0)+' 公式コース画像" loading="lazy" style="width:100%;max-height:260px;object-fit:contain;margin-top:10px;border-radius:10px;background:#f3f4ee">':"")+
