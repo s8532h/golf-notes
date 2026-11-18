@@ -1252,7 +1252,11 @@ function canonicalCourseTee(record){
  if(tee==="掲載順1番目"&&/取手国際/.test(String(record?.course||"")))return "BACK";
  return tee||"ティー未登録";
 }
-function courseTeeLabel(t){return ({BACK:"バックティー",REGULAR:"レギュラーティー",FRONT:"フロントティー",LADY:"レディースティー","掲載順1番目":"ティー情報を再取得してください","未分類":"ティー情報を再取得してください"})[t]||t;}
+function courseTeeLabel(t){
+ const labels={BACK:"バックティー",REGULAR:"レギュラーティー",FRONT:"フロントティー",FRONT1:"フロント1",FRONT2:"フロント2",LADY:"レディースティー","掲載順1番目":"旧データ（未分類）","未分類":"未分類"};
+ const m=String(t||"").match(/^(BACK|REGULAR|FRONT1|FRONT2|FRONT|LADY)_([AB])$/);
+ return m?labels[m[1]]+"（"+m[2]+"グリーン）":labels[t]||String(t||"未分類");
+}
 function isLikelyCourseMap(url){
  const value=String(url||"").toLowerCase();
  if(!value)return false;
@@ -1443,16 +1447,15 @@ function importOfficialCourse(page){
  const holes=page.holes||[];
  if(holes.length<9){alert("ホール情報が不足しているため追加できません。");return;}
  const identity=officialCourseIdentity(page);
- const teeLabels=[["BACK","BACK"],["REGULAR","REGULAR"],["FRONT","FRONT"],["LADY","LADY"]];
  const now=new Date().toISOString(),existing=typed("course_note").filter(x=>x.golfCoreSlug===identity.slug||String(x.course||"").trim()===identity.courseName);
  let added=0,updated=0;
  for(const h of holes){
   const distances=h.teeDistances||{};
-  const available=teeLabels.filter(([key])=>Number(distances[key])>0);
-  const teeRows=available.length?available.map(([key,label])=>({tee:label,yards:Number(distances[key])})):[{tee:h.tee||"未分類",yards:Number(h.yards)||null}];
-  for(const t of teeRows){
-   const old=existing.find(x=>Number(String(x.hole).replace(/\D/g,""))===Number(h.hole)&&(canonicalCourseTee(x)===t.tee||(t.tee==="BACK"&&(x.golfCoreTee||"")==="掲載順1番目")));
-   const rec={type:"course_note",course:identity.courseName,golfCoreSlug:identity.slug,golfCoreTee:t.tee,hole:String(h.hole),par:h.par??null,strokeIndex:h.strokeIndex??null,golfCoreYards:t.yards,targetStrokes:h.par?Number(h.par)+1:null,officialCourseUrl:page.url,officialSiteUrl:identity.rootUrl,officialCourseMapUrl:page.layoutImageUrl||old?.officialCourseMapUrl||"",officialImageUrl:h.imageUrl||old?.officialImageUrl||"",officialDescription:h.description||old?.officialDescription||"",strategy:old?.strategy||h.description||"",teeClub:old?.teeClub||"",teeAim:old?.teeAim||"",secondAim:old?.secondAim||"",approachAim:old?.approachAim||"",greenAim:old?.greenAim||"",personalMemo:old?.personalMemo||"",date:todayISO(),source:"official-site"};
+  const teeRows=Object.entries(distances).filter(([key,value])=>Number(value)>0).map(([key,value])=>({tee:key,yards:Number(value)}));
+  if(!teeRows.length&&Number(h.yards)>0)teeRows.push({tee:h.tee||"未分類",yards:Number(h.yards)});
+  for(const teeRow of teeRows){
+   const old=existing.find(x=>Number(String(x.hole).replace(/\\D/g,""))===Number(h.hole)&&canonicalCourseTee(x)===teeRow.tee);
+   const rec={type:"course_note",course:identity.courseName,golfCoreSlug:identity.slug,golfCoreTee:teeRow.tee,hole:String(h.hole),par:h.par??null,strokeIndex:h.strokeIndex??null,golfCoreYards:teeRow.yards,targetStrokes:h.par?Number(h.par)+1:null,officialCourseUrl:page.url,officialSiteUrl:identity.rootUrl,officialCourseMapUrl:h.imageUrl||h.layoutImageUrl||old?.officialCourseMapUrl||"",officialImageUrl:old?.officialImageUrl||"",officialDescription:h.description||old?.officialDescription||"",strategy:old?.strategy||h.description||"",teeClub:old?.teeClub||"",teeAim:old?.teeAim||"",secondAim:old?.secondAim||"",approachAim:old?.approachAim||"",greenAim:old?.greenAim||"",personalMemo:old?.personalMemo||"",date:todayISO(),source:"official-site",green:h.green||old?.green||""};
    if(old){Object.assign(old,rec,{id:old.id,updatedAt:now});updated++;}
    else{const fresh={id:makeId(),updatedAt:now,...rec};saved.unshift(fresh);existing.push(fresh);added++;}
   }
