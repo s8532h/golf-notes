@@ -158,12 +158,19 @@ function parseLabeledHoles(html,pageUrl,courseName){
   ];
   const positions=labels.map(([key,re])=>({key,index:text.search(re)})).filter(x=>x.index>=0).sort((a,b)=>a.index-b.index);
   const teeDistances={BACK:null,REGULAR:null,FRONT:null,LADY:null};
-  // Extract a yardage from the text immediately following each tee label.
+  // First support label/value pairs, then the common official-site format
+  // where all tee labels are followed by a compact sequence of yardages.
   for(let i=0;i<positions.length;i++){
    const p=positions[i],end=positions[i+1]?.index??Math.min(text.length,p.index+90);
    const segment=text.slice(p.index,end);
    const nums=[...segment.matchAll(/\b(\d{2,4})\b/g)].map(x=>Number(x[1])).filter(n=>n>=80&&n<=850);
    if(nums.length)teeDistances[p.key]=nums[0];
+  }
+  if(positions.length>=2&&Object.values(teeDistances).filter(Boolean).length<2){
+   const tail=text.slice(positions[positions.length-1].index,Math.min(text.length,positions[positions.length-1].index+180));
+   const nums=[...tail.matchAll(/\b(\d{2,4})\s*y?\b/gi)].map(x=>Number(x[1])).filter(n=>n>=80&&n<=850);
+   const ordered=positions.map(x=>x.key);
+   if(nums.length>=2)ordered.forEach((key,i)=>{if(nums[i])teeDistances[key]=nums[i];});
   }
   const par=Number((text.match(/\bPAR\s*:?\s*([3-5])\b/i)||[])[1])||null;
   const strokeIndex=Number((text.match(/\bHDCP\s*:?\s*(\d{1,2})\b/i)||[])[1])||null;
