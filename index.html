@@ -1261,7 +1261,7 @@ function isLikelyCourseMap(url){
  const value=String(url||"").toLowerCase();
  if(!value)return false;
  if(/banner|bnr|logo|header|renew|campaign|recruit|mainvisual|mv\b|favicon|icon/.test(value))return false;
- return /(course.?map|layout|hole.?map|yardage|course.?guide|hole|\bmap\b|コース図|レイアウト|ホール)/i.test(value);
+ return /(course.?map|coursedetail|layout|hole.?map|yardage|course.?guide|hole|\bmap\b|コース図|レイアウト|ホール)/i.test(value);
 }
 function cleanOfficialCourseDescription(value){
  return String(value||"")
