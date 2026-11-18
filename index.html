@@ -1381,7 +1381,7 @@ function officialCourseIdentity(page){
  const raw=String(page.rootTitle||page.siteTitle||"").replace(/<[^>]*>/g," ").trim();
  const parts=raw.split(/[|｜]/).map(x=>x.replace(/【公式】|\[公式\]/g,"").trim()).filter(Boolean);
  const siteName=parts.find(x=>/倶楽部|カントリー|ゴルフクラブ|ゴルフ場/.test(x))||parts.sort((a,b)=>b.length-a.length)[0]||host;
- const section=String(page.title||"").trim();
+ const section=String(page.title||"").replace(/コース案内|Course Guide/gi,"").trim();
  const generic=/^(コース情報|コース|コースガイド|course|course guide)$/i.test(section);
  const courseName=siteName+(generic?"":" "+section);
  const slug="official-"+host+"-"+(generic?"main":section.toLowerCase().replace(/[^a-z0-9一-龯ぁ-んァ-ヶ]+/g,"-").replace(/^-|-$/g,"")||"course");
@@ -1390,19 +1390,24 @@ function officialCourseIdentity(page){
 function importOfficialCourse(page){
  const holes=page.holes||[];
  if(holes.length<9){alert("ホール情報が不足しているため追加できません。");return;}
- const identity=officialCourseIdentity(page),tee=holes[0].tee||"未分類";
- const existing=typed("course_note").filter(x=>x.golfCoreSlug===identity.slug&&(x.golfCoreTee||"未分類")===tee);
- if(existing.length&&!confirm(identity.courseName+"（"+tee+"）の既存データを更新しますか？個人の攻略メモは引き継ぎます。"))return;
- const oldByHole=new Map(existing.map(x=>[Number(String(x.hole).replace(/\D/g,"")),x]));
- const now=new Date().toISOString();
- holes.forEach(h=>{
-  const old=oldByHole.get(Number(h.hole));
-  const rec={type:"course_note",course:identity.courseName,golfCoreSlug:identity.slug,golfCoreTee:tee,hole:String(h.hole),par:h.par??null,strokeIndex:h.strokeIndex??null,golfCoreYards:h.yards??null,targetStrokes:h.par?Number(h.par)+1:null,officialCourseUrl:page.url,officialSiteUrl:identity.rootUrl,officialCourseMapUrl:page.layoutImageUrl||old?.officialCourseMapUrl||"",officialImageUrl:h.imageUrl||old?.officialImageUrl||"",officialDescription:h.description||"",strategy:h.description||old?.strategy||"",teeClub:old?.teeClub||"",teeAim:old?.teeAim||"",secondAim:old?.secondAim||"",approachAim:old?.approachAim||"",greenAim:old?.greenAim||"",personalMemo:old?.personalMemo||"",date:todayISO(),source:"official-site"};
-  if(old)Object.assign(old,rec,{id:old.id,updatedAt:now});
-  else saved.unshift({id:makeId(),updatedAt:now,...rec});
- });
+ const identity=officialCourseIdentity(page);
+ const teeLabels=[["BACK","BACK"],["REGULAR","REGULAR"],["FRONT","FRONT"],["LADY","LADY"]];
+ const now=new Date().toISOString(),existing=typed("course_note").filter(x=>x.golfCoreSlug===identity.slug);
+ let added=0,updated=0;
+ for(const h of holes){
+  const distances=h.teeDistances||{};
+  const available=teeLabels.filter(([key])=>Number(distances[key])>0);
+  const teeRows=available.length?available.map(([key,label])=>({tee:label,yards:Number(distances[key])})):[{tee:h.tee||"未分類",yards:Number(h.yards)||null}];
+  for(const t of teeRows){
+   const old=existing.find(x=>Number(String(x.hole).replace(/\D/g,""))===Number(h.hole)&&(x.golfCoreTee||"未分類")===t.tee);
+   const rec={type:"course_note",course:identity.courseName,golfCoreSlug:identity.slug,golfCoreTee:t.tee,hole:String(h.hole),par:h.par??null,strokeIndex:h.strokeIndex??null,golfCoreYards:t.yards,targetStrokes:h.par?Number(h.par)+1:null,officialCourseUrl:page.url,officialSiteUrl:identity.rootUrl,officialCourseMapUrl:page.layoutImageUrl||old?.officialCourseMapUrl||"",officialImageUrl:h.imageUrl||old?.officialImageUrl||"",officialDescription:h.description||old?.officialDescription||"",strategy:old?.strategy||h.description||"",teeClub:old?.teeClub||"",teeAim:old?.teeAim||"",secondAim:old?.secondAim||"",approachAim:old?.approachAim||"",greenAim:old?.greenAim||"",personalMemo:old?.personalMemo||"",date:todayISO(),source:"official-site"};
+   if(old){Object.assign(old,rec,{id:old.id,updatedAt:now});updated++;}
+   else{const fresh={id:makeId(),updatedAt:now,...rec};saved.unshift(fresh);existing.push(fresh);added++;}
+  }
+ }
+ if(!added&&!updated){alert("保存できるティー別データがありませんでした。");return;}
  persistSaved();renderExtra();
- const status=document.getElementById("officialCourseStatus");if(status)status.textContent=identity.courseName+"の"+holes.length+"ホールをコースブックに追加しました。既存コースとは別IDで保存し、個人の攻略メモは保持しています。";
+ const status=document.getElementById("officialCourseStatus");if(status)status.textContent=identity.courseName+"：ホール"+holes.length+"件からティー別データを登録しました（新規"+added+"件・更新"+updated+"件）。個人の攻略メモは保持しています。";
 }
 function deleteSavedCourseBook(key){
  const records=saved.filter(x=>(x.type==="course_note"&&(x.golfCoreSlug||x.course)===key)||(x.type==="course_book_memo"&&(x.golfCoreSlug||x.course)===key));
