@@ -26,7 +26,7 @@ function extractImages(html, pageUrl) {
 function isCourseMapImage(image) {
   const value = String((image?.alt || "") + " " + (image?.url || "")).toLowerCase();
   if (/banner|bnr|logo|header|renew|campaign|recruit|mainvisual|favicon|icon/.test(value)) return false;
-  return /(course.?map|layout|hole.?map|yardage|course.?guide|hole|\\bmap\\b|コース図|レイアウト|ホール)/i.test(value);
+  return /(course.?map|coursedetail|layout|hole.?map|yardage|course.?guide|hole|\\bmap\\b|コース図|レイアウト|ホール)/i.test(value);
 }
 function parseHoleData(html, pageUrl, courseName) {
   const rows = [];
