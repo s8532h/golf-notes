@@ -23,6 +23,11 @@ function extractImages(html, pageUrl) {
   for (const m of html.matchAll(/url\(["']?([^"')]+)["']?\)/gi)) if (/(course|layout|hole|map|コース|レイアウト|ホール)/i.test(m[1])) add(m[1], "コース画像候補");
   return images;
 }
+function isCourseMapImage(image) {
+  const value = String((image?.alt || "") + " " + (image?.url || "")).toLowerCase();
+  if (/banner|bnr|logo|header|renew|campaign|recruit|mainvisual|favicon|icon/.test(value)) return false;
+  return /(course.?map|layout|hole.?map|yardage|course.?guide|hole|\\bmap\\b|コース図|レイアウト|ホール)/i.test(value);
+}
 function parseHoleData(html, pageUrl, courseName) {
   const rows = [];
   for (const m of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
@@ -57,7 +62,7 @@ function parseHoleData(html, pageUrl, courseName) {
     const text = clean(block);
     const desc = text.replace(/^.*?HOLE\s*\d+/i, "").replace(/PAR\s*:\s*\d+.*?HDCP\s*:\s*\d+/i, "").slice(0, 900);
     const imgs = extractImages(block, pageUrl);
-    details.set(hole, { description: desc, imageUrl: imgs[0]?.url || "" });
+    details.set(hole, { description: desc, imageUrl: imgs.find(isCourseMapImage)?.url || "" });
   }
   const mdHeads=[...html.matchAll(/^#{2,6}\s*HOLE\s*(\d+)\s*$/gim)];
   for(let i=0;i<mdHeads.length;i++){
@@ -80,7 +85,7 @@ function parseHoleData(html, pageUrl, courseName) {
     if(hole>=1&&hole<=18&&parMatch&&(a||b)&&!rows.some(x=>x.hole===hole)){
       const featureMatch=pageText.match(/特徴\s*([\s\S]{0,700}?)(?:PAR\s*:?\s*\d|HDCP\s*:?\s*\d)/i);
       const imgs=extractImages(html,pageUrl);
-      rows.push({hole,par:Number(parMatch[1]),strokeIndex:hdcpMatch?Number(hdcpMatch[1]):null,yards:a||b,tee:a?"REG（Aグリーン）":"REG（Bグリーン）",description:featureMatch?featureMatch[1].trim():"",imageUrl:imgs[0]?.url||"",greenDistances:{A:a,B:b},course:titleMatch[1].toLowerCase()==="east"?"東コース":"西コース"});
+      rows.push({hole,par:Number(parMatch[1]),strokeIndex:hdcpMatch?Number(hdcpMatch[1]):null,yards:a||b,tee:a?"REG（Aグリーン）":"REG（Bグリーン）",description:featureMatch?featureMatch[1].trim():"",imageUrl:imgs.find(isCourseMapImage)?.url||"",greenDistances:{A:a,B:b},course:titleMatch[1].toLowerCase()==="east"?"東コース":"西コース"});
     }
   }
   return rows.map(r => ({ ...r, ...details.get(r.hole), course: courseName, sourceUrl: pageUrl }));
