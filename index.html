@@ -1253,6 +1253,12 @@ function canonicalCourseTee(record){
  return tee||"ティー未登録";
 }
 function courseTeeLabel(t){return ({BACK:"バックティー",REGULAR:"レギュラーティー",FRONT:"フロントティー",LADY:"レディースティー","掲載順1番目":"ティー情報を再取得してください","未分類":"ティー情報を再取得してください"})[t]||t;}
+function isLikelyCourseMap(url){
+ const value=String(url||"").toLowerCase();
+ if(!value)return false;
+ if(/banner|bnr|logo|header|renew|campaign|recruit|mainvisual|mv\b|favicon|icon/.test(value))return false;
+ return /(course.?map|layout|hole.?map|yardage|course.?guide|hole|\bmap\b|コース図|レイアウト|ホール)/i.test(value);
+}
 function cleanOfficialCourseDescription(value){
  return String(value||"")
   .replace(/\bBACK\s+REG(?:ULAR)?\s+FRONT\s+LADY\s+BENT\b[\s\S]*$/i,"")
@@ -1332,8 +1338,7 @@ function courseDetails(arr,selected){
  const n=arr.find((x,i)=>courseHoleNumber(x,i)===courseHoleNumber({hole:selected},0))||arr[0];if(!n)return '<p class="empty">ホールデータがありません。</p>';
  const field=(key,label,placeholder,rows=2)=>'<label class="small" style="display:block;margin-top:9px">'+label+'</label><textarea rows="'+rows+'" data-hole-field="'+key+'" data-hole-record="'+esc(n.id)+'" placeholder="'+placeholder+'">'+esc(n[key]||"")+'</textarea>';
  return '<div style="border-top:1px solid var(--line);padding:12px 0"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><button class="chip" type="button" data-hole-step="-1">‹ 前</button><b>'+courseHoleLabel(n,0)+'　Par '+(n.par??"—")+' ・ '+(n.golfCoreYards??"—")+'yd ・ HDCP '+(n.strokeIndex??"—")+' / 目標'+(n.targetStrokes??"—")+'打</b><button class="chip" type="button" data-hole-step="1">次 ›</button></div>'+
- (n.officialCourseMapUrl&&n.officialCourseMapUrl!==n.officialImageUrl?'<img src="'+esc(n.officialCourseMapUrl)+'" alt="公式コースレイアウト" loading="lazy" style="width:100%;max-height:300px;object-fit:contain;margin-top:10px;border-radius:10px;background:#f3f4ee">':"")+
- (n.officialImageUrl?'<img src="'+esc(n.officialImageUrl)+'" alt="'+courseHoleLabel(n,0)+' 公式コース画像" loading="lazy" style="width:100%;max-height:260px;object-fit:contain;margin-top:10px;border-radius:10px;background:#f3f4ee">':"")+
+ (isLikelyCourseMap(n.officialCourseMapUrl)?'<div class="small" style="margin-top:12px"><b>公式コースレイアウト</b><img src="'+esc(n.officialCourseMapUrl)+'" alt="公式コースレイアウト" loading="lazy" style="display:block;width:100%;max-height:420px;object-fit:contain;margin-top:8px;border-radius:10px;background:#f3f4ee"></div>':'<p class="small" style="margin-top:12px;color:var(--muted)">このホールのコースレイアウト画像は取得できていません。誤ったバナー画像は表示しないようにしています。</p>')+
  (cleanOfficialCourseDescription(n.officialDescription)?'<p class="small"><b>公式コース解説</b><br>'+esc(cleanOfficialCourseDescription(n.officialDescription))+'</p>':"")+
  '<h4 style="margin:12px 0 4px">自分の攻略プラン</h4>'+
  field("teeAim","ティーショットの狙い","使用クラブ・狙う方向・避ける場所")+
