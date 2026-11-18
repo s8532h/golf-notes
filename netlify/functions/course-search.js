@@ -92,14 +92,14 @@ function parseHoleData(html, pageUrl, courseName) {
 }
 function parseAnegasakiTables(html,pageUrl,courseName){
  const tables=[];
- for(const mt of html.matchAll(/<table\\b[^>]*>([\\s\\S]*?)<\\/table>/gi)){
-  const trs=[...mt[1].matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(x=>clean(x[1])));
+ for(const mt of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
+  const trs=[...mt[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>clean(x[1])));
   if(trs.length){const context=html.slice(Math.max(0,mt.index-3500),mt.index);tables.push({rows:trs,course:/west|西コース/i.test(context)?"西コース":/east|東コース/i.test(context)?"東コース":""});}
  }
- const lines=html.split(/\\r?\\n/).map(x=>x.trim()).filter(x=>x.includes("|"));
+ const lines=html.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.includes("|"));
  for(let i=0;i<lines.length;i++){
-  if(!/^\\|?\\s*HOLE\\s*\\|\\s*PAR\\s*\\|\\s*GREEN\\s*\\|/i.test(lines[i]))continue;
-  const block=lines.slice(i,Math.min(lines.length,i+12)).map(line=>line.split("|").map(x=>clean(x).replace(/^【\\d+†|】$/g,"").trim()));
+  if(!/^\|?\s*HOLE\s*\|\s*PAR\s*\|\s*GREEN\s*\|/i.test(lines[i]))continue;
+  const block=lines.slice(i,Math.min(lines.length,i+12)).map(line=>line.split("|").map(x=>clean(x).replace(/^【\d+†|】$/g,"").trim()));
   const context=lines.slice(Math.max(0,i-16),i).join(" ");
   tables.push({rows:block,course:/west|西コース/i.test(context)?"西コース":/east|東コース/i.test(context)?"東コース":""});i+=Math.min(11,block.length-1);
  }
@@ -107,17 +107,17 @@ function parseAnegasakiTables(html,pageUrl,courseName){
  for(const table of tables){
   const block=table.rows;
   const tableCourse=table.course||(/west|西/i.test(courseName+" "+pageUrl)?"西コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":"");
-  const holeRow=block.find(r=>/^HOLE$/i.test(r[0]||"")&&r.slice(1).some(x=>/No\\.?\\s*\\d+/i.test(x)));
+  const holeRow=block.find(r=>/^HOLE$/i.test(r[0]||"")&&r.slice(1).some(x=>/No\.?\s*\d+/i.test(x)));
   const parRow=block.find(r=>/^PAR$/i.test(r[0]||""));
   const greenRow=block.find(r=>/^GREEN$/i.test(r[0]||""));
   if(!holeRow||!parRow||!greenRow)continue;
-  const holes=holeRow.slice(1).map(x=>Number((x.match(/\\d+/)||[])[0])).filter(n=>n>=1&&n<=18);
+  const holes=holeRow.slice(1).map(x=>Number((x.match(/\d+/)||[])[0])).filter(n=>n>=1&&n<=18);
   if(holes.length<6)continue;
   const greenByHole=holes.map((_,j)=>String(greenRow[1+j*2]||"A").toUpperCase().includes("B")?"B":"A");
   const teeRows=block.filter(r=>/^(BACK TEE|REGULAR TEE|FRONT TEE 1|FRONT TEE 2)$/i.test((r[0]||"").trim()));
   const teeMap={};
   for(const r of teeRows){
-   const label=r[0].toUpperCase().replace(/\\s+/g," ").trim();
+   const label=r[0].toUpperCase().replace(/\s+/g," ").trim();
    const key=label==="BACK TEE"?"BACK":label==="REGULAR TEE"?"REGULAR":label==="FRONT TEE 1"?"FRONT1":"FRONT2";
    holes.forEach((hole,j)=>{
     const a=Number(String(r[1+j*2]||"").replace(/,/g,""))||null,b=Number(String(r[2+j*2]||"").replace(/,/g,""))||null;
