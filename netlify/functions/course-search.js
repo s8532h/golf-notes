@@ -277,7 +277,7 @@ exports.handler = async (event) => {
         const key=match?(match[1].toLowerCase()==="east"||match[1]==="東"?"東コース":match[1].toLowerCase()==="south"||match[1]==="南"?"南コース":"西コース"):"コース情報";
         if(!grouped.has(key))grouped.set(key,{title:key,url:p.url,links:[],images:[],holes:[],via:p.via});
         const g=grouped.get(key);
-        if(!g.holes.some(x=>Number(x.hole)===Number(h.hole)))g.holes.push(h);
+        const existingHole=g.holes.find(x=>Number(x.hole)===Number(h.hole));if(!existingHole)g.holes.push(h);else{existingHole.description=h.description||existingHole.description;existingHole.imageUrl=h.imageUrl||existingHole.imageUrl;existingHole.layoutImageUrl=h.layoutImageUrl||existingHole.layoutImageUrl;}
         g.images.push(...(p.images||[]));
       }
     }
