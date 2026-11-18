@@ -312,7 +312,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
 <section class="panel" id="course-panel">
   <h2>ゴルフ場別攻略ノート</h2><p class="small">コースの特徴、ホールごとの狙いどころ、危険エリア、次回の作戦を保存します。</p>
   <div id="courseMapPreview" class="small" aria-live="polite">公式サイトのコースレイアウトを検索できます。</div>
-<div class="item" id="officialCoursePanel" style="padding:12px;margin:12px 0"><b>公式サイトからコースレイアウトを探す</b><p class="small">ゴルフ場の公式サイトURLを入力すると、同じサイト内のコース案内・ホール詳細を調べます。</p><label class="small" for="officialCourseQuery">公式サイトURL</label><input id="officialCourseQuery" type="url" value="https://www.tkg36.com/" placeholder="https://www.example-golf.jp/"><button class="chip active" id="officialCourseSearch" type="button" style="width:100%;margin-top:8px">この公式サイト内を調べる</button><p class="small" id="officialCourseStatus" aria-live="polite"></p><div id="officialCourseResults"></div><div id="officialCourseMaps"></div><p class="small">入力URLと同じドメイン内のページを調べます。公式ページへのリンクと画像を参照表示し、転載・再配布や自動トレースは行いません。</p></div>
+<div class="item" id="officialCoursePanel" style="padding:12px;margin:12px 0"><b>公式サイトからコースレイアウトを探す</b><p class="small">ゴルフ場の公式サイトURLを入力すると、同じサイト内のコース案内・ホール詳細を調べます。</p><label class="small" for="officialCourseQuery">公式サイトURL</label><input id="officialCourseQuery" type="url" placeholder="https://www.example-golf.jp/"><button class="chip active" id="officialCourseSearch" type="button" style="width:100%;margin-top:8px">この公式サイト内を調べる</button><p class="small" id="officialCourseStatus" aria-live="polite"></p><div id="officialCourseResults"></div><div id="officialCourseMaps"></div><p class="small">入力URLと同じドメイン内のページを調べます。公式ページへのリンクと画像を参照表示し、転載・再配布や自動トレースは行いません。</p></div>
 <div class="item" style="padding:12px;margin-top:14px"><b>ラウンド前・攻略チェックリスト</b><p class="small">チェック状態はこの端末に保存されます。</p><div id="courseChecklist"></div></div><div id="courseList"></div>
 </section>
 <section class="panel" id="goal-panel">
@@ -1250,6 +1250,8 @@ function renderReflection(){const el=document.getElementById("reflectionForm"),h
 function canonicalCourseTee(record){
  const tee=String(record?.golfCoreTee||"").trim();
  if(tee==="掲載順1番目"&&/取手国際/.test(String(record?.course||"")))return "BACK";
+ const legacy=tee.match(/^REG(?:ULAR)?[（(]([AB])グリーン[）)]$/i);
+ if(legacy)return "REGULAR_"+legacy[1].toUpperCase();
  return tee||"ティー未登録";
 }
 function courseTeeLabel(t){
@@ -1260,6 +1262,8 @@ function courseTeeLabel(t){
 function isLikelyCourseMap(url){
  const value=String(url||"").toLowerCase();
  if(!value)return false;
+ if(value.includes("/coursedetail/"))return /\/img-coursedetail-\d+\.png(?:[?#]|$)/.test(value);
+ if(/\/courseimg\/img\/[ew]\d+\.jpg(?:[?#]|$)/.test(value))return true;
  if(/banner|bnr|logo|header|renew|campaign|recruit|mainvisual|mv\b|favicon|icon/.test(value))return false;
  return /(course.?map|coursedetail|layout|hole.?map|yardage|course.?guide|hole|\bmap\b|コース図|レイアウト|ホール)/i.test(value);
 }
@@ -1275,7 +1279,7 @@ function uniqueCourseRows(rows){
  rows.forEach(r=>{
   // A displayed course book is grouped by course + tee name. Gender/layout metadata
   // must not create a second visible copy of the same numbered hole.
-  const key=[r.golfCoreSlug||r.course,r.golfCoreTee||"ティー未登録",courseHoleNumber(r)].join("|");
+  const key=[r.golfCoreSlug||r.course,canonicalCourseTee(r),courseHoleNumber(r)].join("|");
   const old=map.get(key);
   if(!old||String(r.updatedAt||"")>=String(old.updatedAt||""))map.set(key,r);
  });
@@ -1340,9 +1344,10 @@ function courseTable(arr){
 }
 function courseDetails(arr,selected){
  const n=arr.find((x,i)=>courseHoleNumber(x,i)===courseHoleNumber({hole:selected},0))||arr[0];if(!n)return '<p class="empty">ホールデータがありません。</p>';
+ const mapUrl=[n.officialCourseMapUrl,n.officialImageUrl].find(isLikelyCourseMap);
  const field=(key,label,placeholder,rows=2)=>'<label class="small" style="display:block;margin-top:9px">'+label+'</label><textarea rows="'+rows+'" data-hole-field="'+key+'" data-hole-record="'+esc(n.id)+'" placeholder="'+placeholder+'">'+esc(n[key]||"")+'</textarea>';
  return '<div style="border-top:1px solid var(--line);padding:12px 0"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><button class="chip" type="button" data-hole-step="-1">‹ 前</button><b>'+courseHoleLabel(n,0)+'　Par '+(n.par??"—")+' ・ '+(n.golfCoreYards??"—")+'yd ・ HDCP '+(n.strokeIndex??"—")+' / 目標'+(n.targetStrokes??"—")+'打</b><button class="chip" type="button" data-hole-step="1">次 ›</button></div>'+
- (isLikelyCourseMap(n.officialCourseMapUrl)?'<div class="small" style="margin-top:12px"><b>公式コースレイアウト</b><img src="'+esc(n.officialCourseMapUrl)+'" alt="公式コースレイアウト" loading="lazy" style="display:block;width:100%;max-height:420px;object-fit:contain;margin-top:8px;border-radius:10px;background:#f3f4ee"></div>':'<p class="small" style="margin-top:12px;color:var(--muted)">このホールのコースレイアウト画像は取得できていません。誤ったバナー画像は表示しないようにしています。</p>')+
+ (mapUrl?'<div class="small" style="margin-top:12px"><b>公式コースレイアウト</b><img src="'+esc(mapUrl)+'" alt="公式コースレイアウト" loading="lazy" style="display:block;width:100%;max-height:420px;object-fit:contain;margin-top:8px;border-radius:10px;background:#f3f4ee"></div>':'<p class="small" style="margin-top:12px;color:var(--muted)">このホールのコースレイアウト画像は取得できていません。誤ったバナー画像は表示しないようにしています。</p>')+
  (cleanOfficialCourseDescription(n.officialDescription)?'<p class="small"><b>公式コース解説</b><br>'+esc(cleanOfficialCourseDescription(n.officialDescription))+'</p>':"")+
  '<h4 style="margin:12px 0 4px">自分の攻略プラン</h4>'+
  field("teeAim","ティーショットの狙い","使用クラブ・狙う方向・避ける場所")+
@@ -1375,7 +1380,7 @@ function renderExtra(){
   const tees=[...new Set(rows.map(x=>canonicalCourseTee(x)))],tee=tees[0]||"ティー未登録",holes=uniqueCourseRows(rows.filter(x=>canonicalCourseTee(x)===tee));
   const memo=typed("course_book_memo").find(x=>(x.golfCoreSlug||x.course)===((rows[0]||{}).golfCoreSlug||course));
   const key=(rows[0]||{}).golfCoreSlug||course;
-  return '<details class="item course-book" data-course-key="'+esc(key)+'" style="padding:12px;margin:10px 0" '+(ci===0?"open":"")+'><summary style="font-size:17px;font-weight:700">'+esc(course)+'（'+tees.length+'ティー）</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="chip" type="button" data-delete-course="'+esc(key)+'" style="color:#a33;border-color:#e7caca">コースを削除</button></div><p class="small" id="courseBookStatus_'+encodeURIComponent(key)+'"></p><div style="display:flex;gap:8px;margin:12px 0"><button class="chip" type="button" data-prev="'+ci+'">‹</button><select data-tee="'+ci+'" style="flex:1">'+tees.map(t=>'<option value="'+esc(t)+'" '+(t===tee?"selected":"")+'>'+esc(courseTeeLabel(t))+'</option>').join("")+'</select><button class="chip" type="button" data-next="'+ci+'">›</button></div><div data-card="'+ci+'">'+courseTable(holes)+'</div><h3>ホール別攻略</h3><div data-holes="'+ci+'">'+courseDetails(holes,holes[0]?.hole)+'</div><div class="course-book-memo" style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px"><label class="small" for="courseMemo_'+ci+'">このコースの自分用メモ</label><textarea id="courseMemo_'+ci+'" rows="4" data-course-memo="'+ci+'" placeholder="実際に回って気づいたこと、苦手ホール、次回試す狙いなど">'+esc(memo?.memo||"")+'</textarea><button class="chip active" type="button" data-save-course-memo="'+ci+'">メモを保存</button><span class="small" data-memo-status="'+ci+'"></span></div></details>';
+  return '<details class="item course-book" data-course-key="'+esc(key)+'" style="padding:12px;margin:10px 0" '+(ci===0?"open":"")+'><summary style="font-size:17px;font-weight:700">'+esc(course)+'（'+new Set(tees.map(t=>t.replace(/_[AB]$/,""))).size+'ティー）</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="chip" type="button" data-delete-course="'+esc(key)+'" style="color:#a33;border-color:#e7caca">コースを削除</button></div><p class="small" id="courseBookStatus_'+encodeURIComponent(key)+'"></p><div style="display:flex;gap:8px;margin:12px 0"><button class="chip" type="button" data-prev="'+ci+'">‹</button><select data-tee="'+ci+'" style="flex:1">'+tees.map(t=>'<option value="'+esc(t)+'" '+(t===tee?"selected":"")+'>'+esc(courseTeeLabel(t))+'</option>').join("")+'</select><button class="chip" type="button" data-next="'+ci+'">›</button></div><div data-card="'+ci+'">'+courseTable(holes)+'</div><h3>ホール別攻略</h3><div data-holes="'+ci+'">'+courseDetails(holes,holes[0]?.hole)+'</div><div class="course-book-memo" style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px"><label class="small" for="courseMemo_'+ci+'">このコースの自分用メモ</label><textarea id="courseMemo_'+ci+'" rows="4" data-course-memo="'+ci+'" placeholder="実際に回って気づいたこと、苦手ホール、次回試す狙いなど">'+esc(memo?.memo||"")+'</textarea><button class="chip active" type="button" data-save-course-memo="'+ci+'">メモを保存</button><span class="small" data-memo-status="'+ci+'"></span></div></details>';
  }).join("")||'<p class="empty">公式サイトURLからコースデータを取り込むと、ここにホール別コースブックが表示されます。</p>';
  document.querySelectorAll("[data-delete-course]").forEach(btn=>btn.addEventListener("click",()=>deleteSavedCourseBook(btn.dataset.deleteCourse)));
  document.querySelectorAll(".course-book").forEach((book,i)=>bindCourseBookHoleControls(book,i));
@@ -1420,7 +1425,7 @@ async function officialCourseSearch(){
  out.innerHTML="";box.innerHTML="";status.textContent="公式サイト内のコースデータを調べています…";
  try{
   const r=await fetch("/.netlify/functions/course-search?page="+encodeURIComponent(url),{headers:{"accept":"application/json"}});const raw=await r.text();let data;try{data=JSON.parse(raw);}catch(parseError){const hint=raw.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().slice(0,180);throw new Error("検索APIがJSON以外を返しました（HTTP "+r.status+" / "+(r.headers.get("content-type")||"content-type不明")+"）。"+hint+"。Netlify Functionの未反映・実行エラーの可能性があります。");}if(!r.ok)throw new Error(data.error||"サイトを調査できませんでした（HTTP "+r.status+"）");
-  const layoutImage=(data.images||[]).find(im=>/(layout|course|コース|レイアウト)/i.test((im.alt||"")+" "+(im.url||"")))?.url||"";if(layoutImage)box.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>公式コースレイアウト</b><a href="'+esc(layoutImage)+'" target="_blank" rel="noopener"><img src="'+esc(layoutImage)+'" alt="公式コースレイアウト" style="display:block;max-width:100%;height:auto;margin-top:8px;border-radius:8px"></a><p class="small">公式サイトの画像を参照表示しています。</p></div>';const pages=(data.pages||[]).filter(p=>Array.isArray(p.holes)&&p.holes.length>=9).map(p=>({...p,rootUrl:data.root,rootTitle:data.rootTitle,layoutImageUrl:layoutImage}));
+  const layoutImage=(data.images||[]).find(im=>isLikelyCourseMap(im.url)&&/layout|course.?map|全体図/i.test(im.url+" "+im.alt))?.url||"";if(layoutImage)box.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>公式コースレイアウト</b><a href="'+esc(layoutImage)+'" target="_blank" rel="noopener"><img src="'+esc(layoutImage)+'" alt="公式コースレイアウト" style="display:block;max-width:100%;height:auto;margin-top:8px;border-radius:8px"></a><p class="small">公式サイトの画像を参照表示しています。</p></div>';const pages=(data.pages||[]).filter(p=>Array.isArray(p.holes)&&p.holes.length>=9).map(p=>({...p,rootUrl:data.root,rootTitle:data.rootTitle,layoutImageUrl:layoutImage}));
   if(!pages.length){
    out.innerHTML=layoutImage?'<p class="small">公式コースレイアウト画像は取得できました。ただし、公式ページからホール別Par・距離を読み取れなかったため、未確認の数値を作らずコースブックへの自動登録は保留しています。</p>':'<p class="small">ホール情報の表を読み取れませんでした。ページ内の表構造を確認する必要があります。</p>';
    status.textContent="調査ページ："+Number(data.scannedPages||0)+"件。"+(layoutImage?"公式レイアウト画像を取得しました。":"ホール表は未検出です。");return;
@@ -1454,7 +1459,7 @@ function importOfficialCourse(page){
   const teeRows=Object.entries(distances).filter(([key,value])=>Number(value)>0).map(([key,value])=>({tee:key,yards:Number(value)}));
   if(!teeRows.length&&Number(h.yards)>0)teeRows.push({tee:h.tee||"未分類",yards:Number(h.yards)});
   for(const teeRow of teeRows){
-   const old=existing.find(x=>Number(String(x.hole).replace(/\\D/g,""))===Number(h.hole)&&canonicalCourseTee(x)===teeRow.tee);
+   const old=existing.find(x=>Number(String(x.hole).replace(/\D/g,""))===Number(h.hole)&&canonicalCourseTee(x)===teeRow.tee);
    const rec={type:"course_note",course:identity.courseName,golfCoreSlug:identity.slug,golfCoreTee:teeRow.tee,hole:String(h.hole),par:h.par??null,strokeIndex:h.strokeIndex??null,golfCoreYards:teeRow.yards,targetStrokes:h.par?Number(h.par)+1:null,officialCourseUrl:page.url,officialSiteUrl:identity.rootUrl,officialCourseMapUrl:h.imageUrl||h.layoutImageUrl||old?.officialCourseMapUrl||"",officialImageUrl:old?.officialImageUrl||"",officialDescription:h.description||old?.officialDescription||"",strategy:old?.strategy||h.description||"",teeClub:old?.teeClub||"",teeAim:old?.teeAim||"",secondAim:old?.secondAim||"",approachAim:old?.approachAim||"",greenAim:old?.greenAim||"",personalMemo:old?.personalMemo||"",date:todayISO(),source:"official-site",green:h.green||old?.green||""};
    if(old){Object.assign(old,rec,{id:old.id,updatedAt:now});updated++;}
    else{const fresh={id:makeId(),updatedAt:now,...rec};saved.unshift(fresh);existing.push(fresh);added++;}
