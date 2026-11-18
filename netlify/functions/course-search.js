@@ -147,33 +147,29 @@ function parseMatrixTables(html,pageUrl,courseName){
 }
 function parseLabeledHoles(html,pageUrl,courseName){
  const text=clean(html),rows=[];
- // Most official hole-detail pages contain exactly one hole and a labeled tee row.
- // Read the values after the complete header instead of assuming HTML table markup.
- const header=/BACK\s+TEE[\s|｜]*REG\s+TEE[\s|｜]*LADIES\s+TEE[\s|｜]*PAR[\s|｜]*HDCP/i;
- const hm=header.exec(text);
  let holeMatch=text.match(/\bHOLE\s*(?:No\.?\s*)?(\d{1,2})\b/i);
  if(!holeMatch)holeMatch=pageUrl.match(/\/(?:course|hole)\/(\d{1,2})\.html?/i);
- if(hm&&holeMatch){
-  const tail=text.slice(hm.index+hm[0].length,hm.index+hm[0].length+260);
-  const nums=[...tail.matchAll(/\b\d{1,4}\b/g)].map(x=>Number(x[0]));
-  // First three are tee yardages, followed by PAR and HDCP.
-  const valid=nums.findIndex((n,i)=>n>=100&&n<=800&&nums[i+1]>=100&&nums[i+1]<=800&&nums[i+2]>=100&&nums[i+2]<=800&&nums[i+3]>=3&&nums[i+3]<=5&&nums[i+4]>=1&&nums[i+4]<=18);
-  if(valid>=0){
-   const [back,reg,ladies,par,hdcp]=nums.slice(valid,valid+5);
-   rows.push({hole:Number(holeMatch[1]),par,strokeIndex:hdcp,yards:reg,tee:"REG",teeDistances:{BACK:back,REG:reg,LADIES:ladies},description:text.slice(0,900),course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});
+ if(holeMatch){
+  const labels=[
+   ["BACK",/\bBACK(?:\s+TEE)?\b/i],
+   ["REGULAR",/\bREG(?:ULAR)?(?:\s+TEE)?\b/i],
+   ["FRONT",/\bFRONT(?:\s+TEE)?\b/i],
+   ["LADY",/\bLAD(?:Y|IES)(?:\s+TEE)?\b/i]
+  ];
+  const positions=labels.map(([key,re])=>({key,index:text.search(re)})).filter(x=>x.index>=0).sort((a,b)=>a.index-b.index);
+  const teeDistances={BACK:null,REGULAR:null,FRONT:null,LADY:null};
+  // Extract a yardage from the text immediately following each tee label.
+  for(let i=0;i<positions.length;i++){
+   const p=positions[i],end=positions[i+1]?.index??Math.min(text.length,p.index+90);
+   const segment=text.slice(p.index,end);
+   const nums=[...segment.matchAll(/\b(\d{2,4})\b/g)].map(x=>Number(x[1])).filter(n=>n>=80&&n<=850);
+   if(nums.length)teeDistances[p.key]=nums[0];
   }
- }
- // Generic fallback for pages whose labels are presented vertically rather than in a row.
- if(!rows.length){
-  const re=/(?:HOLE\s*No\.?\s*|HOLE\s*|ホール\s*)(\d{1,2})/gi,heads=[...text.matchAll(re)];
-  for(let i=0;i<heads.length;i++){
-   const hole=Number(heads[i][1]);if(hole<1||hole>18)continue;
-   const block=text.slice(heads[i].index,heads[i+1]?.index??Math.min(text.length,heads[i].index+1800));
-   const par=Number((block.match(/\bPAR\s*:?\s*([3-5])\b/i)||[])[1]),hdcp=Number((block.match(/\bHDCP\s*:?\s*(\d{1,2})\b/i)||[])[1]);
-   if(!par)continue;
-   const get=label=>Number((block.match(new RegExp(label+"[^0-9]{0,20}(\\d{2,4})","i"))||[])[1])||null;
-   const back=get("BACK(?:\\s+TEE)?"),reg=get("REG(?:ULAR)?(?:\\s+TEE)?"),ladies=get("LADIES(?:\\s+TEE)?");
-   if(back||reg||ladies)rows.push({hole,par,strokeIndex:hdcp||null,yards:reg||back||ladies,tee:reg?"REG":back?"BACK":"LADIES",teeDistances:{BACK:back,REG:reg,LADIES:ladies},description:block.slice(0,700),sourceUrl:pageUrl});
+  const par=Number((text.match(/\bPAR\s*:?\s*([3-5])\b/i)||[])[1])||null;
+  const strokeIndex=Number((text.match(/\bHDCP\s*:?\s*(\d{1,2})\b/i)||[])[1])||null;
+  if(par&&Object.values(teeDistances).some(Boolean)){
+   const yards=teeDistances.REGULAR||teeDistances.FRONT||teeDistances.BACK||teeDistances.LADY;
+   rows.push({hole:Number(holeMatch[1]),par,strokeIndex,yards,tee:"REGULAR",teeDistances,description:text.slice(0,900),course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});
   }
  }
  return rows;
