@@ -90,6 +90,21 @@ function parseMatrixTables(html,pageUrl,courseName){
  for(const mt of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
   const trs=[...mt[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>clean(x[1])));
   if(!trs.length)continue;
+  // Labeled row-wise scorecard: HOLE / HDCP / PAR / BACK Bent / REG Bent / FRONT Bent / LADY Bent.
+  const headerIndex=trs.findIndex(r=>r.some(x=>/^HOLE$/i.test(x.trim()))&&r.some(x=>/HDCP/i.test(x))&&r.some(x=>/^PAR$/i.test(x.trim())));
+  if(headerIndex>=0){
+   const hdr=trs[headerIndex].map(x=>x.toUpperCase().replace(/\s+/g," ").trim());
+   const idx={hole:hdr.findIndex(x=>x==="HOLE"),hdcp:hdr.findIndex(x=>x.includes("HDCP")),par:hdr.findIndex(x=>x==="PAR"),BACK:hdr.findIndex(x=>x.includes("BACK")),REGULAR:hdr.findIndex(x=>x.includes("REG")),FRONT:hdr.findIndex(x=>x.includes("FRONT")),LADY:hdr.findIndex(x=>x.includes("LADY"))};
+   for(const row of trs.slice(headerIndex+1)){
+    const hole=Number((row[idx.hole]||"").match(/\d{1,2}/)?.[0]),par=Number((row[idx.par]||"").match(/\d/)?.[0]),hdcp=Number((row[idx.hdcp]||"").match(/\d{1,2}/)?.[0]);
+    if(!Number.isInteger(hole)||hole<1||hole>18||!Number.isInteger(par)||par<3||par>5)continue;
+    const read=k=>{const m=(row[idx[k]]||"").match(/\d{2,4}/);return m?Number(m[0]):null;};
+    const teeDistances={BACK:read("BACK"),REGULAR:read("REGULAR"),FRONT:read("FRONT"),LADY:read("LADY")};
+    const yards=teeDistances.REGULAR||teeDistances.FRONT||teeDistances.BACK||teeDistances.LADY;
+    if(yards)rows.push({hole,par,strokeIndex:Number.isFinite(hdcp)?hdcp:null,yards,tee:"REGULAR",teeDistances,course:/south|南/i.test(courseName+" "+pageUrl)?"南コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":/west|西/i.test(courseName+" "+pageUrl)?"西コース":"",sourceUrl:pageUrl});
+   }
+   if(rows.length)continue;
+  }
   // Horizontal official scorecards: HOLE | 1..9, then PAR / HDCP / BACK / REG / FRONT / LADY.
   const hrow=trs.find(r=>/^HOLE$/i.test((r[0]||"").trim())&&r.slice(1).filter(x=>/^(?:[1-9]|1[0-8])$/.test(x.trim())).length>=6);
   if(hrow){
