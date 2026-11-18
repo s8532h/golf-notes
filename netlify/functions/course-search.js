@@ -94,16 +94,19 @@ function parseAnegasakiTables(html,pageUrl,courseName){
  const tables=[];
  for(const mt of html.matchAll(/<table\\b[^>]*>([\\s\\S]*?)<\\/table>/gi)){
   const trs=[...mt[1].matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(x=>clean(x[1])));
-  if(trs.length)tables.push(trs);
+  if(trs.length){const context=html.slice(Math.max(0,mt.index-3500),mt.index);tables.push({rows:trs,course:/west|西コース/i.test(context)?"西コース":/east|東コース/i.test(context)?"東コース":""});}
  }
  const lines=html.split(/\\r?\\n/).map(x=>x.trim()).filter(x=>x.includes("|"));
  for(let i=0;i<lines.length;i++){
   if(!/^\\|?\\s*HOLE\\s*\\|\\s*PAR\\s*\\|\\s*GREEN\\s*\\|/i.test(lines[i]))continue;
   const block=lines.slice(i,Math.min(lines.length,i+12)).map(line=>line.split("|").map(x=>clean(x).replace(/^【\\d+†|】$/g,"").trim()));
-  tables.push(block);i+=Math.min(11,block.length-1);
+  const context=lines.slice(Math.max(0,i-16),i).join(" ");
+  tables.push({rows:block,course:/west|西コース/i.test(context)?"西コース":/east|東コース/i.test(context)?"東コース":""});i+=Math.min(11,block.length-1);
  }
  const out=[];
- for(const block of tables){
+ for(const table of tables){
+  const block=table.rows;
+  const tableCourse=table.course||(/west|西/i.test(courseName+" "+pageUrl)?"西コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":"");
   const holeRow=block.find(r=>/^HOLE$/i.test(r[0]||"")&&r.slice(1).some(x=>/No\\.?\\s*\\d+/i.test(x)));
   const parRow=block.find(r=>/^PAR$/i.test(r[0]||""));
   const greenRow=block.find(r=>/^GREEN$/i.test(r[0]||""));
@@ -125,7 +128,7 @@ function parseAnegasakiTables(html,pageUrl,courseName){
   holes.forEach((hole,j)=>{
    const teeDistances={};Object.entries(teeMap).forEach(([key,vals])=>{if(vals[j])teeDistances[key]=vals[j];});
    const par=Number(parRow[j+1])||null;if(!par||!Object.keys(teeDistances).length)return;
-   out.push({hole,par,strokeIndex:null,yards:teeDistances.REGULAR_A||teeDistances.REGULAR_B||teeDistances.BACK_A||null,tee:"REGULAR_A",teeDistances,green:greenByHole[j],course:/west|西/i.test(courseName+" "+pageUrl)?"西コース":/east|東/i.test(courseName+" "+pageUrl)?"東コース":"",sourceUrl:pageUrl});
+   out.push({hole,par,strokeIndex:null,yards:teeDistances.REGULAR_A||teeDistances.REGULAR_B||teeDistances.BACK_A||null,tee:"REGULAR_A",teeDistances,green:greenByHole[j],course:tableCourse,sourceUrl:pageUrl});
   });
  }
  return out;
@@ -235,7 +238,7 @@ function parsePage(html, pageUrl, via) {
     const label = clean(m[2]) + " " + clean((m[2].match(/<img\b[^>]*alt=["]([^"]*)/i)||[])[1]||"");
     if (/(コース|レイアウト|ホール|course|layout|hole|east|west|south|north|東|西|南|北|no[._-]?[0-9]+|\/[0-9]+\.html|course_[a-z0-9]+)/i.test(label + " " + u.pathname) && !links.some(x=>x.url===u.href)) links.push({ title: label || u.pathname, url: u.href });
   }
-  return { title, url: page.href, links, images: extractImages(html, page.href), holes: [...parseAnegasakiTables(html,page.href,title),...parseMatrixTables(html,page.href,title),...parseLabeledHoles(html,page.href,title),...parseHoleData(html,page.href,title)].filter((x,i,a)=>a.findIndex(y=>y.hole===x.hole)===i), via };
+  return { title, url: page.href, links, images: extractImages(html, page.href), holes: [...parseAnegasakiTables(html,page.href,title),...parseMatrixTables(html,page.href,title),...parseLabeledHoles(html,page.href,title),...parseHoleData(html,page.href,title)].filter((x,i,a)=>a.findIndex(y=>y.hole===x.hole&&(y.course||"")===(x.course||""))===i), via };
 }
 exports.handler = async (event) => {
   try {
