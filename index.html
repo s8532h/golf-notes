@@ -1277,14 +1277,15 @@ function canonicalCourseTee(record){
  return tee||"ティー未登録";
 }
 function courseTeeLabel(t){
- const labels={BACK:"バックティー",REGULAR:"レギュラーティー",FRONT:"フロントティー",FRONT1:"フロント1",FRONT2:"フロント2",LADY:"レディースティー","掲載順1番目":"旧データ（未分類）","未分類":"未分類"};
- const m=String(t||"").match(/^(BACK|REGULAR|FRONT1|FRONT2|FRONT|LADY)_(OLD|NEW|[AB])$/);
+ const labels={BLACK:"ブラックティー",BLUE:"ブルーティー",WHITE:"ホワイトティー",GOLD:"ゴールドティー",RED:"レッドティー",BACK:"バックティー",REGULAR:"レギュラーティー",FRONT:"フロントティー",FRONT1:"フロント1",FRONT2:"フロント2",LADY:"レディースティー","掲載順1番目":"旧データ（未分類）","未分類":"未分類"};
+ const m=String(t||"").match(/^(BACK|REGULAR|FRONT1|FRONT2|FRONT|LADY|BLACK|BLUE|WHITE|GOLD|RED)_(OLD|NEW|[ABK])$/);
  return m?labels[m[1]]+"（"+m[2]+"グリーン）":labels[t]||String(t||"未分類");
 }
 function isLikelyCourseMap(url){
  const value=String(url||"").toLowerCase();
  if(!value)return false;
  if(/\/course\/(?:east|west)\/c_[ew]\d+\.jpg$/i.test(value))return true;
+ if(/\/course\/(?:images\/\d+\.jpg|[ab]-h\d+\.svg)$|\/uploads\/\d{4}\/\d{2}\/[es]\d{2}\.png$/i.test(value))return true;
  if(value.includes("/coursedetail/"))return /\/img-coursedetail-\d+\.png(?:[?#]|$)/.test(value);
  if(/\/courseimg\/img\/[ew]\d+\.jpg(?:[?#]|$)/.test(value))return true;
  if(/banner|bnr|logo|header|renew|campaign|recruit|mainvisual|mv\b|favicon|icon/.test(value))return false;
@@ -1404,7 +1405,7 @@ function renderExtra(){
   const tees=[...new Set(rows.map(x=>canonicalCourseTee(x)))],tee=tees[0]||"ティー未登録",holes=uniqueCourseRows(rows.filter(x=>canonicalCourseTee(x)===tee));
   const memo=typed("course_book_memo").find(x=>(x.golfCoreSlug||x.course)===((rows[0]||{}).golfCoreSlug||course));
   const key=(rows[0]||{}).golfCoreSlug||course;
-  return '<details class="item course-book" data-course-key="'+esc(key)+'" style="padding:12px;margin:10px 0" '+(ci===0?"open":"")+'><summary style="font-size:17px;font-weight:700">'+esc(course)+'（'+new Set(tees.map(t=>t.replace(/_(?:OLD|NEW|[AB])$/,""))).size+'ティー）</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="chip" type="button" data-delete-course="'+esc(key)+'" style="color:#a33;border-color:#e7caca">コースを削除</button></div><p class="small" id="courseBookStatus_'+encodeURIComponent(key)+'"></p><div style="display:flex;gap:8px;margin:12px 0"><button class="chip" type="button" data-prev="'+ci+'">‹</button><select data-tee="'+ci+'" style="flex:1">'+tees.map(t=>'<option value="'+esc(t)+'" '+(t===tee?"selected":"")+'>'+esc(courseTeeLabel(t))+'</option>').join("")+'</select><button class="chip" type="button" data-next="'+ci+'">›</button></div><div data-card="'+ci+'">'+courseTable(holes)+'</div><h3>ホール別攻略</h3><div data-holes="'+ci+'">'+courseDetails(holes,holes[0]?.hole)+'</div><div class="course-book-memo" style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px"><label class="small" for="courseMemo_'+ci+'">このコースの自分用メモ</label><textarea id="courseMemo_'+ci+'" rows="4" data-course-memo="'+ci+'" placeholder="実際に回って気づいたこと、苦手ホール、次回試す狙いなど">'+esc(memo?.memo||"")+'</textarea><button class="chip active" type="button" data-save-course-memo="'+ci+'">メモを保存</button><span class="small" data-memo-status="'+ci+'"></span></div></details>';
+  return '<details class="item course-book" data-course-key="'+esc(key)+'" style="padding:12px;margin:10px 0" '+(ci===0?"open":"")+'><summary style="font-size:17px;font-weight:700">'+esc(course)+'（'+new Set(tees.map(t=>t.replace(/_(?:OLD|NEW|[ABK])$/,""))).size+'ティー）</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="chip" type="button" data-delete-course="'+esc(key)+'" style="color:#a33;border-color:#e7caca">コースを削除</button></div><p class="small" id="courseBookStatus_'+encodeURIComponent(key)+'"></p><div style="display:flex;gap:8px;margin:12px 0"><button class="chip" type="button" data-prev="'+ci+'">‹</button><select data-tee="'+ci+'" style="flex:1">'+tees.map(t=>'<option value="'+esc(t)+'" '+(t===tee?"selected":"")+'>'+esc(courseTeeLabel(t))+'</option>').join("")+'</select><button class="chip" type="button" data-next="'+ci+'">›</button></div><div data-card="'+ci+'">'+courseTable(holes)+'</div><h3>ホール別攻略</h3><div data-holes="'+ci+'">'+courseDetails(holes,holes[0]?.hole)+'</div><div class="course-book-memo" style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px"><label class="small" for="courseMemo_'+ci+'">このコースの自分用メモ</label><textarea id="courseMemo_'+ci+'" rows="4" data-course-memo="'+ci+'" placeholder="実際に回って気づいたこと、苦手ホール、次回試す狙いなど">'+esc(memo?.memo||"")+'</textarea><button class="chip active" type="button" data-save-course-memo="'+ci+'">メモを保存</button><span class="small" data-memo-status="'+ci+'"></span></div></details>';
  }).join("")||'<p class="empty">公式サイトURLからコースデータを取り込むと、ここにホール別コースブックが表示されます。</p>';
  document.querySelectorAll("[data-delete-course]").forEach(btn=>btn.addEventListener("click",()=>deleteSavedCourseBook(btn.dataset.deleteCourse)));
  document.querySelectorAll(".course-book").forEach((book,i)=>bindCourseBookHoleControls(book,i));
@@ -1455,7 +1456,7 @@ async function officialCourseSearch(){
    status.textContent="調査ページ："+Number(data.scannedPages||0)+"件。"+(layoutImage?"公式レイアウト画像を取得しました。":"ホール表は未検出です。");return;
   }
   out.innerHTML='<div class="item" style="padding:10px;margin:8px 0"><b>'+esc(data.rootTitle||"公式サイト")+'</b><p class="small">コース案内を'+pages.length+'件に絞り込みました。</p><a href="'+esc(data.root)+'" target="_blank" rel="noopener">公式サイトを開く</a></div>'+
-   pages.map((p,i)=>{const holes=p.holes,par=holes.reduce((a,h)=>a+(Number(h.par)||0),0),yards=holes.reduce((a,h)=>a+(Number(h.yards)||0),0);return '<div class="item" style="padding:12px;margin:8px 0"><b>'+esc(p.title||"コース")+'</b><div class="item-meta">ホール情報 '+holes.length+'件 ・ Par '+par+' ・ REG合計 '+yards+'yd</div><a href="'+esc(p.url)+'" target="_blank" rel="noopener">公式ページ</a><button class="chip active" type="button" data-import-course="'+i+'" style="margin:8px 0 0;width:100%">この18ホールをGolf Notesに追加</button></div>';}).join("");
+   pages.map((p,i)=>{const holes=p.holes,par=holes.reduce((a,h)=>a+(Number(h.par)||0),0),yards=holes.reduce((a,h)=>a+(Number(h.yards)||0),0);return '<div class="item" style="padding:12px;margin:8px 0"><b>'+esc(p.title||"コース")+'</b><div class="item-meta">ホール情報 '+holes.length+'件 ・ Par '+par+' ・ 基準ティー合計 '+yards+'yd</div><a href="'+esc(p.url)+'" target="_blank" rel="noopener">公式ページ</a><button class="chip active" type="button" data-import-course="'+i+'" style="margin:8px 0 0;width:100%">この18ホールをGolf Notesに追加</button></div>';}).join("");
   out.querySelectorAll("[data-import-course]").forEach(btn=>btn.addEventListener("click",()=>importOfficialCourse(pages[Number(btn.dataset.importCourse)])));
   status.textContent="ホール情報を取得しました。追加したいコースを選んでください。";
  }catch(e){status.textContent="調査できませんでした："+e.message;}
