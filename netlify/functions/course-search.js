@@ -1,8 +1,8 @@
 const { URL } = require("url");
 const headers = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const clean = (s = "") => s.replace(/<script\b[\s\S]*?<\/script>/gi, " ").replace(/<style\b[\s\S]*?<\/style>/gi, " ").replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
-async function request(url, accept = "text/html,*/*;q=0.8") {
-  const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36", accept }, redirect: "follow", signal: AbortSignal.timeout(1800) });
+async function request(url, accept = "text/html,*/*;q=0.8", timeout = 1800) {
+  const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36", accept }, redirect: "follow", signal: AbortSignal.timeout(timeout) });
   if (!res.ok) throw new Error("HTTP " + res.status);
   return (await res.text()).slice(0, 2200000);
 }
@@ -349,6 +349,93 @@ function parseOfficialSections(html,pageUrl) {
   }
   return holes;
 }
+// Row-wise scorecards with named tees and optional consecutive green rows.
+function parseSectionScorecards(html, url) {
+  const courses = new Map();
+  for (const table of html.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)) {
+    const rows = yardageRows(table[0]);
+    const start = rows.findIndex(r=>/^(?:\(OUT\)\s*)?HOLE(?: NO)?$/i.test(r[0]) && r[1]==="PAR" && /^(HD|HCP)$/.test(r[2]));
+    if(start<0)continue;
+    const twoGreens=/class=["']korai["']/i.test(table[0]);
+    const previousHeading=[...html.slice(0,table.index).matchAll(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi)].pop();
+    const section=rows[0][0].match(/^(東コース|西コース)/)?.[1] || clean(previousHeading?.[1]||"");
+    const title=/^(アウト|イン)コース$/.test(section)?"ゲーリー・プレーヤーコース":section;
+    if(!title)continue;
+    const tees=rows[start].slice(3).map(t=>({REG:"REGULAR",LADIES:"LADY"})[t]||t.split(/\s|※/)[0]);
+    if(!courses.has(title))courses.set(title,{title,url,holes:[]});
+    for(let i=start+1;i<rows.length;i++){
+      const [num,par,hdcp,...cells]=rows[i];
+      if(!/^\d{1,2}$/.test(num)||!/^([3-6])$/.test(par)||cells.length!==tees.length)continue;
+      const teeDistances={},leftYards={};
+      tees.forEach((tee,j)=>{
+        const pair=cells[j].match(/^R(\d+)\s*L(\d+)$/i);
+        if(pair){teeDistances[tee]=Number(pair[1]);leftYards[tee]=Number(pair[2]);}
+        else if(twoGreens){
+          if(/^\d+$/.test(cells[j]))teeDistances[tee+"_BENT"]=Number(cells[j]);
+          const lower=rows[i+1]?.[j];
+          if(/^\d+$/.test(lower))teeDistances[tee+"_KORAI"]=Number(lower);
+        }else if(/^\d+$/.test(cells[j]))teeDistances[tee]=Number(cells[j]);
+      });
+      if(twoGreens)i++;
+      const tee=["REGULAR","GREEN_BENT","GREEN"].find(t=>teeDistances[t]);
+      if(tee)courses.get(title).holes.push({hole:+num,par:+par,strokeIndex:+hdcp,tee,teeDistances,leftYards,yards:teeDistances[tee],sourceUrl:url});
+    }
+  }
+  return [...courses.values()];
+}
+
+async function selectedClubScorecards(root){
+  const host=root.hostname.replace(/^www\./,""),path=root.pathname.replace(/\/$/,"");
+  let rootTitle,pages;
+  if(host==="nanso-cc.com"&&["","/course"].includes(path)){
+    rootTitle="南総カントリークラブ";
+    const url="https://nanso-cc.com/course/";
+    pages=parseSectionScorecards(await request(url,"text/html",6500),url);
+    if(pages.length!==2||pages.some(p=>p.holes.length!==18))throw Error("南総の東西18ホールの距離表を読み取れませんでした");
+  }else if(host==="mannacc.com"&&["","/course","/course/manna-course","/course/gp-course"].includes(path)){
+    rootTitle="真名カントリークラブ";
+    const urls=["manna-course","gp-course"].filter(part=>!path.endsWith("-course")||path.endsWith(part)).map(part=>"https://www.mannacc.com/course/"+part+"/");
+    pages=(await Promise.all(urls.map(async url=>{
+      const sections=parseSectionScorecards(await request(url,"text/html",6500),url);
+      const split=url.includes("/manna-course/");
+      if(sections.length!==(split?3:1)||sections.some(p=>p.holes.length!==(split?9:18)))throw Error("真名の距離表を最後まで読み取れませんでした");
+      return sections;
+    }))).flat();
+  }else if(host==="pacificgolf.co.jp"&&["/ishioka","/ishioka/course.asp"].includes(path)){
+    rootTitle="PGM石岡ゴルフクラブ";
+    const url="https://www.pacificgolf.co.jp/ishioka/course.asp";
+    try{
+      const html=await request(url,"text/html",3500);
+      const holes=parseColorScorecard(html,url);
+      if(holes.length!==18)throw Error("距離表未取得");
+      pages=[{title:"コース情報",url,holes}];
+    }catch{
+      const {url:source,rows}=require("./data/ishioka.json");
+      const holes=rows.map(([hole,par,strokeIndex,BLACK,BLUE,WHITE,GOLD,RED])=>({hole,par,strokeIndex,tee:"WHITE",yards:WHITE,teeDistances:{BLACK,BLUE,WHITE,GOLD,RED},sourceUrl:source}));
+      pages=[{title:"コース情報",url:source,sourceLabel:"GDO掲載の距離表（2026年11月19日確認）",holes}];
+    }
+  }else return null;
+  if(!pages.length)throw Error("コースの距離表を取得できませんでした");
+  return {root:root.href,rootTitle,pages,images:[]};
+}
+
+function parseColorScorecard(html,url){
+  const holes=[];
+  for(const table of html.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)){
+    const rows=yardageRows(table[0]);
+    const numbers=rows.find(r=>r.includes("1")&&r.includes("9")||r.includes("10")&&r.includes("18"));
+    const data=new Map(rows.map(r=>[r[0]?.toUpperCase(),r.slice(1)]));
+    const colors=["BLACK","BLUE","WHITE","GOLD","RED"];
+    if(!numbers||!colors.every(t=>data.has(t))||!data.has("PAR")||!data.has("HDCP"))continue;
+    for(const [i,n] of numbers.filter(v=>/^\d{1,2}$/.test(v)).entries()){
+      const teeDistances=Object.fromEntries(colors.map(t=>[t,Number(data.get(t)[i])]));
+      if(!Object.values(teeDistances).every(y=>y>0))continue;
+      holes.push({hole:+n,par:+data.get("PAR")[i],strokeIndex:+data.get("HDCP")[i],tee:"WHITE",yards:teeDistances.WHITE,teeDistances,sourceUrl:url});
+    }
+  }
+  const unique=[...new Map(holes.map(h=>[h.hole,h])).values()].sort((a,b)=>a.hole-b.hole);
+  return unique.every((h,i)=>h.hole===i+1&&h.par>=3&&h.par<=5)?unique:[];
+}
 function parsePage(html, pageUrl, via) {
   const page = new URL(pageUrl), title = clean((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || page.hostname);
   const links = [];
@@ -386,6 +473,8 @@ exports.handler = async (event) => {
     if (!raw) return { statusCode: 400, headers, body: JSON.stringify({ error: "公式サイトURLを指定してください" }) };
     const root = new URL(raw);
     if (!["http:", "https:"].includes(root.protocol) || root.hostname === "localhost" || root.hostname.endsWith(".local") || /^\d{1,3}(\.\d{1,3}){3}$/.test(root.hostname)) throw new Error("このURLは確認できません");
+    const selected=await selectedClubScorecards(root);
+    if(selected)return {statusCode:200,headers,body:JSON.stringify(selected)};
     const first = await getPage(root.href), rootData = parsePage(first.html, root.href, first.via);
     const rootHost=root.hostname.replace(/^www\./,"");
     const clubPath=root.pathname.match(/^\/(?:grand\/[^/]+|golfCourse\/[^/]+\/[^/]+)(?:\/|$)/i)?.[0].replace(/\/$/,"");
