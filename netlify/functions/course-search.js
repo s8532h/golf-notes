@@ -237,15 +237,60 @@ function parseLabeledHoles(html,pageUrl,courseName){
  }
  return rows;
 }
+function parseHoleCards(html, pageUrl, courseName) {
+  const headings = [...html.matchAll(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi)];
+  const rows = [];
+  const handicap = new Map();
+  const cells = row => [...row.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell => clean(cell[1]));
+  for (const table of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)) {
+    const trs = [...table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(tr => cells(tr[1]));
+    const holes = trs.find(row => /^HOLES?$/i.test(row[0]));
+    const indices = trs.find(row => /^HDCP$/i.test(row[0]));
+    if (holes && indices) holes.forEach((label,i)=>{
+      const n = label.match(/^(?:No\.?\s*)?(\d{1,2})$/i);
+      if(n && /^[0-9]+$/.test(indices[i])) handicap.set(Number(n[1]), Number(indices[i]));
+    });
+  }
+  const teeNames = new Map([["バック","BACK"],["レギュラー","REGULAR"],["フロント","FRONT"],["レディース","LADY"]]);
+  headings.forEach((heading,i)=>{
+    const match = clean(heading[2]).match(/^(\d{1,2})\s*Hole\s*Par\s*([3-6])$/i);
+    if (!match) return;
+    const hole = Number(match[1]), par = Number(match[2]);
+    if (hole<1 || hole>18) return;
+    const block = html.slice(heading.index+heading[0].length,headings[i+1]?.index);
+    const table = block.match(/<table\b[^>]*>([\s\S]*?)<\/table>/i);
+    if (!table) return;
+    const trs = [...table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(tr=>cells(tr[1]));
+    const keys = (trs[0]||[]).map(name=>teeNames.get(name));
+    const teeDistances = {};
+    for (const row of trs.slice(1)) {
+      const green = row[0]?.toUpperCase();
+      if (!/^(OLD|NEW|A|B)$/.test(green)) continue;
+      keys.forEach((key,j)=>{
+        const distance = row[j]?.match(/^(\d{2,3})\s*(?:Y|YD)?$/i);
+        if (key && distance) teeDistances[key+"_"+green]=Number(distance[1]);
+      });
+    }
+    const tee = Object.keys(teeDistances).find(key=>key.startsWith("REGULAR_")) || Object.keys(teeDistances)[0];
+    if (!tee) return;
+    const description = clean(block.match(/<p\b[^>]*class=["']txt["'][^>]*>([\s\S]*?)<\/p>/i)?.[1]||"");
+    const imageUrl = extractImages(block,pageUrl).find(image=>/hole\s*map/i.test(image.alt)||/\/course\/(?:east|west)\/c_[ew]\d+\.jpg$/i.test(image.url))?.url||"";
+    rows.push({hole,par,strokeIndex:handicap.get(hole)??null,tee,teeDistances,yards:teeDistances[tee],description,imageUrl,course:courseName,sourceUrl:pageUrl});
+  });
+  return rows;
+}
 function parsePage(html, pageUrl, via) {
   const page = new URL(pageUrl), title = clean((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || page.hostname);
   const links = [];
   for (const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
     const href = (m[1].match(/\bhref=["']([^"']+)["']/i) || [])[1]; if (!href) continue;
     const u = safeUrl(href, page.href); if (!u || u.hostname !== page.hostname) continue;
+    u.hash="";
     const label = clean(m[2]) + " " + clean((m[2].match(/<img\b[^>]*alt=["]([^"]*)/i)||[])[1]||"");
     if (/(コース|レイアウト|ホール|course|layout|hole|east|west|south|north|東|西|南|北|no[._-]?[0-9]+|\/[0-9]+\.html|course_[a-z0-9]+)/i.test(label + " " + u.pathname) && !links.some(x=>x.url===u.href)) links.push({ title: label || u.pathname, url: u.href });
   }
+  const cards=parseHoleCards(html,page.href,title);
+  if(cards.length)return {title,url:page.href,links,images:extractImages(html,page.href),holes:cards,via};
   const matrix=parseAnegasakiTables(html,page.href,title);
   const details=parseHoleData(html,page.href,title);
   const scores=matrix.length?matrix:parseMatrixTables(html,page.href,title);
