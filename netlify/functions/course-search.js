@@ -330,6 +330,25 @@ function parseOfficialSections(html,pageUrl) {
     const rows=yardageRows(info[0]);
     add(+info[1],+info[2],info[3],teeColumns(rows.map(r=>r[0].toUpperCase()),rows.map(r=>r[1])),"コース情報",info[0],/\/course\/[AB]-h\d+\.svg$/i,/<div id="course_info_txt">\s*<p>([\s\S]*?)<\/p>/i);
   }
+  blocks(/<h3\b[^>]*>\s*HOLE\s*(\d+)\s*<font>\s*[｜|]\s*PAR\s*(\d+)\s*HDCP\s*(\d+)\s*<\/font>\s*<\/h3>/gi,(m,block)=>{
+    const table=block.match(/<table\b[^>]*>[\s\S]*?<\/table>/i);
+    if(!table)return;
+    const [labels,row]=yardageRows(table[0]);
+    if(row)add(+m[1],+m[2],m[3],teeValues(labels,row),"コース情報",block,/\/layout\d+\.jpg$/i);
+  });
+  const side=clean(html.match(/<h2\b[^>]*>\s*(?:EAST|WEST)\s*\/[\s\S]*?<\/h2>/i)?.[0]||"").match(/^(EAST|WEST)\s*\/\s*(?:Out|In) Course/i);
+  if(side){
+    for(const slide of html.matchAll(/<li\b[^>]*class="swiper-slide"[^>]*>([\s\S]*?)<\/li>/gi)){
+      const block=slide[1], info=clean(block).match(/^HOLE\s*(\d+)\s*[｜|]\s*PAR\s*(\d+)\s*HDCP\s*(\d+)/i);
+      if(!info)continue;
+      const distances={};
+      for(const green of block.matchAll(/<p\b[^>]*>([^<]+)グリーン<\/p>\s*(<table\b[\s\S]*?<\/table>)/gi)){
+        const [labels,row]=yardageRows(green[2]);
+        if(row)Object.assign(distances,teeValues(labels,row,"_"+green[1].trim()));
+      }
+      add(+info[1],+info[2],info[3],distances,side[1].toUpperCase()==="EAST"?"東コース":"西コース",block,/hole\d+\.png$/i);
+    }
+  }
   // Horizontal scorecards with explicitly named tee colors.
   if(!holes.length && /(?:Blue|Black)(?: Tee)?\s*<\/t[hd]>/i.test(html)){
     for(const table of html.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)){
@@ -354,7 +373,7 @@ function teeKey(label){
   const green=key.match(/^(BENT|KORAI)\s+(BLUE|WHITE|BLACK|GOLD|RED)$/);
   if(green)return green[2]+"_"+green[1];
   const aliases={CHAMPION:"CHAMP",REG:"REGULAR",LADIES:"LADY",レギュラー:"REGULAR",バック:"BACK",フロント:"FRONT",レディース:"LADY"};
-  return aliases[key]||(/^(BLACK|BLUE|WHITE|GOLD|RED|BACK|REGULAR|FRONT|PRINCE|SENIOR|LADY)$/.test(key)?key:null);
+  return aliases[key]||(/^(BLACK|BLUE|WHITE|GOLD|GREEN|RED|BACK|REGULAR|FRONT|MURASAKI|PRINCE|SENIOR|LADY)$/.test(key)?key:null);
 }
 function teeValues(labels,values,suffix=""){
   const distances={};
@@ -365,7 +384,7 @@ function teeValues(labels,values,suffix=""){
   return distances;
 }
 function scoreHole(hole,par,hdcp,teeDistances,sourceUrl){
-  const tee=["REGULAR","REGULAR_BENT","WHITE","WHITE_BENT"].find(k=>teeDistances[k])||Object.keys(teeDistances)[0];
+  const tee=["REGULAR","REGULAR_BENT","WHITE","WHITE_BENT","WHITE_A"].find(k=>teeDistances[k])||Object.keys(teeDistances)[0];
   if(!tee||hole<1||hole>18||!(par>=3&&par<=6))return null;
   return {hole,par,strokeIndex:Number(hdcp)||null,tee,teeDistances,yards:teeDistances[tee],sourceUrl};
 }
@@ -433,15 +452,19 @@ function namedScorecards(html, url) {
     const pars=rows.find(r=>/^(PAR|パー)$/i.test(r[0]));
     if(!numbers||!pars)continue;
     const tees=new Map();
+    let greenSuffix="";
     for(const [label,...values] of rows){
+      const green=label?.match(/^([A-Z])グリーン$/);
+      if(green){greenSuffix="_"+green[1];continue;}
       const key=teeKey(label);
-      if(key)tees.set(key,values);
+      if(key)tees.set(key+greenSuffix,values);
     }
     if(tees.size<2)continue;
     const heading=headings.filter(h=>h.index<table.index).pop()?.text||"";
     const section=heading.replace(/\s*(?:ヤーデージ|距離表|スコアカード|yardage|score\s*card).*$/i,"").trim();
     const name=/コース$/.test(section)&&!/(アウト|イン|OUT|IN)コース$/i.test(section)?section:"";
-    const title=[...new Set([parent,name].filter(Boolean))].join(" ")||"コース情報";
+    const courseHeading=html.slice(Math.max(0,table.index-350),table.index).match(/<th[^>]*>\s*(東|西|中|南|北)\s*<\/th>\s*<\/tr>\s*<\/table>\s*$/);
+    const title=courseHeading?courseHeading[1]+"コース":[...new Set([parent,name].filter(Boolean))].join(" ")||"コース情報";
     const handicap=rows.find(r=>/^(HANDI\s*CAP|HDCP|HCP|ハンディキャップ)$/i.test(r[0]));
     const holes=[];
     for(let i=1;i<numbers.length;i++){
@@ -466,9 +489,10 @@ function parseSectionScorecards(html, url, parent = "") {
     const twoGreens=/class=["']korai["']/i.test(table[0]);
     const previousHeading=[...html.slice(0,table.index).matchAll(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi)].pop();
     const section=rows[0]?.[0]?.match(/^([^\s]{1,24}コース)(?:\s|$)/)?.[1] || clean(previousHeading?.[1]||"");
-    const title=/^(アウト|イン)コース$/.test(section)?(parent||"コース情報"):(section||parent||"コース情報");
+    const title=/^(アウト|イン|OUT|IN)コース$/i.test(section)?(/^(OUT|IN)コース$/i.test(parent)?"コース情報":parent||"コース情報"):(section||parent||"コース情報");
     if(!title)continue;
-    const tees=rows[start].slice(3).map(t=>({REG:"REGULAR",LADIES:"LADY"})[t]||t.split(/\s|※/)[0]);
+    const shortTee=rows[start].slice(3).join(" ")==="B R S L"?{B:"BACK",R:"REGULAR",S:"SENIOR",L:"LADY"}:{};
+    const tees=rows[start].slice(3).map(t=>shortTee[t]||({REG:"REGULAR",LADIES:"LADY"})[t]||t.split(/\s|※/)[0]);
     if(!courses.has(title))courses.set(title,{title,url,holes:[]});
     for(let i=start+1;i<rows.length;i++){
       const [num,par,hdcp,...cells]=rows[i];
@@ -555,6 +579,22 @@ function parsePage(html, pageUrl, via) {
     u.hash="";
     if(!links.some(link=>link.url===u.href))links.push({title:u.pathname,url:u.href});
   }
+  if(/class="m-table -yardage"/.test(html)){
+    const scorecards=namedScorecards(html,page.href);
+    const courseBlocks=[...html.matchAll(/<h4\b[^>]*>\s*(東|西|中|南|北)\s*<\/h4>/g)];
+    courseBlocks.forEach((heading,i)=>{
+      const card=scorecards.find(c=>c.title===heading[1]+"コース");
+      if(!card)return;
+      const block=html.slice(heading.index,courseBlocks[i+1]?.index);
+      const marks=[...block.matchAll(/<p class="m-table__name">HOLE:(\d+)<\/p>/gi)];
+      marks.forEach((mark,j)=>{
+        const hole=card.holes.find(h=>h.hole===+mark[1]);
+        const img=extractImages(block.slice(mark.index,marks[j+1]?.index),page.href).find(im=>/\/courseLayout\/\d+_\d+\.jpg/i.test(im.url));
+        if(hole&&img)hole.imageUrl=img.url;
+      });
+    });
+    if(scorecards.length)return {title,url:page.href,links,images:extractImages(html,page.href),holes:[],scorecards,via};
+  }
   const sections=parseOfficialSections(html,page.href);
   if(sections.length)return {title,url:page.href,links,images:extractImages(html,page.href),holes:sections,via};
   const cards=parseHoleCards(html,page.href,title);
@@ -589,7 +629,8 @@ exports.handler = async (event) => {
     if(selected)return {statusCode:200,headers,body:JSON.stringify(selected)};
     const first = await getPage(root.href), rootData = await readCoursePage(first.html, root.href, first.via);
     const rootHost=root.hostname.replace(/^www\./,"");
-    const clubPath=root.pathname.match(/^\/(?:grand\/[^/]+|golf\/[^/]+|golfCourse\/[^/]+\/[^/]+)(?:\/|$)/i)?.[0].replace(/\/$/,"");
+    const scopedFolder=["murasaki-cc.co.jp","goldgolf.co.jp"].includes(rootHost)?root.pathname.split("/")[1]:null;
+    const clubPath=scopedFolder?"/"+scopedFolder:root.pathname.match(/^\/(?:grand\/[^/]+|golf\/[^/]+|golfCourse\/[^/]+\/[^/]+)(?:\/|$)/i)?.[0].replace(/\/$/,"");
     const sameHostLinks=(links)=>links.filter(x=>{const u=safeUrl(x.url,root.href);return u&&u.hostname.replace(/^www\./,"")===rootHost&&(!clubPath||u.pathname===clubPath||u.pathname.startsWith(clubPath+"/"));});
     const seen=new Set([root.href]), rawPages=[rootData];
     // Fetch first-level course pages concurrently. A single slow page must not block the others.
@@ -616,7 +657,7 @@ exports.handler = async (event) => {
       .filter(x=>!seen.has(x.url))
       .sort((a,b)=>Number(/no[._-]?\d+|ホール\s*\d+/i.test(b.url+" "+b.title))-Number(/no[._-]?\d+|ホール\s*\d+/i.test(a.url+" "+a.title)))
       .slice(0,36);
-    const levelTwo=(await fetchBatch(rootData.scorecards?.length?[]:rawPages.some(p=>p.scorecards?.length)?secondLinks.filter(x=>rank(x)===2):secondLinks)).filter(Boolean);
+    const levelTwo=(await fetchBatch(rootData.scorecards?.length?[]:rawPages.some(p=>p.scorecards?.length)?secondLinks.filter(x=>rank(x)===2||/course[_/-](?:out|in)\b/i.test(x.url)):secondLinks)).filter(Boolean);
     rawPages.push(...levelTwo);
     const hasScorecards=rawPages.some(p=>p.scorecards?.length);
     const pages=[];
@@ -624,6 +665,7 @@ exports.handler = async (event) => {
     const grouped=new Map();
     for(const p of rawPages){
       for(const h of (p.holes||[])){
+        if(!(h.par>=3&&h.par<=6))continue;
         const label=((h.course||"")+" "+p.title+" "+p.url);
         const match=h.course==="コース情報"?null:label.match(/(東|西|南|East|West|South)/i);
         const key=match?(match[1].toLowerCase()==="east"||match[1]==="東"?"東コース":match[1].toLowerCase()==="south"||match[1]==="南"?"南コース":"西コース"):"コース情報";
@@ -636,7 +678,7 @@ exports.handler = async (event) => {
 
       }
     }
-    for(const g of grouped.values()){g.holes.sort((a,b)=>a.hole-b.hole);pages.push(g);}
+    for(const g of grouped.values()){if(!g.holes.some(h=>Object.values(h.teeDistances||{}).some(y=>y>0)||h.yards>0))continue;g.holes.sort((a,b)=>a.hole-b.hole);pages.push(g);}
 
     if(hasScorecards){
       const cards=collectedCards();
@@ -644,7 +686,7 @@ exports.handler = async (event) => {
         const details=pages.find(p=>p.title===card.title);
         if(details)for(const h of card.holes){
           const d=details.holes.find(other=>other.hole===h.hole);
-          if(d){h.imageUrl=d.imageUrl;h.description=d.description;}
+          if(d){h.imageUrl=h.imageUrl||d.imageUrl;h.description=h.description||d.description;}
         }
       }
       const otherCourses=pages.filter(p=>p.title!=="コース情報" && p.holes.length>=9 && !cards.some(c=>c.title===p.title));

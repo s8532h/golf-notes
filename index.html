@@ -1277,9 +1277,9 @@ function canonicalCourseTee(record){
  return tee||"ティー未登録";
 }
 function courseTeeLabel(t){
- const labels={PRINCE:"プリンスティー",GREEN:"グリーンティー（レギュラー）",PINK:"ピンクティー",ORANGE:"オレンジティー",SENIOR:"シニアティー",TOURN:"トーナメントティー",CHAMP:"チャンピオンティー",BLACK:"ブラックティー",BLUE:"ブルーティー",WHITE:"ホワイトティー",GOLD:"ゴールドティー",RED:"レッドティー",BACK:"バックティー",REGULAR:"レギュラーティー",FRONT:"フロントティー",FRONT1:"フロント1",FRONT2:"フロント2",LADY:"レディースティー","掲載順1番目":"旧データ（未分類）","未分類":"未分類"};
- const m=String(t||"").match(/^(BACK|REGULAR|FRONT1|FRONT2|FRONT|LADY|BLACK|BLUE|WHITE|GOLD|RED|GREEN|ORANGE|PRINCE)_(OLD|NEW|BENT|KORAI|[ABK])$/);
- return m?labels[m[1]]+"（"+({BENT:"ベント",KORAI:"コーライ"}[m[2]]||m[2])+"グリーン）":labels[t]||String(t||"未分類");
+ const labels={MURASAKI:"むらさきティー",PRINCE:"プリンスティー",GREEN:"グリーンティー（レギュラー）",PINK:"ピンクティー",ORANGE:"オレンジティー",SENIOR:"シニアティー",TOURN:"トーナメントティー",CHAMP:"チャンピオンティー",BLACK:"ブラックティー",BLUE:"ブルーティー",WHITE:"ホワイトティー",GOLD:"ゴールドティー",RED:"レッドティー",BACK:"バックティー",REGULAR:"レギュラーティー",FRONT:"フロントティー",FRONT1:"フロント1",FRONT2:"フロント2",LADY:"レディースティー","掲載順1番目":"旧データ（未分類）","未分類":"未分類"};
+ const m=String(t||"").match(/^(BACK|REGULAR|FRONT1|FRONT2|FRONT|LADY|BLACK|BLUE|WHITE|GOLD|RED|GREEN|ORANGE|PRINCE|MURASAKI)_(OLD|NEW|BENT|KORAI|あやめ|むらさき|[ABK])$/);
+ return m?(m[1]==="GREEN"&&/^[AB]$/.test(m[2])?"グリーンティー":labels[m[1]])+"（"+({BENT:"ベント",KORAI:"コーライ"}[m[2]]||m[2])+"グリーン）":labels[t]||String(t||"未分類");
 }
 function isLikelyCourseMap(url){
  const value=String(url||"").toLowerCase();
@@ -1472,7 +1472,9 @@ function officialCourseIdentity(page){
  const courseName=siteName+(generic?"":" "+section);
  const sharedClub=new URL(page.url).pathname.match(/^\/(?:golf\/([^/]+)|([^/]+)\/course)(?:\/|$)/i);
  const clubId=host==="booking.pacificgolf.co.jp"?new URL(page.url).searchParams.get("cc_id"):host==="princehotels.co.jp"?sharedClub?.[1]:host==="alpen-group.net"?sharedClub?.[2]:null;
- const slug="official-"+host+"-"+(generic?(clubId?"main-"+clubId:"main"):section.toLowerCase().replace(/[^a-z0-9一-龯ぁ-んァ-ヶ]+/g,"-").replace(/^-|-$/g,"")||"course");
+ const facilityPath=/^(reserve\.accordiagolf\.com|goldgolf\.co\.jp|murasaki-cc\.co\.jp)$/.test(host)?new URL(page.url).pathname.split("/").filter(Boolean):[];
+ const facility=host==="reserve.accordiagolf.com"?facilityPath[2]:facilityPath[0];
+ const slug="official-"+host+"-"+(facility?facility+"-":"")+(generic?(clubId?"main-"+clubId:"main"):section.toLowerCase().replace(/[^a-z0-9一-龯ぁ-んァ-ヶ]+/g,"-").replace(/^-|-$/g,"")||"course");
  return {rootUrl,host,siteName,section,courseName,slug};
 }
 function importOfficialCourse(page){
