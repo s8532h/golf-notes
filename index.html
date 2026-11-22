@@ -229,7 +229,10 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   <div class="item" style="margin:10px 0;padding:12px;border:1px solid var(--line)">
     <b>スコアカード画像から取り込む</b>
     <p class="small">スコアカード画像を選択するとOCRで文字を読み取ります。読み取り結果を確認し、必要な箇所を修正してからラウンド記録へ反映してください。</p>
-    <input id="roundCardImage" type="file" accept="image/*" capture="environment">
+    <button type="button" class="chip" id="roundPickPhoto">写真から選ぶ</button>
+    <button type="button" class="chip" id="roundTakePhoto">カメラで撮影</button>
+    <input id="roundCardImage" type="file" accept="image/*" hidden>
+    <input id="roundCardCamera" type="file" accept="image/*" capture="environment" hidden>
     <div id="roundOcrStatus" class="small" aria-live="polite" style="margin-top:8px">画像未選択</div>
     <img id="roundCardPreview" alt="スコアカード画像プレビュー" hidden style="max-width:100%;max-height:260px;object-fit:contain;margin-top:8px;border-radius:10px">
     <textarea id="roundOcrText" rows="5" placeholder="OCR読み取り結果がここに表示されます。必要に応じて編集できます。" style="width:100%;margin-top:8px" hidden></textarea>
@@ -516,13 +519,28 @@ async function getRoundOcrWorker(){
  if(!roundOcrWorkerPromise) roundOcrWorkerPromise=window.Tesseract.createWorker('jpn+eng');
  return roundOcrWorkerPromise;
 }
-document.getElementById('roundCardImage')?.addEventListener('change',async e=>{
+const roundPhotoInput=document.getElementById('roundCardImage');
+const roundCameraInput=document.getElementById('roundCardCamera');
+document.getElementById('roundPickPhoto').onclick=()=>roundPhotoInput.click();
+document.getElementById('roundTakePhoto').onclick=()=>roundCameraInput.click();
+async function readRoundCard(e){
  const file=e.target.files?.[0];if(!file)return;
+ e.target.value='';
  const status=document.getElementById('roundOcrStatus'),preview=document.getElementById('roundCardPreview'),out=document.getElementById('roundOcrText'),apply=document.getElementById('roundOcrApply');
- preview.src=URL.createObjectURL(file);preview.hidden=false;out.hidden=false;apply.hidden=true;status.textContent='OCRエンジンを準備しています…';
- try{const worker=await getRoundOcrWorker();status.textContent='画像を読み取っています…';const result=await worker.recognize(file);out.value=result.data.text||'';status.textContent='読み取り完了。文字起こしを確認・編集してから候補入力してください。';apply.hidden=false;}
- catch(err){status.textContent='読み取りに失敗しました：'+err.message;}
-});
+ const url=URL.createObjectURL(file);
+ if(preview.src.startsWith('blob:'))URL.revokeObjectURL(preview.src);
+ preview.src=url;preview.hidden=false;out.value='';out.hidden=false;apply.hidden=true;status.textContent='OCRエンジンを準備しています…';
+ try{
+  const worker=await getRoundOcrWorker();
+  if(preview.src!==url)return;
+  status.textContent='画像を読み取っています…';
+  const result=await worker.recognize(file);
+  if(preview.src!==url)return;
+  out.value=result.data.text||'';status.textContent='読み取り完了。文字起こしを確認・編集してから候補入力してください。';apply.hidden=false;
+ }catch(err){if(preview.src===url)status.textContent='読み取りに失敗しました：'+err.message;}
+}
+roundPhotoInput.addEventListener('change',readRoundCard);
+roundCameraInput.addEventListener('change',readRoundCard);
 document.getElementById('roundOcrApply')?.addEventListener('click',()=>{
  const raw=document.getElementById('roundOcrText').value;
  // Extract numeric runs from OCR output. Only propose a sequence when exactly 9 or 18 plausible hole scores are found.
