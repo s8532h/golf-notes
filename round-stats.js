@@ -59,15 +59,12 @@ function roundStatsText(holes){
 async function readStatsTableLines(image,words,worker){
  if(!words?.length)return '';
  const holes=words.filter(w=>/^holes?$/i.test(w.text.trim()));
- const putts=words.filter(w=>/^putts?$/i.test(w.text.trim()));
- if(!holes.length||!putts.length)return '';
+ if(!holes.length)return '';
  await image.decode();
  const rows=[];
- for(const word of putts){
-  const p=word.bbox;
-  const header=holes.filter(w=>w.bbox.y1<p.y0&&Math.abs(w.bbox.x0-p.x0)<Math.max(20,p.x1-p.x0)).pop();
-  if(!header)continue;
+ for(const header of holes){
   const h=header.bbox;
+  const end=holes.find(w=>w.bbox.y0>h.y1)?.bbox.y0??image.naturalHeight;
   // Limit the crop to this card using the tint of the hole-number band.
   const scan=document.createElement('canvas');scan.width=image.naturalWidth;scan.height=1;
   const ctx=scan.getContext('2d');
@@ -96,28 +93,111 @@ async function readStatsTableLines(image,words,worker){
     token:w.text.trim(),x:Math.max(0,h.x0-3)+((w.bbox.x0+w.bbox.x1)/2-10)/scale
    }))};
   }
-  const heading=await line(h),value=await line(p);
-  const positioned=[];
+  const heading=await line(h);
   const columns=heading.columns.slice(1);
-  if(columns.length>=2 && /^holes?\s/i.test(heading.text)){
-   const gap=Math.min(...columns.slice(1).map((c,i)=>c.x-columns[i].x));
-   const labels=words.filter(w=>w.bbox.x0<columns[0].x-gap/2 && w.bbox.y0>h.y1 &&
-    w.bbox.y0<p.y0 && /^(fairway(?:s|hit|hits)?|regulation|gir)$/i.test(w.text.trim()));
-   for(const label of labels){
-    const isGreen=/regulation|gir/i.test(label.text);
-    const cells=columns.map(c=>{
-     const peers=words.filter(w=>{
-      const center=(w.bbox.y0+w.bbox.y1)/2;
-      return Math.abs((w.bbox.x0+w.bbox.x1)/2-c.x)<gap*.44 &&
-       Math.abs(center-(label.bbox.y0+label.bbox.y1)/2)<(label.bbox.y1-label.bbox.y0)*(isGreen?1.3:.8);
-     });
-     return peers.length===1?peers[0].text.trim():'?';
-    });
-    positioned.push((isGreen?'GIR ':'Fairway ')+cells.join(' '));
+  if(!/^holes?\s/i.test(heading.text)||columns.length<2)continue;
+  const gap=Math.min(...columns.slice(1).map((c,i)=>c.x-columns[i].x));
+  if(gap<=0)continue;
+  const labels=words.filter(w=>w.bbox.x0>=h.x0-gap*.5 &&
+   w.bbox.x0<columns[0].x-gap/2 && w.bbox.y0>h.y1 && w.bbox.y0<end);
+  const positioned=[];
+  for(const label of labels){
+   const name=label.text.trim().toLowerCase();
+   const box=label.bbox;
+   if(/^putts?$/.test(name)){
+    positioned.push((await line(box)).text);
+    continue;
    }
+   const green=/^(regulation|gir|パーオン)$/.test(name);
+   if(!green&&!/^(fairway(?:s|hit|hits)?|tee shot|ティーショット)$/.test(name))continue;
+   const height=box.y1-box.y0;
+   const wraps=green&&name==='regulation'||!green;
+   const other=wraps&&labels.find(w=>w!==label &&
+    Math.abs(w.bbox.x0-box.x0)<height &&
+    (green
+     ? /^green(?:s)?$/i.test(w.text.trim())&&box.y0>=w.bbox.y1&&box.y0-w.bbox.y1<height
+     : /^hits?$/i.test(w.text.trim())&&w.bbox.y0>=box.y1&&w.bbox.y0-box.y1<height));
+   const y=(Math.min(box.y0,other?.bbox.y0??box.y0)+Math.max(box.y1,other?.bbox.y1??box.y1))/2;
+   const cells=columns.map(c=>{
+    if(!/^\d+$/.test(c.token))return '?';
+    const peers=words.filter(w=>Math.abs((w.bbox.x0+w.bbox.x1)/2-c.x)<gap*.4 &&
+     Math.abs((w.bbox.y0+w.bbox.y1)/2-y)<height);
+    const token=peers.length===1?peers[0].text.trim():'';
+    const explicit=green?/^(?:yes|no|hit|miss|[○〇◯✓✔×✗✕✖])$/i:/^(?:left|center|centre|right|[←↖↑→↗↓])$/i;
+    return explicit.test(token)?token:readStatsSymbol(image,c.x,y,gap,height,green);
+   });
+   positioned.push((green?'GIR ':'Fairway ')+cells.join(' '));
   }
-  const block=[heading.text,value.text,...positioned].join('\n');
+  const block=[heading.text,...positioned].join('\n');
   if(Object.values(parseRoundStats(block).holes).some(v=>Object.keys(v).length))rows.push(block);
  }
  return rows.join('\n---\n');
+}
+
+// Normalize a glyph to its ink bounds before comparing it with examples.
+function statsSymbolMask(ctx,width,height){
+ const pixels=ctx.getImageData(0,0,width,height).data;
+ let left=width,right=-1,top=height,bottom=-1;
+ const ink=(x,y)=>{
+  const i=4*(y*width+x);
+  return Math.min(pixels[i],pixels[i+1],pixels[i+2])<165;
+ };
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  if(!ink(x,y))continue;
+  left=Math.min(left,x);right=Math.max(right,x);
+  top=Math.min(top,y);bottom=Math.max(bottom,y);
+ }
+ const w=right-left+1,h=bottom-top+1;
+ if(w<4||h<4||left===0||right===width-1||top===0||bottom===height-1)return null;
+ return {ratio:w/h,ink:Array.from({length:256},(_,i)=>ink(
+  left+Math.floor((i%16+.5)*w/16),top+Math.floor((Math.floor(i/16)+.5)*h/16)
+ ))};
+}
+const roundStatsSymbolTemplates=new Map();
+function readStatsSymbol(image,x,y,gap,height,green){
+ const canvas=document.createElement('canvas');
+ canvas.width=Math.floor(gap*.84);
+ canvas.height=Math.ceil(Math.min(gap*.95,height*2.4));
+ if(canvas.width<8||canvas.height<8)return '?';
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});
+ ctx.fillStyle='white';ctx.fillRect(0,0,canvas.width,canvas.height);
+ ctx.drawImage(image,Math.round(x-canvas.width/2),Math.round(y-canvas.height/2),
+  canvas.width,canvas.height,0,0,canvas.width,canvas.height);
+ const mask=statsSymbolMask(ctx,canvas.width,canvas.height);
+ if(!mask)return '?';
+ if(!roundStatsSymbolTemplates.has(green)){
+  canvas.width=canvas.height=48;
+  const groups=green?{'✓':'✓✔○','×':'×✕✖✗'}:{'←':'←↖','↑':'↑','→':'→↗','↓':'↓'};
+  const templates=[];
+  for(const [value,glyphs] of Object.entries(groups))for(const glyph of glyphs){
+   for(const circled of [false,true]){
+    for(const weight of [400,700]){
+     ctx.fillStyle='white';ctx.fillRect(0,0,48,48);
+     ctx.fillStyle=ctx.strokeStyle='black';
+     if(circled){
+      ctx.lineWidth=2;ctx.beginPath();ctx.arc(24,24,17,0,Math.PI*2);ctx.stroke();
+     }
+     ctx.font=weight+' '+(circled?24:36)+'px sans-serif';
+     ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(glyph,24,24);
+     const sample=statsSymbolMask(ctx,48,48);
+     if(sample)templates.push({value,...sample});
+    }
+   }
+  }
+  roundStatsSymbolTemplates.set(green,templates);
+ }
+ const scores=new Map();
+ for(const sample of roundStatsSymbolTemplates.get(green)){
+  const stretch=Math.abs(Math.log(mask.ratio/sample.ratio));
+  if(stretch>.5)continue;
+  let union=0,difference=0;
+  mask.ink.forEach((pixel,i)=>{
+   if(pixel||sample.ink[i])union++;
+   if(pixel!==sample.ink[i])difference++;
+  });
+  const score=difference/union+stretch*.2;
+  scores.set(sample.value,Math.min(scores.get(sample.value)??Infinity,score));
+ }
+ const [best,next]=[...scores].sort((a,b)=>a[1]-b[1]);
+ return best&&best[1]<=.43&&(!next||next[1]-best[1]>=.09)?best[0]:'?';
 }

@@ -265,8 +265,8 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
       </div>
       <details id="roundStatsEditor"><summary>ホール別Statsを確認・修正</summary>
         <p class="small">写真と照合し、方向やパーオンの記号を修正できます。空欄は未記録です。</p>
-        <table><thead><tr><th>H</th><th>ティーショット</th><th>パット</th><th>パーオン</th></tr></thead><tbody id="roundStatsRows"></tbody></table>
         <p id="roundStatsRate" class="small" aria-live="polite"></p>
+        <table><thead><tr><th>H</th><th>ティーショット</th><th>パット</th><th>パーオン</th></tr></thead><tbody id="roundStatsRows"></tbody></table>
       </details>
       <label class="small" for="roundMemo">振り返り（任意）</label><textarea id="roundMemo" rows="2" placeholder="今日の良かった点・次回の課題" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;font:inherit;margin:8px 0 11px"></textarea>
       <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px">
@@ -497,7 +497,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   </section>
 </section>
 </main>
-<script src="round-stats.js"></script>
+<script src="round-stats.js?v=2"></script>
 <script src="round-prep.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -610,7 +610,12 @@ function applyStats(stats){
  const editor=document.getElementById('roundStatsEditor');
  editor.closest('.optional-fields').open=true;editor.open=true;
  const counts=Object.values(stats.holes);
- const message=fields?'パット '+counts.filter(h=>h.putts!=null).length+'H・方向 '+counts.filter(h=>h.direction!=null).length+'H・パーオン '+counts.filter(h=>h.gir!=null).length+'Hを読み込みました。空欄は写真で確認してください。':'ホール番号と数値を対応付けられませんでした。写真を見ながら表に入力してください。';
+ const directions=counts.filter(h=>h.direction!=null).length,girs=counts.filter(h=>h.gir!=null).length;
+ const missing=[!directions?'Fairway Hit（ティーショット方向）':'',!girs?'Green in Regulation（パーオン）':''].filter(Boolean);
+ const message=fields
+  ?'パット '+counts.filter(h=>h.putts!=null).length+'H・方向 '+directions+'H・パーオン '+girs+'Hを読み込みました。'+
+   (missing.length?' '+missing.join('・')+'の記号が写っている画像を選んでください。':'')
+  :'ホール番号と各項目を対応付けられませんでした。ホール番号と対象の行が一緒に写っている画像を選んでください。';
  document.getElementById('roundApplyFeedback').textContent=message;
  document.getElementById('roundStatsRate').textContent=message+' '+roundStatsRate(readStatsRows());
  editor.scrollIntoView({behavior:'smooth',block:'start'});
