@@ -236,8 +236,8 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <div id="roundOcrStatus" class="small" aria-live="polite" style="margin-top:8px">画像未選択</div>
     <div id="roundCardPreview"></div>
     <textarea id="roundOcrText" rows="5" placeholder="OCR読み取り結果がここに表示されます。必要に応じて編集できます。" style="width:100%;margin-top:8px" hidden></textarea>
-    <button class="chip" id="roundOcrApply" type="button" hidden>OCR結果からホール別スコアを候補入力</button>
-    <button class="chip" id="roundStatsApply" type="button" hidden>Statsを読み込む</button>
+    <button class="chip" id="roundOcrApply" type="button" hidden>読み取り結果をラウンドに反映</button>
+
     <p id="roundApplyFeedback" class="small" role="status" aria-live="polite"></p>
     <p class="small">※OCRは数字や列位置を誤認識することがあります。反映後、ホール別スコア・パット数・合計を必ず確認してください。</p>
   </div>
@@ -541,7 +541,7 @@ async function readRoundCard(e){
  for(const image of preview.querySelectorAll('img'))URL.revokeObjectURL(image.src);
  preview.replaceChildren();
  document.getElementById('roundApplyFeedback').textContent='';
- out.value='';out.hidden=true;apply.hidden=true;document.getElementById('roundStatsApply').hidden=true;
+ out.value='';out.hidden=true;apply.hidden=true;
  const texts=[],failed=[];
  try{
   for(const [index,file] of files.entries()){
@@ -557,11 +557,16 @@ async function readRoundCard(e){
    status.textContent=(index+1)+' / '+files.length+'枚を読み取っています…';
    try{
     const result=await worker.recognize(file);
-    const text=result.data.text.trim();
+    let text=result.data.text.trim();
+    // Keep the full OCR even if a region cannot be recognized separately.
+    try{
+     const table=await readStatsTableLines(preview.children[index],result.data.words,worker);
+     if(table)text+='\n---\n'+table;
+    }catch{/* The original text remains editable. */}
     if(text)texts.push(text);else failed.push(index+1);
    }catch{failed.push(index+1);}
   }
-  out.value=texts.join('\n---\n');out.hidden=false;apply.hidden=false;document.getElementById('roundStatsApply').hidden=false;
+  out.value=texts.join('\n---\n');out.hidden=false;apply.hidden=false;
   status.textContent=files.length+'枚中'+texts.length+'枚を読み取りました。'+(failed.length?'読み取れなかった写真：'+failed.join('、')+'枚目。':'')+'内容を確認してください。';
  }catch(err){
   roundOcrWorkerPromise=null;
@@ -590,8 +595,7 @@ function refreshStats(){
  if(values.filter(h=>h.putts!=null).length===18)document.getElementById('roundPutts').value=values.reduce((s,h)=>s+h.putts,0);
 }
 statsRows.addEventListener('input',refreshStats);
-document.getElementById('roundStatsApply').onclick=()=>{
- const stats=parseRoundStats(document.getElementById('roundOcrText').value);
+function applyStats(stats){
  let fields=0;
  for(const [n,h] of Object.entries(stats.holes)){
   const [dir,putts,gir]=statsRows.rows[n-1].querySelectorAll('select,input');
@@ -599,15 +603,19 @@ document.getElementById('roundStatsApply').onclick=()=>{
   if(h.putts!=null){putts.value=h.putts;fields++;}
   if(h.gir!=null){gir.value=h.gir?'yes':'no';fields++;}
  }
+ const grossField=document.getElementById('roundScore');
+ if(stats.totals.gross!=null&&!grossField.value){grossField.value=stats.totals.gross;fields++;}
  if(stats.totals.putts!=null){document.getElementById('roundPutts').value=stats.totals.putts;fields++;}
  refreshStats();
  const editor=document.getElementById('roundStatsEditor');
  editor.closest('.optional-fields').open=true;editor.open=true;
- const message=fields?fields+'項目を読み込みました。写真と照合してください。':'ホール番号と数値を対応付けられませんでした。写真を見ながら表に入力してください。';
+ const counts=Object.values(stats.holes);
+ const message=fields?'パット '+counts.filter(h=>h.putts!=null).length+'H・方向 '+counts.filter(h=>h.direction!=null).length+'H・パーオン '+counts.filter(h=>h.gir!=null).length+'Hを読み込みました。空欄は写真で確認してください。':'ホール番号と数値を対応付けられませんでした。写真を見ながら表に入力してください。';
  document.getElementById('roundApplyFeedback').textContent=message;
  document.getElementById('roundStatsRate').textContent=message+' '+roundStatsRate(readStatsRows());
  editor.scrollIntoView({behavior:'smooth',block:'start'});
-};
+ return message;
+}
 roundPhotoInput.addEventListener('change',readRoundCard);
 roundCameraInput.addEventListener('change',readRoundCard);
 document.getElementById('roundOcrApply')?.addEventListener('click',()=>{
@@ -616,11 +624,16 @@ document.getElementById('roundOcrApply')?.addEventListener('click',()=>{
  const field=document.getElementById('roundHoleScores');
  const lines=raw.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&line!=='---');
  const label=/^(?:scores?|gross|スコア|打数)\s*[:：]?\s*(?=\d)/i;
+ const stats=parseRoundStats(raw);
+ const hasStats=/^(?:putts?|fairway|chip shots|green in|パット|パーオン)\b/im.test(raw)||Object.keys(stats.holes).length>0;
+ let statsMessage='';
+ if(hasStats)statsMessage=applyStats(stats);
  const labeled=lines.filter(line=>label.test(line));
  const scoreLines=labeled.length?labeled.map(line=>line.replace(label,'')):lines;
  const numeric=scoreLines.every(line=>/^\d+(?:[、,\s]+\d+)*$/.test(line));
  const scores=numeric?scoreLines.join(' ').split(/[、,\s]+/).map(Number):[];
  if(![9,18].includes(scores.length)||scores.some(n=>n<1||n>20)){
+  if(hasStats)return;
   feedback.textContent='ホール別の打数を特定できませんでした。Scores画面の写真を選ぶか、上の読み取り結果を9個または18個の打数だけに直して、もう一度このボタンを押してください。';
   return;
  }
@@ -628,7 +641,7 @@ document.getElementById('roundOcrApply')?.addEventListener('click',()=>{
  field.value=scores.join(',');
  document.getElementById('roundScore').value=sum;
  const message=scores.length+'ホール分の候補を入力しました（合計'+sum+'打）。画像と照合してください。';
- feedback.textContent=message;
+ feedback.textContent=[statsMessage,message].filter(Boolean).join(' ');
  document.getElementById('holeEntryStatus').textContent=message;
  field.closest('details').open=true;
  field.scrollIntoView({behavior:'smooth',block:'center'});
