@@ -237,6 +237,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <div id="roundCardPreview"></div>
     <textarea id="roundOcrText" rows="5" placeholder="OCR読み取り結果がここに表示されます。必要に応じて編集できます。" style="width:100%;margin-top:8px" hidden></textarea>
     <button class="chip" id="roundOcrApply" type="button" hidden>OCR結果からホール別スコアを候補入力</button>
+    <button class="chip" id="roundStatsApply" type="button" hidden>Statsを読み込む</button>
     <p id="roundApplyFeedback" class="small" role="status" aria-live="polite"></p>
     <p class="small">※OCRは数字や列位置を誤認識することがあります。反映後、ホール別スコア・パット数・合計を必ず確認してください。</p>
   </div>
@@ -262,6 +263,11 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
         <div><label class="small" for="roundMiss">主なミス傾向</label><select id="roundMiss"><option value="">未記録</option><option>右プッシュ・スライス</option><option>左引っかけ・チーピン</option><option>ダフリ</option><option>トップ</option><option>距離不足</option><option>方向性のばらつき</option><option>特になし</option></select></div>
         <div><label class="small" for="roundApproach">アプローチの課題</label><select id="roundApproach"><option value="">未記録</option><option>ショート</option><option>オーバー</option><option>ダフリ</option><option>トップ</option><option>距離感が安定</option><option>寄せワン成功</option></select></div>
       </div>
+      <details id="roundStatsEditor"><summary>ホール別Statsを確認・修正</summary>
+        <p class="small">写真と照合し、方向やパーオンの記号を修正できます。空欄は未記録です。</p>
+        <table><thead><tr><th>H</th><th>ティーショット</th><th>パット</th><th>パーオン</th></tr></thead><tbody id="roundStatsRows"></tbody></table>
+        <p id="roundStatsRate" class="small" aria-live="polite"></p>
+      </details>
       <label class="small" for="roundMemo">振り返り（任意）</label><textarea id="roundMemo" rows="2" placeholder="今日の良かった点・次回の課題" style="display:block;width:100%;border:1px solid #d9dfd5;border-radius:12px;padding:13px;font:inherit;margin:8px 0 11px"></textarea>
       <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px">
         <b>ホール別詳細入力（任意）</b>
@@ -491,6 +497,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   </section>
 </section>
 </main>
+<script src="round-stats.js"></script>
 <script src="round-prep.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -534,7 +541,7 @@ async function readRoundCard(e){
  for(const image of preview.querySelectorAll('img'))URL.revokeObjectURL(image.src);
  preview.replaceChildren();
  document.getElementById('roundApplyFeedback').textContent='';
- out.value='';out.hidden=true;apply.hidden=true;
+ out.value='';out.hidden=true;apply.hidden=true;document.getElementById('roundStatsApply').hidden=true;
  const texts=[],failed=[];
  try{
   for(const [index,file] of files.entries()){
@@ -554,7 +561,7 @@ async function readRoundCard(e){
     if(text)texts.push(text);else failed.push(index+1);
    }catch{failed.push(index+1);}
   }
-  out.value=texts.join('\n\n');out.hidden=false;apply.hidden=false;
+  out.value=texts.join('\n---\n');out.hidden=false;apply.hidden=false;document.getElementById('roundStatsApply').hidden=false;
   status.textContent=files.length+'枚中'+texts.length+'枚を読み取りました。'+(failed.length?'読み取れなかった写真：'+failed.join('、')+'枚目。':'')+'内容を確認してください。';
  }catch(err){
   roundOcrWorkerPromise=null;
@@ -563,13 +570,51 @@ async function readRoundCard(e){
   pick.disabled=camera.disabled=false;
  }
 }
+const statsRows=document.getElementById('roundStatsRows');
+for(let n=1;n<=18;n++){
+ const row=statsRows.insertRow();
+ row.innerHTML=`<th scope="row">${n}</th><td><select aria-label="${n}H ティーショット方向"><option value="">—</option><option>左</option><option>中央</option><option>右</option><option>ショート</option><option>オーバー</option></select></td><td><input type="number" min="0" max="10" step="1" aria-label="${n}H パット数" style="width:4em"></td><td><select aria-label="${n}H パーオン"><option value="">—</option><option value="yes">○</option><option value="no">×</option></select></td>`;
+}
+function readStatsRows(){
+ const holes={};
+ Array.from(statsRows.rows).forEach((row,i)=>{
+  const [direction,putts,gir]=row.querySelectorAll('select,input');
+  if(direction.value||putts.value!==''||gir.value)holes[i+1]={direction:direction.value||null,putts:putts.value===''?null:Number(putts.value),gir:gir.value===''?null:gir.value==='yes'};
+ });
+ return holes;
+}
+function refreshStats(){
+ const holes=readStatsRows(),values=Object.values(holes);
+ document.getElementById('roundStatsRate').textContent=roundStatsRate(holes);
+ if(values.filter(h=>h.gir!=null).length===18)document.getElementById('roundGIR').value=values.filter(h=>h.gir).length;
+ if(values.filter(h=>h.putts!=null).length===18)document.getElementById('roundPutts').value=values.reduce((s,h)=>s+h.putts,0);
+}
+statsRows.addEventListener('input',refreshStats);
+document.getElementById('roundStatsApply').onclick=()=>{
+ const stats=parseRoundStats(document.getElementById('roundOcrText').value);
+ let fields=0;
+ for(const [n,h] of Object.entries(stats.holes)){
+  const [dir,putts,gir]=statsRows.rows[n-1].querySelectorAll('select,input');
+  if(h.direction!=null){dir.value=h.direction;fields++;}
+  if(h.putts!=null){putts.value=h.putts;fields++;}
+  if(h.gir!=null){gir.value=h.gir?'yes':'no';fields++;}
+ }
+ if(stats.totals.putts!=null){document.getElementById('roundPutts').value=stats.totals.putts;fields++;}
+ refreshStats();
+ const editor=document.getElementById('roundStatsEditor');
+ editor.closest('.optional-fields').open=true;editor.open=true;
+ const message=fields?fields+'項目を読み込みました。写真と照合してください。':'ホール番号と数値を対応付けられませんでした。写真を見ながら表に入力してください。';
+ document.getElementById('roundApplyFeedback').textContent=message;
+ document.getElementById('roundStatsRate').textContent=message+' '+roundStatsRate(readStatsRows());
+ editor.scrollIntoView({behavior:'smooth',block:'start'});
+};
 roundPhotoInput.addEventListener('change',readRoundCard);
 roundCameraInput.addEventListener('change',readRoundCard);
 document.getElementById('roundOcrApply')?.addEventListener('click',()=>{
  const raw=document.getElementById('roundOcrText').value.normalize('NFKC').trim();
  const feedback=document.getElementById('roundApplyFeedback');
  const field=document.getElementById('roundHoleScores');
- const lines=raw.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+ const lines=raw.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&line!=='---');
  const label=/^(?:scores?|gross|スコア|打数)\s*[:：]?\s*(?=\d)/i;
  const labeled=lines.filter(line=>label.test(line));
  const scoreLines=labeled.length?labeled.map(line=>line.replace(label,'')):lines;
@@ -682,10 +727,11 @@ roundForm.addEventListener("submit",e=>{
  if(holeScores.length&&holeScores.reduce((a,b)=>a+b,0)!==score&&!confirm("ホール別スコアの合計とラウンド総スコアが一致しません。このまま保存しますか？"))return;
  const startCourse=document.getElementById("roundStartCourse").value||null;const holes=holeScores.map((value,i)=>({number:(startCourse==="IN"?(i<9?i+10:i-8):i+1),roundOrder:i+1,half:i<9?"front":"back",score:value,putts:holePutts.length?holePutts[i]:null,par:holePars.length?holePars[i]:null,updatedAt:new Date().toISOString()}));
  const round={id:makeId(),type:"round",schemaVersion:2,category:"ラウンド記録",tag:"ラウンド",date:document.getElementById("roundDate").value,course:document.getElementById("courseName").value.trim(),startCourse,score,putts:optionalNumber("roundPutts"),ob:optionalNumber("roundOb"),fairway:optionalNumber("roundFairway"),gir:optionalNumber("roundGIR"),threePutts:optionalNumber("roundThreePutts"),penalties:optionalNumber("roundPenalty"),upDown:optionalNumber("roundUpDown"),bunkerFail:optionalNumber("roundBunker"),miss:document.getElementById("roundMiss").value,approach:document.getElementById("roundApproach").value,body:document.getElementById("roundMemo").value.trim(),holes,next:"",updatedAt:new Date().toISOString()};
+ round.holeStats=readStatsRows();
  const plan=typed("round_preparation").find(p=>p.id===document.getElementById("roundPreparation").value);
  if(plan && plan.date===round.date && plan.course===round.course && plan.start===(startCourse==="IN"?10:1))round.preparation={id:plan.id,goalType:plan.goalType,goal:plan.goal,tee:plan.tee,pars:prepHoles(plan).map(h=>h.par??null)};
  document.getElementById("roundPrepGoal").textContent="";
- saved.unshift(round);persistSaved();renderExtra();roundForm.reset();document.getElementById("roundDate").value=todayISO();
+ saved.unshift(round);persistSaved();renderExtra();roundForm.reset();refreshStats();document.getElementById("roundDate").value=todayISO();
  document.getElementById("backupStatus").textContent="ラウンド記録を保存しました。同期するには「今すぐ同期」を押してください。";
 });
 function renderRounds(){
@@ -699,7 +745,7 @@ function renderRounds(){
    const recent=rounds.slice(0,10).reverse();const min=Math.min(90,...recent.map(r=>r.score));const max=Math.max(100,...recent.map(r=>r.score));const span=Math.max(1,max-min);
    chart.innerHTML='<div class="small" style="margin-bottom:6px">直近10ラウンド（棒が短いほど好スコア）</div>'+recent.map(r=>`<div style="display:grid;grid-template-columns:88px 1fr 34px;gap:7px;align-items:center;margin:7px 0"><span class="small">${esc((r.date||"").slice(5))}</span><div style="height:10px;background:#edf3ec;border-radius:8px;overflow:hidden"><div style="height:100%;width:${Math.max(4,(r.score-min+1)/span*100)}%;background:#3f6b52;border-radius:8px"></div></div><b style="font-size:12px">${r.score}</b></div>`).join("");
  }else chart.innerHTML='<div class="empty">ラウンドを登録すると、スコア推移がここに表示されます。</div>';
- document.getElementById("roundList").innerHTML=rounds.map(r=>{const holes=Array.isArray(r.holes)?r.holes:[];const holeView=holes.length?`<details style="margin-top:9px"><summary class="small" style="cursor:pointer;color:var(--green);font-weight:700">ホール別記録（${holes.length}ホール）</summary><div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:12px;text-align:center"><thead><tr><th style="padding:5px;border-bottom:1px solid var(--line)">Hole</th>${holes.map(h=>`<th style="padding:5px;border-bottom:1px solid var(--line)">${h.number}</th>`).join("")}<th style="padding:5px;border-bottom:1px solid var(--line)">計</th></tr></thead><tbody><tr><th style="padding:5px">Score</th>${holes.map(h=>`<td style="padding:5px">${h.score??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.reduce((a,h)=>a+Number(h.score||0),0)}</td></tr><tr><th style="padding:5px">Putts</th>${holes.map(h=>`<td style="padding:5px">${h.putts??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.every(h=>h.putts!=null)?holes.reduce((a,h)=>a+Number(h.putts||0),0):"—"}</td></tr>${holes.some(h=>h.par!=null)?`<tr><th style="padding:5px">Par</th>${holes.map(h=>`<td style="padding:5px">${h.par??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.every(h=>h.par!=null)?holes.reduce((a,h)=>a+Number(h.par||0),0):"—"}</td></tr>`:""}</tbody></table></div></details>`:"";return `<div class="item" style="padding:10px 12px"><b>${esc(r.course)}</b><div class="item-meta">${esc(r.date)} ・ ${r.score}打${r.putts!=null?" ・ "+r.putts+"パット":""}${r.ob!=null?" ・ OB等 "+r.ob:""}${r.threePutts!=null?" ・ 3パット "+r.threePutts:""}${r.upDown!=null?" ・ 寄せワン "+r.upDown:""}</div>${r.body?`<p class="small">${esc(r.body)}</p>`:""}${roundGoalView(r)}${holeView}<button class="chip" data-delete-round="${esc(r.id)}" type="button" style="margin-top:8px;color:#a33;border-color:#e7caca">このラウンドを削除</button></div>`}).join("");
+ document.getElementById("roundList").innerHTML=rounds.map(r=>{const holes=Array.isArray(r.holes)?r.holes:[];const holeView=holes.length?`<details style="margin-top:9px"><summary class="small" style="cursor:pointer;color:var(--green);font-weight:700">ホール別記録（${holes.length}ホール）</summary><div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:12px;text-align:center"><thead><tr><th style="padding:5px;border-bottom:1px solid var(--line)">Hole</th>${holes.map(h=>`<th style="padding:5px;border-bottom:1px solid var(--line)">${h.number}</th>`).join("")}<th style="padding:5px;border-bottom:1px solid var(--line)">計</th></tr></thead><tbody><tr><th style="padding:5px">Score</th>${holes.map(h=>`<td style="padding:5px">${h.score??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.reduce((a,h)=>a+Number(h.score||0),0)}</td></tr><tr><th style="padding:5px">Putts</th>${holes.map(h=>`<td style="padding:5px">${h.putts??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.every(h=>h.putts!=null)?holes.reduce((a,h)=>a+Number(h.putts||0),0):"—"}</td></tr>${holes.some(h=>h.par!=null)?`<tr><th style="padding:5px">Par</th>${holes.map(h=>`<td style="padding:5px">${h.par??"—"}</td>`).join("")}<td style="padding:5px;font-weight:700">${holes.every(h=>h.par!=null)?holes.reduce((a,h)=>a+Number(h.par||0),0):"—"}</td></tr>`:""}</tbody></table></div></details>`:"";return `<div class="item" style="padding:10px 12px"><b>${esc(r.course)}</b><div class="item-meta">${esc(r.date)} ・ ${r.score}打${r.putts!=null?" ・ "+r.putts+"パット":""}${r.ob!=null?" ・ OB等 "+r.ob:""}${r.threePutts!=null?" ・ 3パット "+r.threePutts:""}${r.upDown!=null?" ・ 寄せワン "+r.upDown:""}</div>${r.body?`<p class="small">${esc(r.body)}</p>`:""}${r.holeStats&&Object.keys(r.holeStats).length?`<details><summary>ホール別Stats ${esc(roundStatsRate(r.holeStats))}</summary><p class="small">${esc(roundStatsText(r.holeStats))}</p></details>`:""}${roundGoalView(r)}${holeView}<button class="chip" data-delete-round="${esc(r.id)}" type="button" style="margin-top:8px;color:#a33;border-color:#e7caca">このラウンドを削除</button></div>`}).join("");
  renderHoleAnalytics(rounds);
  renderRoundInsights(rounds);
  document.querySelectorAll("[data-delete-round]").forEach(b=>b.onclick=()=>deleteRecord(b.dataset.deleteRound));
