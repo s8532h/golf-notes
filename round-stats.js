@@ -305,3 +305,17 @@ function readStatsBadge(image,x,y,gap,green){
  }).sort((a,b)=>b[1]-a[1]);
  return scores[0][1]>=.77&&scores[0][1]-scores[1][1]>=.14?scores[0][0]:green?'×':'';
 }
+
+function buildRoundHoles({startCourse,scores,putts,pars,stats,updatedAt}){
+ const holes=[];
+ for(let i=0;i<18;i++){
+  const number=startCourse==='IN'?(i+9)%18+1:i+1;
+  const imported=stats[number];
+  const score=scores[i]??null;
+  const puttCount=putts[i]??imported?.putts??null;
+  const par=pars[i]??imported?.par??null;
+  if(score==null&&puttCount==null&&par==null)continue;
+  holes.push({number,roundOrder:i+1,half:i<9?'front':'back',score,putts:puttCount,par,updatedAt});
+ }
+ return holes;
+}
