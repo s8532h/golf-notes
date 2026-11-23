@@ -1,7 +1,7 @@
 // Each header maps visible columns to hole numbers or to printed subtotal/total cells.
 function parseRoundStats(text){
  const holes={},totals={},conflicts=new Set();
- const directions={L:'左',LEFT:'左','←':'左','↖':'左','左':'左',C:'中央',CENTER:'中央',CENTRE:'中央',HIT:'中央','↑':'中央','中央':'中央',R:'右',RIGHT:'右','→':'右','↗':'右','右':'右',SHORT:'ショート',LONG:'オーバー','↓':'ショート'};
+ const directions={L:'左',LEFT:'左','←':'左','↖':'左','左':'左',C:'中央',CENTER:'中央',CENTRE:'中央',HIT:'中央','↑':'中央','中央':'中央',R:'右',RIGHT:'右','→':'右','↗':'右','右':'右',SHORT:'ショート',LONG:'オーバー','⇧':'オーバー','↓':'ショート'};
  const greens={TRUE:true,FALSE:false,'◯':true,'⭕':true,'✔️':true,'✕':false,'✖':false,Y:true,YES:true,HIT:true,'✓':true,'✔':true,'○':true,'〇':true,'1':true,N:false,NO:false,MISS:false,'×':false,'✗':false,'0':false};
  function merge(obj,field,value,key){
   if(value==null||conflicts.has(key))return;
@@ -35,7 +35,9 @@ function parseRoundStats(text){
   cols.forEach((c,i)=>{
    const v=values[i];
    if(c==='TOTAL'||c==='合計'){
-    if(field==='putts'&&/^\d+$/.test(v)&&+v<=80)merge(totals,'putts',+v,'total-putts');
+    const totalField=field==='direction'?'fairway':field;
+    const limit={putts:80,fairway:18,gir:18}[totalField];
+    if(/^\d+$/.test(v)&&+v<=limit)merge(totals,totalField,+v,'total-'+totalField);
     return;
    }
    if(!/^\d+$/.test(c))return;
@@ -68,7 +70,7 @@ async function readStatsTableLines(image,words,worker){
   // Limit the crop to this card using the tint of the hole-number band.
   const scan=document.createElement('canvas');scan.width=image.naturalWidth;scan.height=1;
   const ctx=scan.getContext('2d');
-  ctx.drawImage(image,0,Math.max(0,h.y0-1),scan.width,1,0,0,scan.width,1);
+  ctx.drawImage(image,0,Math.max(0,h.y0-(h.y1-h.y0)),scan.width,1,0,0,scan.width,1);
   const pixels=ctx.getImageData(0,0,scan.width,1).data;
   const tinted=x=>pixels[x*4+2]-pixels[x*4]>6 && pixels[x*4]>130 && pixels[x*4]<240;
   let right=h.x1;
@@ -98,40 +100,67 @@ async function readStatsTableLines(image,words,worker){
   if(!/^holes?\s/i.test(heading.text)||columns.length<2)continue;
   const gap=Math.min(...columns.slice(1).map((c,i)=>c.x-columns[i].x));
   if(gap<=0)continue;
+  if(!normalizeStatsColumns(columns,gap))continue;
   const labels=words.filter(w=>w.bbox.x0>=h.x0-gap*.5 &&
    w.bbox.x0<columns[0].x-gap/2 && w.bbox.y0>h.y1 && w.bbox.y0<end);
   const positioned=[];
-  for(const label of labels){
-   const name=label.text.trim().toLowerCase();
-   const box=label.bbox;
-   if(/^putts?$/.test(name)){
-    positioned.push((await line(box)).text);
-    continue;
-   }
-   const green=/^(regulation|gir|パーオン)$/.test(name);
-   if(!green&&!/^(fairway(?:s|hit|hits)?|tee shot|ティーショット)$/.test(name))continue;
-   const height=box.y1-box.y0;
-   const wraps=green&&name==='regulation'||!green;
-   const other=wraps&&labels.find(w=>w!==label &&
-    Math.abs(w.bbox.x0-box.x0)<height &&
-    (green
-     ? /^green(?:s)?$/i.test(w.text.trim())&&box.y0>=w.bbox.y1&&box.y0-w.bbox.y1<height
-     : /^hits?$/i.test(w.text.trim())&&w.bbox.y0>=box.y1&&w.bbox.y0-box.y1<height));
-   const y=(Math.min(box.y0,other?.bbox.y0??box.y0)+Math.max(box.y1,other?.bbox.y1??box.y1))/2;
+  const name=w=>w.text.trim().toLowerCase();
+  const fairway=labels.find(w=>/^(?:f[ai]{1,3}r?way(?:s|h[i]?ts?)?|tee shot|ティーショット)$/.test(name(w)));
+  const regulation=labels.find(w=>/^(regulation|gir|パーオン)$/.test(name(w)));
+  const greenIn=labels.find(w=>/^greens? in$/.test(name(w))||
+   (/^greens?$/.test(name(w))&&labels.some(v=>name(v)==='in'&&Math.abs(v.bbox.y0-w.bbox.y0)<5)));
+  const putt=labels.find(w=>/^putts?$/.test(name(w)));
+  const center=({bbox})=>(bbox.y0+bbox.y1)/2;
+  const height=({bbox})=>bbox.y1-bbox.y0;
+  const greenY=regulation
+   ?greenIn&&regulation.bbox.y0>=greenIn.bbox.y1&&regulation.bbox.y0-greenIn.bbox.y1<height(regulation)
+    ?(greenIn.bbox.y0+regulation.bbox.y1)/2:center(regulation)
+   :greenIn?center(greenIn)+height(greenIn)*.76:null;
+  const wrappedHit=fairway&&labels.find(w=>/^hits?$/.test(name(w))&&
+   Math.abs(w.bbox.x0-fairway.bbox.x0)<height(fairway)&&
+   w.bbox.y0>=fairway.bbox.y1&&w.bbox.y0-fairway.bbox.y1<height(fairway));
+  const puttY=putt?center(putt):null;
+  // In this table the three rows have equal spacing. Only recover an
+  // unrecognized Fairway label when the predicted row contains actual badges.
+  const pitch=greenY!=null&&puttY!=null?puttY-greenY:0;
+  const fairwayY=fairway
+   ?wrappedHit?(fairway.bbox.y0+wrappedHit.bbox.y1)/2:center(fairway)
+   :pitch>gap&&pitch<gap*2?greenY-pitch:null;
+  for(const [green,y,label] of [[false,fairwayY,fairway],[true,greenY,regulation||greenIn]]){
+   if(y==null||y<=h.y1)continue;
    const cells=columns.map(c=>{
-    if(!/^\d+$/.test(c.token))return '?';
+    const badge=/^\d+$/.test(c.token)?readStatsBadge(image,c.x,y,gap,green):'';
+    if(badge)return badge;
+    if(!label)return '?';
     const peers=words.filter(w=>Math.abs((w.bbox.x0+w.bbox.x1)/2-c.x)<gap*.4 &&
-     Math.abs((w.bbox.y0+w.bbox.y1)/2-y)<height);
+     Math.abs((w.bbox.y0+w.bbox.y1)/2-y)<height(label));
     const token=peers.length===1?peers[0].text.trim():'';
+    if(c.token==='TOTAL')return /^\d+$/.test(token)?token:'?';
+    if(!/^\d+$/.test(c.token))return '?';
     const explicit=green?/^(?:yes|no|hit|miss|[○〇◯✓✔×✗✕✖])$/i:/^(?:left|center|centre|right|[←↖↑→↗↓])$/i;
-    return explicit.test(token)?token:readStatsSymbol(image,c.x,y,gap,height,green);
+    return explicit.test(token)?token:readStatsSymbol(image,c.x,y,gap,height(label),green);
    });
    positioned.push((green?'GIR ':'Fairway ')+cells.join(' '));
   }
-  const block=[heading.text,...positioned].join('\n');
+  if(putt)positioned.push((await line(putt.bbox)).text.replace(/[^\p{L}\d\s]+(?=\d)/gu,''));
+  const block=['Hole '+columns.map(c=>c.token).join(' '),...positioned].join('\n');
   if(Object.values(parseRoundStats(block).holes).some(v=>Object.keys(v).length))rows.push(block);
  }
  return rows.join('\n---\n');
+}
+
+// A clipped or misread digit can be recovered when the rest of the
+// consecutive hole numbers and the regular column spacing agree.
+function normalizeStatsColumns(columns,gap){
+ for(const c of columns)c.token=c.token.toUpperCase().replace(/^[^A-Z0-9]+|[^A-Z0-9]+$/g,'');
+ const holes=columns.filter(c=>! /^(?:IN|OUT|TOTAL)$/.test(c.token));
+ const first=Number(holes[0]?.token);
+ if(first<1||!Number.isInteger(first)||first+holes.length-1>18)return false;
+ const mismatches=holes.filter((c,i)=>Number(c.token)!==first+i);
+ if(!mismatches.length)return true;
+ if(mismatches.length>1||holes.length<4||columns.some((c,i)=>i&&c.x-columns[i-1].x>gap*1.25))return false;
+ holes.forEach((c,i)=>{c.token=String(first+i);});
+ return true;
 }
 
 // Normalize a glyph to its ink bounds before comparing it with examples.
@@ -200,4 +229,51 @@ function readStatsSymbol(image,x,y,gap,height,green){
  }
  const [best,next]=[...scores].sort((a,b)=>a[1]-b[1]);
  return best&&best[1]<=.43&&(!next||next[1]-best[1]>=.09)?best[0]:'?';
+}
+
+// The scorecard draws the green check and red miss indicators as colored
+// badges. Inspect their pixels, since OCR can turn the rings into letters.
+function readStatsBadge(image,x,y,gap,green){
+ const size=Math.floor(gap*.78);
+ if(size<12)return '';
+ const canvas=document.createElement('canvas');
+ canvas.width=canvas.height=size;
+ const ctx=canvas.getContext('2d');
+ ctx.drawImage(image,Math.round(x-size/2),Math.round(y-size/2),size,size,0,0,size,size);
+ const {data}=ctx.getImageData(0,0,size,size);
+ const red=[],lime=[];
+ for(let i=0;i<size*size;i++){
+  const [r,g,b]=[data[i*4],data[i*4+1],data[i*4+2]];
+  const point=[i%size,Math.floor(i/size)];
+  if(r-g>38&&r-b>38)red.push(point);
+  if(g-r>18&&g-b>46)lime.push(point);
+ }
+ const ink=red.length>lime.length?red:lime;
+ if(ink.length<size*size*.055)return '';
+ const xs=ink.map(p=>p[0]),ys=ink.map(p=>p[1]);
+ const top=Math.min(...ys),bottom=Math.max(...ys);
+ const left=Math.min(...xs),right=Math.max(...xs);
+ const radius=(bottom-top)/2;
+ if(radius<size*.23||radius>size*.44||Math.abs(right-left-2*radius)>radius*.3)return '';
+ if(ink===lime)return green?'✓':'↑';
+ if(green)return '×';
+
+ const centerX=(left+right)/2,centerY=(top+bottom)/2;
+ // Compare the mark inside the ring with an arrow shaft and two wings.
+ const marks=ink.map(([px,py])=>[(px-centerX)/radius,(py-centerY)/radius])
+  .filter(([px,py])=>Math.hypot(px,py)<.68);
+ const distance=(x,y,ax,ay,bx,by)=>{
+  const dx=bx-ax,dy=by-ay;
+  const t=Math.max(0,Math.min(1,((x-ax)*dx+(y-ay)*dy)/(dx*dx+dy*dy)));
+  return Math.hypot(x-ax-t*dx,y-ay-t*dy);
+ };
+ const turns=[['→',1,0],['↓',0,1],['←',-1,0],['⇧',0,-1]];
+ const scores=turns.map(([symbol,dx,dy])=>{
+  const count=marks.filter(([px,py])=>{
+   const along=px*dx+py*dy,across=Math.abs(py*dx-px*dy);
+   return Math.min(distance(along,across,-.55,0,.51,0),distance(along,across,.51,0,0,.51))<.14;
+  }).length;
+  return [symbol,count/Math.max(1,marks.length)];
+ }).sort((a,b)=>b[1]-a[1]);
+ return scores[0][1]>=.77&&scores[0][1]-scores[1][1]>=.14?scores[0][0]:'';
 }

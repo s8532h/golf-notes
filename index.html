@@ -497,7 +497,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   </section>
 </section>
 </main>
-<script src="round-stats.js?v=2"></script>
+<script src="round-stats.js?v=3"></script>
 <script src="round-prep.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -606,6 +606,10 @@ function applyStats(stats){
  const grossField=document.getElementById('roundScore');
  if(stats.totals.gross!=null&&!grossField.value){grossField.value=stats.totals.gross;fields++;}
  if(stats.totals.putts!=null){document.getElementById('roundPutts').value=stats.totals.putts;fields++;}
+ for(const [key,id] of [['fairway','roundFairway'],['gir','roundGIR']]){
+  const field=document.getElementById(id);
+  if(stats.totals[key]!=null&&!field.value){field.value=stats.totals[key];fields++;}
+ }
  refreshStats();
  const editor=document.getElementById('roundStatsEditor');
  editor.closest('.optional-fields').open=true;editor.open=true;
