@@ -9,7 +9,7 @@ function parseRoundStats(text){
   if(obj[field]!=null&&obj[field]!==value){delete obj[field];conflicts.add(key);}
   else obj[field]=value;
  }
- for(const match of text.normalize('NFKC').matchAll(/\bGross\s*\/\s*Net\s*[:：]?\s*(\d{2,3})\s*\/\s*\d{2,3}\b/gi)){
+ for(const match of text.normalize('NFKC').matchAll(/\bGross\s*\/\s*Net[ \t:：]*(?:\r?\n)?[^\r\n\d/]{0,80}(\d{2,3})\s*\/\s*\d{2,3}\b/gi)){
   const gross=Number(match[1]);
   if(gross>=50&&gross<=180)merge(totals,'gross',gross,'gross');
  }
@@ -28,21 +28,22 @@ function parseRoundStats(text){
    if(!nums.length||nums.some((n,i)=>n<1||n>18||(i&&n!==nums[i-1]+1))||cols.some(x=>! /^(?:\d+|IN|OUT|TOTAL|合計)$/.test(x)))cols=[];
    continue;
   }
-  const row=line.match(/^(par|パー|putts?|パット数?|fairways?(?: hits?)?|tee shots?(?: direction| accuracy)?|ティーショット(?:方向)?|greens? in regulation|greens? in range|GIR|パーオン)\s*[:：]?\s+(.+)$/i);
+  const row=line.match(/^(par|パー|putts?|パット数?|penalties|ペナルティ(?:合計)?|fairways?(?: hits?)?|tee shots?(?: direction| accuracy)?|ティーショット(?:方向)?|greens? in regulation|greens? in range|GIR|パーオン)\s*[:：]?\s+(.+)$/i);
   if(!row||!cols.length)continue;
   const values=row[2].toUpperCase().trim().split(/[\s,]+/);
   if(values.length!==cols.length)continue;
-  const field=/^(par|パー)$/i.test(row[1])?'par':/^(putt|パット)/i.test(row[1])?'putts':/^(green|gir|パーオン)/i.test(row[1])?'gir':'direction';
+  const field=/^(penalties|ペナルティ)/i.test(row[1])?'penalties':
+   /^(par|パー)$/i.test(row[1])?'par':/^(putt|パット)/i.test(row[1])?'putts':/^(green|gir|パーオン)/i.test(row[1])?'gir':'direction';
   cols.forEach((c,i)=>{
    const v=values[i];
    if(c==='TOTAL'||c==='合計'){
     if(field==='par')return;
     const totalField=field==='direction'?'fairway':field;
-    const limit={putts:80,fairway:18,gir:18}[totalField];
+    const limit={putts:80,fairway:18,gir:18,penalties:90}[totalField];
     if(/^\d+$/.test(v)&&+v<=limit)merge(totals,totalField,+v,'total-'+totalField);
     return;
    }
-   if(!/^\d+$/.test(c))return;
+   if(field==='penalties'||!/^\d+$/.test(c))return;
    const n=Number(c),hole=holes[n]??={};
    if(field==='gir'&&greenArrows[v]){
     merge(greenMisses,n,greenArrows[v],n+'-green-direction');
@@ -166,9 +167,13 @@ async function readStatsTableLines(image,words,worker){
    });
    positioned.push((green?'GIR ':'Fairway ')+cells.join(' '));
   }
-  if(putt)positioned.push((await line(putt.bbox)).text.replace(/[^\p{L}\d\s]+(?=\d)/gu,''));
+  const penalties=labels.find(w=>/^(penalties|ペナルティ)$/.test(name(w)));
+  for(const label of [putt,penalties]){
+   if(label)positioned.push((await line(label.bbox)).text.replace(/[^\p{L}\d\s]+(?=\d)/gu,''));
+  }
   const block=['Hole '+columns.map(c=>c.token).join(' '),...positioned].join('\n');
-  if(Object.values(parseRoundStats(block).holes).some(v=>Object.keys(v).length))rows.push(block);
+  const parsed=parseRoundStats(block);
+  if(Object.keys(parsed.totals).length||Object.values(parsed.holes).some(v=>Object.keys(v).length))rows.push(block);
  }
  return rows.join('\n---\n');
 }

@@ -251,6 +251,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
     <details class="optional-fields" style="margin:8px 0 12px;border:1px solid var(--line);border-radius:12px;padding:10px 12px">
       <summary style="font-weight:750;cursor:pointer;color:var(--green)">詳細データを追加（任意）</summary>
       <p class="small">分かる項目だけでOK。空欄は「未記録」として保存します。</p>
+      <p id="roundPenaltyImport" class="small" hidden></p>
       <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <div><label class="small" for="roundPutts">パット数</label><input id="roundPutts" type="number" min="0" max="80" placeholder="36"></div>
         <div><label class="small" for="roundOb">OB数</label><input id="roundOb" type="number" min="0" max="30" placeholder="1"></div>
@@ -497,7 +498,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   </section>
 </section>
 </main>
-<script src="round-stats.js?v=4"></script>
+<script src="round-stats.js?v=5"></script>
 <script src="round-prep.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -611,8 +612,17 @@ function applyStats(stats){
   if(h.putts!=null){putts.value=h.putts;fields++;}
   if(h.gir!=null){gir.value=h.gir?'yes':'no';fields++;}
  }
- const grossField=document.getElementById('roundScore');
- if(stats.totals.gross!=null&&!grossField.value){grossField.value=stats.totals.gross;fields++;}
+ const counts=Object.values(stats.holes);
+ const completePutts=counts.filter(h=>h.putts!=null);
+ const threePutts=completePutts.length===18?completePutts.filter(h=>h.putts>=3).length:null;
+ for(const [id,value] of [['roundScore',stats.totals.gross],['roundThreePutts',threePutts]]){
+  const field=document.getElementById(id);
+  if(value!=null&&!field.value){field.value=value;fields++;}
+ }
+ const penaltyInfo=document.getElementById('roundPenaltyImport');
+ const penalties=stats.totals.penalties;
+ penaltyInfo.hidden=penalties==null;
+ penaltyInfo.textContent=penalties==null?'':'Garminのペナルティ合計 '+penalties+'。OBとそれ以外の内訳は手入力できます。';
  if(stats.totals.putts!=null){document.getElementById('roundPutts').value=stats.totals.putts;fields++;}
  for(const [key,id] of [['fairway','roundFairway'],['gir','roundGIR']]){
   const field=document.getElementById(id);
@@ -621,7 +631,6 @@ function applyStats(stats){
  refreshStats();
  const editor=document.getElementById('roundStatsEditor');
  editor.closest('.optional-fields').open=true;editor.open=true;
- const counts=Object.values(stats.holes);
  const directions=counts.filter(h=>h.direction!=null).length,girs=counts.filter(h=>h.gir!=null).length;
  const missing=[!directions?'Fairway Hit（ティーショット方向）':'',!girs?'Green in Regulation（パーオン）':''].filter(Boolean);
  const message=fields
@@ -642,7 +651,7 @@ document.getElementById('roundOcrApply')?.addEventListener('click',()=>{
  const lines=raw.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&line!=='---');
  const label=/^(?:scores?|gross|スコア|打数)\s*[:：]?\s*(?=\d)/i;
  const stats=parseRoundStats(raw);
- const hasStats=/^(?:putts?|fairway|chip shots|green in|パット|パーオン)\b/im.test(raw)||Object.keys(stats.holes).length>0;
+ const hasStats=/^(?:putts?|fairway|chip shots|green in|パット|パーオン)\b/im.test(raw)||Object.keys(stats.holes).length>0||Object.keys(stats.totals).length>0;
  let statsMessage='';
  if(hasStats)statsMessage=applyStats(stats);
  const labeled=lines.filter(line=>label.test(line));
@@ -762,6 +771,7 @@ roundForm.addEventListener("submit",e=>{
  if(plan && plan.date===round.date && plan.course===round.course && plan.start===(startCourse==="IN"?10:1))round.preparation={id:plan.id,goalType:plan.goalType,goal:plan.goal,tee:plan.tee,pars:prepHoles(plan).map(h=>h.par??null)};
  document.getElementById("roundPrepGoal").textContent="";
  saved.unshift(round);persistSaved();renderExtra();roundForm.reset();
+ document.getElementById('roundPenaltyImport').hidden=true;
  for(const option of statsRows.querySelectorAll('option[value="1オン"],option[value="キープ"]')){
   option.hidden=option.disabled=option.value==='1オン';
  }
