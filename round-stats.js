@@ -1,7 +1,8 @@
 // Each header maps visible columns to hole numbers or to printed subtotal/total cells.
 function parseRoundStats(text){
- const holes={},totals={},conflicts=new Set();
- const directions={L:'左',LEFT:'左','←':'左','↖':'左','左':'左',C:'中央',CENTER:'中央',CENTRE:'中央',HIT:'中央','↑':'中央','中央':'中央',R:'右',RIGHT:'右','→':'右','↗':'右','右':'右',SHORT:'ショート',LONG:'オーバー','⇧':'オーバー','↓':'ショート'};
+ const holes={},totals={},greenMisses={},conflicts=new Set();
+ const directions={L:'左',LEFT:'左','←':'左','↖':'左','左':'左',C:'キープ',CENTER:'キープ',CENTRE:'キープ',HIT:'キープ','↑':'キープ','中央':'キープ','キープ':'キープ',CHECK:'キープ','✓':'キープ','✔':'キープ',R:'右',RIGHT:'右','→':'右','↗':'右','右':'右',SHORT:'ショート',LONG:'オーバー','⇧':'オーバー','↓':'ショート'};
+ const greenArrows={'←':'左','↖':'左','→':'右','↗':'右','↓':'ショート','↑':'オーバー','⇧':'オーバー'};
  const greens={TRUE:true,FALSE:false,'◯':true,'⭕':true,'✔️':true,'✕':false,'✖':false,Y:true,YES:true,HIT:true,'✓':true,'✔':true,'○':true,'〇':true,'1':true,N:false,NO:false,MISS:false,'×':false,'✗':false,'0':false};
  function merge(obj,field,value,key){
   if(value==null||conflicts.has(key))return;
@@ -14,7 +15,7 @@ function parseRoundStats(text){
  }
  let cols=[];
  const normalized=text.normalize('NFKC')
-  .replace(/\bGreen(?:s)? in\s*\n\s*Regulation\b/gi,'Green in Regulation')
+  .replace(/\bGreen(?:s)? in\s*\n\s*(Regulation|Range)\b/gi,'Green in $1')
   .replace(/\bTee\s*\n\s*Shot(?:s)?\b/gi,'Tee Shot')
   .replace(/\b(Hole|Putts|Fairway|GIR|Green in Regulation)\s*\n(?=[ \t]*[\d←→↑○×])/gi,'$1 ');
  for(const raw of normalized.split(/\r?\n/)){
@@ -27,14 +28,15 @@ function parseRoundStats(text){
    if(!nums.length||nums.some((n,i)=>n<1||n>18||(i&&n!==nums[i-1]+1))||cols.some(x=>! /^(?:\d+|IN|OUT|TOTAL|合計)$/.test(x)))cols=[];
    continue;
   }
-  const row=line.match(/^(putts?|パット数?|fairways?(?: hits?)?|tee shots?(?: direction| accuracy)?|ティーショット(?:方向)?|greens? in regulation|GIR|パーオン)\s*[:：]?\s+(.+)$/i);
+  const row=line.match(/^(par|パー|putts?|パット数?|fairways?(?: hits?)?|tee shots?(?: direction| accuracy)?|ティーショット(?:方向)?|greens? in regulation|greens? in range|GIR|パーオン)\s*[:：]?\s+(.+)$/i);
   if(!row||!cols.length)continue;
   const values=row[2].toUpperCase().trim().split(/[\s,]+/);
   if(values.length!==cols.length)continue;
-  const field=/^(putt|パット)/i.test(row[1])?'putts':/^(green|gir|パーオン)/i.test(row[1])?'gir':'direction';
+  const field=/^(par|パー)$/i.test(row[1])?'par':/^(putt|パット)/i.test(row[1])?'putts':/^(green|gir|パーオン)/i.test(row[1])?'gir':'direction';
   cols.forEach((c,i)=>{
    const v=values[i];
    if(c==='TOTAL'||c==='合計'){
+    if(field==='par')return;
     const totalField=field==='direction'?'fairway':field;
     const limit={putts:80,fairway:18,gir:18}[totalField];
     if(/^\d+$/.test(v)&&+v<=limit)merge(totals,totalField,+v,'total-'+totalField);
@@ -42,9 +44,22 @@ function parseRoundStats(text){
    }
    if(!/^\d+$/.test(c))return;
    const n=Number(c),hole=holes[n]??={};
-   const value=field==='putts'?(/^\d+$/.test(v)&&+v<=10?+v:null):field==='gir'?greens[v]:directions[v];
+   if(field==='gir'&&greenArrows[v]){
+    merge(greenMisses,n,greenArrows[v],n+'-green-direction');
+    merge(hole,'gir',false,n+'-gir');
+    return;
+   }
+   const value=field==='par'?(/^[3-6]$/.test(v)?+v:null):
+    field==='putts'?(/^\d+$/.test(v)&&+v<=10?+v:null):
+    field==='gir'?greens[v]:directions[v];
    merge(hole,field,value,n+'-'+field);
   });
+ }
+ for(const [n,hole] of Object.entries(holes)){
+  if(hole.par!==3)continue;
+  if(hole.gir===true)hole.direction='1オン';
+  else if(hole.gir===false)hole.direction=greenMisses[n]??'ミス';
+  else delete hole.direction;
  }
  return {holes,totals};
 }
@@ -53,7 +68,7 @@ function roundStatsRate(holes){
  return known.length?'パーオン率 '+Math.round(100*known.filter(h=>h.gir).length/known.length)+'%（'+known.filter(h=>h.gir).length+'/'+known.length+'H判定）':'';
 }
 function roundStatsText(holes){
- return Object.entries(holes).map(([n,h])=>n+'H '+[h.direction,h.putts!=null?h.putts+'パット':'',typeof h.gir==='boolean'?(h.gir?'パーオン ○':'パーオン ×'):''].filter(Boolean).join('・')).join(' ／ ');
+ return Object.entries(holes).map(([n,h])=>n+'H '+[h.direction==='中央'?'キープ':h.direction,h.putts!=null?h.putts+'パット':'',typeof h.gir==='boolean'?(h.gir?'パーオン ○':'パーオン ×'):''].filter(Boolean).join('・')).join(' ／ ');
 }
 
 // Re-read just the table lines. The first pass supplies row locations; the
@@ -109,9 +124,18 @@ async function readStatsTableLines(image,words,worker){
   const regulation=labels.find(w=>/^(regulation|gir|パーオン)$/.test(name(w)));
   const greenIn=labels.find(w=>/^greens? in$/.test(name(w))||
    (/^greens?$/.test(name(w))&&labels.some(v=>name(v)==='in'&&Math.abs(v.bbox.y0-w.bbox.y0)<5)));
+  const par=labels.find(w=>/^(par|パー)$/.test(name(w)));
   const putt=labels.find(w=>/^putts?$/.test(name(w)));
   const center=({bbox})=>(bbox.y0+bbox.y1)/2;
   const height=({bbox})=>bbox.y1-bbox.y0;
+  if(par){
+   const values=columns.map(c=>{
+    const peers=words.filter(w=>Math.abs((w.bbox.x0+w.bbox.x1)/2-c.x)<gap*.4 &&
+     Math.abs(center(w)-center(par))<height(par));
+    return peers.length===1&&/^[3-6]$/.test(name(peers[0]))?name(peers[0]):'?';
+   });
+   positioned.push('Par '+values.join(' '));
+  }
   const greenY=regulation
    ?greenIn&&regulation.bbox.y0>=greenIn.bbox.y1&&regulation.bbox.y0-greenIn.bbox.y1<height(regulation)
     ?(greenIn.bbox.y0+regulation.bbox.y1)/2:center(regulation)
@@ -137,7 +161,7 @@ async function readStatsTableLines(image,words,worker){
     const token=peers.length===1?peers[0].text.trim():'';
     if(c.token==='TOTAL')return /^\d+$/.test(token)?token:'?';
     if(!/^\d+$/.test(c.token))return '?';
-    const explicit=green?/^(?:yes|no|hit|miss|[○〇◯✓✔×✗✕✖])$/i:/^(?:left|center|centre|right|[←↖↑→↗↓])$/i;
+    const explicit=green?/^(?:yes|no|hit|miss|[○〇◯✓✔×✗✕✖←↖↑→↗↓⇧])$/i:/^(?:left|center|centre|right|[←↖↑→↗↓])$/i;
     return explicit.test(token)?token:readStatsSymbol(image,c.x,y,gap,height(label),green);
    });
    positioned.push((green?'GIR ':'Fairway ')+cells.join(' '));
@@ -256,7 +280,6 @@ function readStatsBadge(image,x,y,gap,green){
  const radius=(bottom-top)/2;
  if(radius<size*.23||radius>size*.44||Math.abs(right-left-2*radius)>radius*.3)return '';
  if(ink===lime)return green?'✓':'↑';
- if(green)return '×';
 
  const centerX=(left+right)/2,centerY=(top+bottom)/2;
  // Compare the mark inside the ring with an arrow shaft and two wings.
@@ -275,5 +298,5 @@ function readStatsBadge(image,x,y,gap,green){
   }).length;
   return [symbol,count/Math.max(1,marks.length)];
  }).sort((a,b)=>b[1]-a[1]);
- return scores[0][1]>=.77&&scores[0][1]-scores[1][1]>=.14?scores[0][0]:'';
+ return scores[0][1]>=.77&&scores[0][1]-scores[1][1]>=.14?scores[0][0]:green?'×':'';
 }

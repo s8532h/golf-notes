@@ -497,7 +497,7 @@ button:not(.hamburger):not(.page-tab):not(.chip):not(.menu-pop button){border-ra
   </section>
 </section>
 </main>
-<script src="round-stats.js?v=3"></script>
+<script src="round-stats.js?v=4"></script>
 <script src="round-prep.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -578,7 +578,7 @@ async function readRoundCard(e){
 const statsRows=document.getElementById('roundStatsRows');
 for(let n=1;n<=18;n++){
  const row=statsRows.insertRow();
- row.innerHTML=`<th scope="row">${n}</th><td><select aria-label="${n}H ティーショット方向"><option value="">—</option><option>左</option><option>中央</option><option>右</option><option>ショート</option><option>オーバー</option></select></td><td><input type="number" min="0" max="10" step="1" aria-label="${n}H パット数" style="width:4em"></td><td><select aria-label="${n}H パーオン"><option value="">—</option><option value="yes">○</option><option value="no">×</option></select></td>`;
+ row.innerHTML=`<th scope="row">${n}</th><td><select aria-label="${n}H ティーショット方向"><option value="">—</option><option>左</option><option value="キープ">キープ</option><option value="1オン" hidden disabled>1オン</option><option>ミス</option><option>右</option><option>ショート</option><option>オーバー</option></select></td><td><input type="number" min="0" max="10" step="1" aria-label="${n}H パット数" style="width:4em"></td><td><select aria-label="${n}H パーオン"><option value="">—</option><option value="yes">○</option><option value="no">×</option></select></td>`;
 }
 function readStatsRows(){
  const holes={};
@@ -599,6 +599,14 @@ function applyStats(stats){
  let fields=0;
  for(const [n,h] of Object.entries(stats.holes)){
   const [dir,putts,gir]=statsRows.rows[n-1].querySelectorAll('select,input');
+  if(h.par!=null){
+   const par3=h.par===3;
+   const onGreen=dir.querySelector('option[value="1オン"]');
+   const fairway=dir.querySelector('option[value="キープ"]');
+   onGreen.hidden=onGreen.disabled=!par3;
+   fairway.hidden=fairway.disabled=par3;
+   if((par3&&dir.value==='キープ')||(!par3&&dir.value==='1オン'))dir.value='';
+  }
   if(h.direction!=null){dir.value=h.direction;fields++;}
   if(h.putts!=null){putts.value=h.putts;fields++;}
   if(h.gir!=null){gir.value=h.gir?'yes':'no';fields++;}
@@ -753,7 +761,11 @@ roundForm.addEventListener("submit",e=>{
  const plan=typed("round_preparation").find(p=>p.id===document.getElementById("roundPreparation").value);
  if(plan && plan.date===round.date && plan.course===round.course && plan.start===(startCourse==="IN"?10:1))round.preparation={id:plan.id,goalType:plan.goalType,goal:plan.goal,tee:plan.tee,pars:prepHoles(plan).map(h=>h.par??null)};
  document.getElementById("roundPrepGoal").textContent="";
- saved.unshift(round);persistSaved();renderExtra();roundForm.reset();refreshStats();document.getElementById("roundDate").value=todayISO();
+ saved.unshift(round);persistSaved();renderExtra();roundForm.reset();
+ for(const option of statsRows.querySelectorAll('option[value="1オン"],option[value="キープ"]')){
+  option.hidden=option.disabled=option.value==='1オン';
+ }
+ refreshStats();document.getElementById("roundDate").value=todayISO();
  document.getElementById("backupStatus").textContent="ラウンド記録を保存しました。同期するには「今すぐ同期」を押してください。";
 });
 function renderRounds(){
